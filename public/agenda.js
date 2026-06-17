@@ -5,6 +5,9 @@ const loginError = document.querySelector("#agendaLoginError");
 const employeeName = document.querySelector("#agendaEmployeeName");
 const logoutButton = document.querySelector("#agendaLogoutButton");
 const agendaDate = document.querySelector("#agendaDate");
+const agendaPrevDay = document.querySelector("#agendaPrevDay");
+const agendaNextDay = document.querySelector("#agendaNextDay");
+const agendaToday = document.querySelector("#agendaToday");
 const agendaRangeLabel = document.querySelector("#agendaRangeLabel");
 const agendaList = document.querySelector("#agendaList");
 
@@ -94,6 +97,13 @@ function toApiDate(value) {
   return `${match[3]}-${match[2]}-${match[1]}`;
 }
 
+function addDays(value, days) {
+  const apiDate = toApiDate(value) || today;
+  const date = new Date(`${apiDate}T12:00:00`);
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
 function formatDateInput(value) {
   const digits = String(value).replace(/\D/g, "").slice(0, 8);
   if (digits.length <= 2) return digits;
@@ -139,6 +149,18 @@ logoutButton.addEventListener("click", async () => {
 agendaDate.addEventListener("change", loadAgenda);
 agendaDate.addEventListener("input", () => {
   agendaDate.value = formatDateInput(agendaDate.value);
+});
+agendaPrevDay.addEventListener("click", async () => {
+  agendaDate.value = toDisplayDate(addDays(agendaDate.value, -1));
+  await loadAgenda();
+});
+agendaNextDay.addEventListener("click", async () => {
+  agendaDate.value = toDisplayDate(addDays(agendaDate.value, 1));
+  await loadAgenda();
+});
+agendaToday.addEventListener("click", async () => {
+  agendaDate.value = toDisplayDate(today);
+  await loadAgenda();
 });
 
 const me = await api("/api/me").catch(() => ({ employee: null }));

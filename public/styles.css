@@ -83,6 +83,19 @@ button.compact {
   padding: 0 12px;
 }
 
+.icon-button {
+  width: 44px;
+  min-width: 44px;
+  padding: 0;
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
+.today-button {
+  min-width: 76px;
+  padding: 0 14px;
+}
+
 input,
 select,
 textarea {
@@ -358,8 +371,15 @@ label {
 
 .filters {
   display: grid;
-  grid-template-columns: 160px minmax(180px, 260px);
+  grid-template-columns: minmax(300px, 420px) minmax(180px, 260px);
   gap: 10px;
+}
+
+.date-nav {
+  display: grid;
+  grid-template-columns: 44px minmax(130px, 1fr) 44px auto;
+  gap: 8px;
+  align-items: center;
 }
 
 .booking-list {
@@ -485,8 +505,11 @@ label {
   .stats,
   .grid-2,
   .grid-3,
-  .filters,
   .booking-row {
+    grid-template-columns: 1fr;
+  }
+
+  .filters {
     grid-template-columns: 1fr;
   }
 

@@ -10,6 +10,9 @@ const logoutButton = document.querySelector("#logoutButton");
 const resetFormButton = document.querySelector("#resetFormButton");
 const formTitle = document.querySelector("#formTitle");
 const filterDate = document.querySelector("#filterDate");
+const prevDayButton = document.querySelector("#prevDayButton");
+const nextDayButton = document.querySelector("#nextDayButton");
+const todayButton = document.querySelector("#todayButton");
 const searchInput = document.querySelector("#searchInput");
 const rangeLabel = document.querySelector("#rangeLabel");
 const todayCount = document.querySelector("#todayCount");
@@ -179,6 +182,13 @@ function toApiDate(value) {
   return `${match[3]}-${match[2]}-${match[1]}`;
 }
 
+function addDays(value, days) {
+  const apiDate = toApiDate(value) || today;
+  const date = new Date(`${apiDate}T12:00:00`);
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
 function formatDateInput(value) {
   const digits = String(value).replace(/\D/g, "").slice(0, 8);
   if (digits.length <= 2) return digits;
@@ -289,6 +299,18 @@ logoutButton.addEventListener("click", async () => {
 
 resetFormButton.addEventListener("click", resetForm);
 filterDate.addEventListener("change", loadBookings);
+prevDayButton.addEventListener("click", async () => {
+  filterDate.value = toDisplayDate(addDays(filterDate.value, -1));
+  await loadBookings();
+});
+nextDayButton.addEventListener("click", async () => {
+  filterDate.value = toDisplayDate(addDays(filterDate.value, 1));
+  await loadBookings();
+});
+todayButton.addEventListener("click", async () => {
+  filterDate.value = toDisplayDate(today);
+  await loadBookings();
+});
 searchInput.addEventListener("input", renderBookings);
 
 filterDate.addEventListener("input", () => {

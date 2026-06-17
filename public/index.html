@@ -167,7 +167,12 @@
                 <p id="rangeLabel"></p>
               </div>
               <div class="filters">
-                <input id="filterDate" type="text" inputmode="numeric" pattern="\d{2}/\d{2}/\d{4}" placeholder="GG/MM/AAAA" aria-label="Filtra per data">
+                <div class="date-nav" aria-label="Navigazione data agenda">
+                  <button id="prevDayButton" class="ghost icon-button" type="button" aria-label="Giorno precedente">‹</button>
+                  <input id="filterDate" type="text" inputmode="numeric" pattern="\d{2}/\d{2}/\d{4}" placeholder="GG/MM/AAAA" aria-label="Filtra per data">
+                  <button id="nextDayButton" class="ghost icon-button" type="button" aria-label="Giorno successivo">›</button>
+                  <button id="todayButton" class="ghost today-button" type="button">Oggi</button>
+                </div>
                 <input id="searchInput" type="search" placeholder="Cerca cliente o recapito">
               </div>
             </div>
@@ -176,6 +181,6 @@
         </div>
       </section>
     </main>
-    <script src="/app.js?v=7" type="module"></script>
+    <script src="/app.js?v=8" type="module"></script>
   </body>
 </html>
