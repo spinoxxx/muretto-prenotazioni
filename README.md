@@ -62,5 +62,6 @@ Variabili usate in produzione:
 - `DATA_DIR=/var/data`: salva prenotazioni e dipendenti sul disco persistente.
 - `MURETTO_ADMIN_NAME`: nome del primo admin.
 - `MURETTO_ADMIN_PIN`: PIN del primo admin, da impostare come segreto.
+- `MURETTO_SYNC_ADMIN_PIN=true`: su Render sincronizza l'admin dalle variabili ambiente a ogni avvio.
 
 Nota importante: su Render i file fuori dal disco persistente non restano garantiti tra deploy e riavvii. Per questo `render.yaml` monta un persistent disk e l'app scrive i dati in `DATA_DIR`.

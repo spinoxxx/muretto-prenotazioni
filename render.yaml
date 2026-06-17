@@ -17,6 +17,8 @@ services:
         value: Admin
       - key: MURETTO_ADMIN_PIN
         sync: false
+      - key: MURETTO_SYNC_ADMIN_PIN
+        value: "true"
     disk:
       name: muretto-data
       mountPath: /var/data

@@ -18,6 +18,7 @@ const MAX_BODY_BYTES = 32 * 1024;
 
 const DEFAULT_EMPLOYEE_NAME = process.env.MURETTO_ADMIN_NAME || "Admin";
 const DEFAULT_EMPLOYEE_PIN = process.env.MURETTO_ADMIN_PIN || "123456";
+const SYNC_ADMIN_PIN = process.env.MURETTO_SYNC_ADMIN_PIN === "true";
 
 const jsonHeaders = {
   "content-type": "application/json; charset=utf-8",
@@ -98,7 +99,29 @@ async function ensureDataFiles() {
         createdAt: new Date().toISOString()
       }
     ]);
-    console.log(`Primo accesso: dipendente "${DEFAULT_EMPLOYEE_NAME}" con PIN ${DEFAULT_EMPLOYEE_PIN}. Cambialo in produzione tramite variabile MURETTO_ADMIN_PIN.`);
+    console.log(`Primo accesso: dipendente "${DEFAULT_EMPLOYEE_NAME}" creato. Cambia il PIN in produzione tramite variabile MURETTO_ADMIN_PIN.`);
+  }
+
+  if (SYNC_ADMIN_PIN && pinIsValid(DEFAULT_EMPLOYEE_PIN)) {
+    const employees = await readJson(employeesFile, []);
+    const adminIndex = employees.findIndex((employee) => employee.name.toLowerCase() === DEFAULT_EMPLOYEE_NAME.toLowerCase());
+    const { salt, hash } = await hashPin(DEFAULT_EMPLOYEE_PIN);
+    const syncedAdmin = {
+      ...(adminIndex >= 0 ? employees[adminIndex] : {}),
+      id: adminIndex >= 0 ? employees[adminIndex].id : crypto.randomUUID(),
+      name: DEFAULT_EMPLOYEE_NAME,
+      role: "admin",
+      pinSalt: salt,
+      pinHash: hash,
+      active: true,
+      createdAt: adminIndex >= 0 ? employees[adminIndex].createdAt : new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      updatedBy: "system"
+    };
+    if (adminIndex >= 0) employees[adminIndex] = syncedAdmin;
+    else employees.push(syncedAdmin);
+    await writeJson(employeesFile, employees);
+    console.log(`Admin "${DEFAULT_EMPLOYEE_NAME}" sincronizzato dalle variabili ambiente.`);
   }
 
   try {
