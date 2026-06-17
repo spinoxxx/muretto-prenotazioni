@@ -32,8 +32,8 @@ let bookings = [];
 let currentEmployee = null;
 
 const today = new Date().toISOString().slice(0, 10);
-filterDate.value = toDisplayDate(today);
-bookingForm.elements.date.value = toDisplayDate(today);
+filterDate.value = today;
+bookingForm.elements.date.value = today;
 bookingForm.elements.time.value = "20:00";
 
 async function api(path, options = {}) {
@@ -80,7 +80,7 @@ function bookingPayload() {
 }
 
 function resetForm() {
-  const currentDate = bookingForm.elements.date.value || toDisplayDate(today);
+  const currentDate = bookingForm.elements.date.value || today;
   bookingForm.reset();
   bookingForm.elements.id.value = "";
   bookingForm.elements.date.value = currentDate;
@@ -172,13 +172,6 @@ function seatLine(booking) {
   return parts.length ? parts.map(escapeHtml).join(" · ") : "sala/tavolo da assegnare";
 }
 
-function toDisplayDate(value) {
-  if (!value) return "";
-  const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return value;
-  return `${match[3]}/${match[2]}/${match[1]}`;
-}
-
 function toApiDate(value) {
   if (!value) return "";
   const text = String(value).trim();
@@ -193,13 +186,6 @@ function addDays(value, days) {
   const date = new Date(`${apiDate}T12:00:00`);
   date.setDate(date.getDate() + days);
   return date.toISOString().slice(0, 10);
-}
-
-function formatDateInput(value) {
-  const digits = String(value).replace(/\D/g, "").slice(0, 8);
-  if (digits.length <= 2) return digits;
-  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
-  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
 }
 
 function formatDate(value) {
@@ -290,7 +276,7 @@ bookingList.addEventListener("click", async (event) => {
     for (const [key, value] of Object.entries(booking)) {
       if (bookingForm.elements[key]) bookingForm.elements[key].value = value;
     }
-    bookingForm.elements.date.value = toDisplayDate(booking.date);
+    bookingForm.elements.date.value = booking.date;
     formMessage.textContent = "";
     bookingForm.scrollIntoView({ behavior: "smooth", block: "start" });
     return;
@@ -316,26 +302,18 @@ logoutButton.addEventListener("click", async () => {
 resetFormButton.addEventListener("click", resetForm);
 filterDate.addEventListener("change", loadBookings);
 prevDayButton.addEventListener("click", async () => {
-  filterDate.value = toDisplayDate(addDays(filterDate.value, -1));
+  filterDate.value = addDays(filterDate.value, -1);
   await loadBookings();
 });
 nextDayButton.addEventListener("click", async () => {
-  filterDate.value = toDisplayDate(addDays(filterDate.value, 1));
+  filterDate.value = addDays(filterDate.value, 1);
   await loadBookings();
 });
 todayButton.addEventListener("click", async () => {
-  filterDate.value = toDisplayDate(today);
+  filterDate.value = today;
   await loadBookings();
 });
 searchInput.addEventListener("input", renderBookings);
-
-filterDate.addEventListener("input", () => {
-  filterDate.value = formatDateInput(filterDate.value);
-});
-
-bookingForm.elements.date.addEventListener("input", () => {
-  bookingForm.elements.date.value = formatDateInput(bookingForm.elements.date.value);
-});
 
 employeeForm.addEventListener("submit", async (event) => {
   event.preventDefault();

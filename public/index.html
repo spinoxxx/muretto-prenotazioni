@@ -86,7 +86,7 @@
               <div class="grid-3">
                 <label>
                   Data
-                  <input name="date" type="text" inputmode="numeric" pattern="\d{2}/\d{2}/\d{4}" placeholder="GG/MM/AAAA" required>
+                  <input name="date" type="date" required>
                 </label>
                 <label>
                   Ora
@@ -181,7 +181,7 @@
               <div class="filters">
                 <div class="date-nav" aria-label="Navigazione data agenda">
                   <button id="prevDayButton" class="ghost icon-button" type="button" aria-label="Giorno precedente">‹</button>
-                  <input id="filterDate" type="text" inputmode="numeric" pattern="\d{2}/\d{2}/\d{4}" placeholder="GG/MM/AAAA" aria-label="Filtra per data">
+                  <input id="filterDate" type="date" aria-label="Filtra per data">
                   <button id="nextDayButton" class="ghost icon-button" type="button" aria-label="Giorno successivo">›</button>
                   <button id="todayButton" class="ghost today-button" type="button">Oggi</button>
                 </div>
@@ -193,6 +193,6 @@
         </div>
       </section>
     </main>
-    <script src="/app.js?v=9" type="module"></script>
+    <script src="/app.js?v=10" type="module"></script>
   </body>
 </html>

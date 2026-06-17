@@ -14,7 +14,7 @@ const agendaList = document.querySelector("#agendaList");
 let csrfToken = "";
 
 const today = new Date().toISOString().slice(0, 10);
-agendaDate.value = toDisplayDate(today);
+agendaDate.value = today;
 
 async function api(path, options = {}) {
   const response = await fetch(path, {
@@ -81,13 +81,6 @@ function seatLine(booking) {
   return parts.length ? parts.map(escapeHtml).join(" · ") : "Sala/tavolo da assegnare";
 }
 
-function toDisplayDate(value) {
-  if (!value) return "";
-  const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return value;
-  return `${match[3]}/${match[2]}/${match[1]}`;
-}
-
 function toApiDate(value) {
   if (!value) return "";
   const text = String(value).trim();
@@ -102,13 +95,6 @@ function addDays(value, days) {
   const date = new Date(`${apiDate}T12:00:00`);
   date.setDate(date.getDate() + days);
   return date.toISOString().slice(0, 10);
-}
-
-function formatDateInput(value) {
-  const digits = String(value).replace(/\D/g, "").slice(0, 8);
-  if (digits.length <= 2) return digits;
-  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
-  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
 }
 
 function formatDate(value) {
@@ -147,19 +133,16 @@ logoutButton.addEventListener("click", async () => {
 });
 
 agendaDate.addEventListener("change", loadAgenda);
-agendaDate.addEventListener("input", () => {
-  agendaDate.value = formatDateInput(agendaDate.value);
-});
 agendaPrevDay.addEventListener("click", async () => {
-  agendaDate.value = toDisplayDate(addDays(agendaDate.value, -1));
+  agendaDate.value = addDays(agendaDate.value, -1);
   await loadAgenda();
 });
 agendaNextDay.addEventListener("click", async () => {
-  agendaDate.value = toDisplayDate(addDays(agendaDate.value, 1));
+  agendaDate.value = addDays(agendaDate.value, 1);
   await loadAgenda();
 });
 agendaToday.addEventListener("click", async () => {
-  agendaDate.value = toDisplayDate(today);
+  agendaDate.value = today;
   await loadAgenda();
 });
 
