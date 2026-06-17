@@ -25,6 +25,8 @@ Ruoli disponibili:
 - `staff`: inserisce e modifica prenotazioni.
 - `solo agenda`: consulta la pagina agenda con PIN, senza inserire prenotazioni e senza vedere recapiti o note interne.
 
+Gli admin possono creare e scaricare un backup dalla sezione **Backup**. L'app crea anche backup automatici nella cartella privata `data/backups/`.
+
 Per scegliere credenziali iniziali diverse:
 
 ```bash
@@ -37,6 +39,7 @@ MURETTO_ADMIN_NAME="Lucia" MURETTO_ADMIN_PIN="834921" npm start
 - Le sessioni usano cookie `HttpOnly` e `SameSite=Strict`.
 - Le modifiche alle prenotazioni richiedono un token anti-CSRF.
 - I dati restano sul computer nella cartella `data/`, ignorata da git.
+- I backup restano nella cartella privata `data/backups/`, ignorata da git, e conservano gli ultimi 30 file.
 - L'app salva solo i dati necessari alla prenotazione: nome, recapito, data, ora, persone, sala, tavolo, stato e note interne.
 - La pagina separata `/agenda.html` richiede comunque PIN e mostra solo dati minimizzati.
 - Per cancellare dati personali, elimina la prenotazione dall'agenda.
@@ -63,5 +66,7 @@ Variabili usate in produzione:
 - `MURETTO_ADMIN_NAME`: nome del primo admin.
 - `MURETTO_ADMIN_PIN`: PIN del primo admin, da impostare come segreto.
 - `MURETTO_SYNC_ADMIN_PIN=true`: su Render sincronizza l'admin dalle variabili ambiente a ogni avvio.
+- `MURETTO_BACKUP_INTERVAL_MS`: frequenza dei backup automatici in millisecondi. Default: 24 ore.
+- `MURETTO_BACKUP_RETENTION`: numero massimo di backup da conservare. Default: 30.
 
 Nota importante: su Render i file fuori dal disco persistente non restano garantiti tra deploy e riavvii. Per questo `render.yaml` monta un persistent disk e l'app scrive i dati in `DATA_DIR`.

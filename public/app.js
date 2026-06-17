@@ -19,6 +19,10 @@ const todayCount = document.querySelector("#todayCount");
 const pendingCount = document.querySelector("#pendingCount");
 const peopleCount = document.querySelector("#peopleCount");
 const staffPanel = document.querySelector("#staffPanel");
+const backupPanel = document.querySelector("#backupPanel");
+const createBackupButton = document.querySelector("#createBackupButton");
+const backupMessage = document.querySelector("#backupMessage");
+const backupDownloadLink = document.querySelector("#backupDownloadLink");
 const employeeForm = document.querySelector("#employeeForm");
 const employeeList = document.querySelector("#employeeList");
 const employeeMessage = document.querySelector("#employeeMessage");
@@ -53,6 +57,7 @@ function showLogin() {
   appView.hidden = true;
   appView.style.display = "none";
   staffPanel.hidden = true;
+  backupPanel.hidden = true;
 }
 
 function showApp(employee) {
@@ -60,6 +65,7 @@ function showApp(employee) {
   document.body.classList.add("is-authenticated");
   employeeName.textContent = employee.name;
   staffPanel.hidden = employee.role !== "admin";
+  backupPanel.hidden = employee.role !== "admin";
   loginView.hidden = true;
   loginView.style.display = "none";
   appView.hidden = false;
@@ -199,6 +205,16 @@ function formatDateInput(value) {
 function formatDate(value) {
   if (!value) return "";
   return new Intl.DateTimeFormat("it-IT", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(`${value}T12:00:00`));
+}
+
+function formatDateTime(value) {
+  return new Intl.DateTimeFormat("it-IT", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(value));
 }
 
 function escapeHtml(value) {
@@ -342,6 +358,20 @@ employeeList.addEventListener("click", async (event) => {
   if (!ok) return;
   await api(`/api/employees/${button.dataset.employeeId}`, { method: "DELETE" });
   await loadEmployees();
+});
+
+createBackupButton.addEventListener("click", async () => {
+  backupMessage.textContent = "Creazione backup in corso...";
+  backupDownloadLink.hidden = true;
+  try {
+    const payload = await api("/api/backups", { method: "POST" });
+    backupMessage.textContent = `Backup creato il ${formatDateTime(payload.backup.createdAt)}.`;
+    backupDownloadLink.href = payload.downloadUrl;
+    backupDownloadLink.download = payload.backup.name;
+    backupDownloadLink.hidden = false;
+  } catch (error) {
+    backupMessage.textContent = error.message;
+  }
 });
 
 const me = await api("/api/me").catch(() => ({ employee: null }));

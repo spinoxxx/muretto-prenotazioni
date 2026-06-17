@@ -280,6 +280,16 @@ label {
   padding: 18px;
 }
 
+.backup-panel p {
+  margin: 4px 0 0;
+  color: var(--muted);
+}
+
+.backup-download {
+  justify-content: center;
+  width: 100%;
+}
+
 .staff-panel[hidden] {
   display: none;
 }

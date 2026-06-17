@@ -19,6 +19,8 @@ services:
         sync: false
       - key: MURETTO_SYNC_ADMIN_PIN
         value: "true"
+      - key: MURETTO_BACKUP_RETENTION
+        value: "30"
     disk:
       name: muretto-data
       mountPath: /var/data

@@ -158,6 +158,18 @@
               </form>
               <div id="employeeList" class="employee-list"></div>
             </section>
+
+            <section id="backupPanel" class="staff-panel backup-panel" hidden>
+              <div class="form-head">
+                <div>
+                  <h2>Backup</h2>
+                  <p>Crea e scarica una copia protetta dei dati.</p>
+                </div>
+              </div>
+              <button id="createBackupButton" type="button">Crea backup</button>
+              <p id="backupMessage" class="message" role="status"></p>
+              <a id="backupDownloadLink" class="ghost-link backup-download" href="#" hidden>Scarica ultimo backup</a>
+            </section>
           </div>
 
           <section class="bookings-panel">
@@ -181,6 +193,6 @@
         </div>
       </section>
     </main>
-    <script src="/app.js?v=8" type="module"></script>
+    <script src="/app.js?v=9" type="module"></script>
   </body>
 </html>

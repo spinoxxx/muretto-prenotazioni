@@ -9,12 +9,15 @@ const publicDir = path.join(__dirname, "public");
 const dataDir = process.env.DATA_DIR || path.join(__dirname, "data");
 const employeesFile = path.join(dataDir, "employees.json");
 const bookingsFile = path.join(dataDir, "bookings.json");
+const backupsDir = path.join(dataDir, "backups");
 const sessions = new Map();
 
 const PORT = Number(process.env.PORT || 4220);
 const HOST = process.env.HOST || "127.0.0.1";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 8;
 const MAX_BODY_BYTES = 32 * 1024;
+const BACKUP_INTERVAL_MS = Number(process.env.MURETTO_BACKUP_INTERVAL_MS || 1000 * 60 * 60 * 24);
+const BACKUP_RETENTION = Number(process.env.MURETTO_BACKUP_RETENTION || 30);
 
 const DEFAULT_EMPLOYEE_NAME = process.env.MURETTO_ADMIN_NAME || "Admin";
 const DEFAULT_EMPLOYEE_PIN = process.env.MURETTO_ADMIN_PIN || "123456";
@@ -84,6 +87,7 @@ async function verifyPin(pin, employee) {
 
 async function ensureDataFiles() {
   await fs.mkdir(dataDir, { recursive: true, mode: 0o700 });
+  await fs.mkdir(backupsDir, { recursive: true, mode: 0o700 });
   try {
     await fs.access(employeesFile);
   } catch {
@@ -146,9 +150,66 @@ async function writeJson(file, data) {
   await fs.rename(tmp, file);
 }
 
+function backupFileName(date = new Date()) {
+  const stamp = date.toISOString().replace(/[:.]/g, "-");
+  return `muretto-backup-${stamp}.json`;
+}
+
+function isBackupFileName(name) {
+  return /^muretto-backup-\d{4}-\d{2}-\d{2}T[\d-]+Z\.json$/.test(String(name || ""));
+}
+
+async function listBackupFiles() {
+  const entries = await fs.readdir(backupsDir, { withFileTypes: true }).catch(() => []);
+  const files = [];
+  for (const entry of entries) {
+    if (!entry.isFile() || !isBackupFileName(entry.name)) continue;
+    const filePath = path.join(backupsDir, entry.name);
+    const stat = await fs.stat(filePath);
+    files.push({ name: entry.name, createdAt: stat.mtime.toISOString(), size: stat.size });
+  }
+  return files.sort((a, b) => b.name.localeCompare(a.name));
+}
+
+async function pruneBackups() {
+  const files = await listBackupFiles();
+  const oldFiles = files.slice(Math.max(0, BACKUP_RETENTION));
+  await Promise.all(oldFiles.map((file) => fs.unlink(path.join(backupsDir, file.name)).catch(() => {})));
+}
+
+async function createBackup(reason = "manuale", actor = "system") {
+  await fs.mkdir(backupsDir, { recursive: true, mode: 0o700 });
+  const createdAt = new Date().toISOString();
+  const backup = {
+    version: 1,
+    createdAt,
+    reason,
+    actor,
+    data: {
+      bookings: await readJson(bookingsFile, []),
+      employees: await readJson(employeesFile, [])
+    }
+  };
+  const name = backupFileName(new Date(createdAt));
+  await writeJson(path.join(backupsDir, name), backup);
+  await pruneBackups();
+  const stat = await fs.stat(path.join(backupsDir, name));
+  return { name, createdAt, size: stat.size };
+}
+
 function sendJson(res, status, payload) {
   res.writeHead(status, { ...jsonHeaders, ...securityHeaders });
   res.end(JSON.stringify(payload));
+}
+
+function sendDownload(res, fileName, content) {
+  res.writeHead(200, {
+    ...securityHeaders,
+    "content-type": "application/json; charset=utf-8",
+    "content-disposition": `attachment; filename="${fileName}"`,
+    "cache-control": "no-store"
+  });
+  res.end(content);
 }
 
 function parseCookies(req) {
@@ -383,6 +444,37 @@ async function handleApi(req, res) {
     return;
   }
 
+  if (url.pathname === "/api/backups" && req.method === "GET") {
+    if (!requireAdmin(session, res)) return;
+    sendJson(res, 200, { backups: await listBackupFiles() });
+    return;
+  }
+
+  if (url.pathname === "/api/backups" && req.method === "POST") {
+    if (!requireAdmin(session, res)) return;
+    const backup = await createBackup("manuale", session.employeeName);
+    sendJson(res, 201, { backup, downloadUrl: `/api/backups/${encodeURIComponent(backup.name)}` });
+    return;
+  }
+
+  const backupMatch = url.pathname.match(/^\/api\/backups\/([^/]+)$/);
+  if (backupMatch && req.method === "GET") {
+    if (!requireAdmin(session, res)) return;
+    const fileName = decodeURIComponent(backupMatch[1]);
+    if (!isBackupFileName(fileName)) {
+      sendJson(res, 400, { error: "Backup non valido" });
+      return;
+    }
+    try {
+      const content = await fs.readFile(path.join(backupsDir, fileName), "utf8");
+      sendDownload(res, fileName, content);
+    } catch (error) {
+      if (error.code === "ENOENT") sendJson(res, 404, { error: "Backup non trovato" });
+      else throw error;
+    }
+    return;
+  }
+
   if (url.pathname === "/api/employees" && req.method === "POST") {
     if (!requireAdmin(session, res)) return;
     const body = await readBody(req);
@@ -526,7 +618,13 @@ function pruneSessions() {
 }
 
 await ensureDataFiles();
+createBackup("avvio", "system").catch((error) => console.error("Backup iniziale non riuscito", error));
 setInterval(pruneSessions, 1000 * 60 * 10).unref();
+if (BACKUP_INTERVAL_MS > 0) {
+  setInterval(() => {
+    createBackup("automatico", "system").catch((error) => console.error("Backup automatico non riuscito", error));
+  }, BACKUP_INTERVAL_MS).unref();
+}
 
 const server = http.createServer(async (req, res) => {
   try {
