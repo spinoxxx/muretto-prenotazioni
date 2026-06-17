@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: muretto-prenotazioni
+    runtime: node
+    plan: starter
+    buildCommand: npm install --omit=dev
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: DATA_DIR
+        value: /var/data
+      - key: MURETTO_ADMIN_NAME
+        value: Admin
+      - key: MURETTO_ADMIN_PIN
+        sync: false
+    disk:
+      name: muretto-data
+      mountPath: /var/data
+      sizeGB: 1

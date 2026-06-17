@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Agenda Muretto</title>
+    <link rel="stylesheet" href="/styles.css?v=5">
+  </head>
+  <body>
+    <main class="shell">
+      <section id="agendaLoginView" class="login-view">
+        <div class="brand-panel" aria-hidden="true">
+          <div class="monogram">M</div>
+          <div>
+            <p class="eyebrow">Agenda</p>
+            <h1>Il Muretto</h1>
+            <p>Consultazione prenotazioni riservata allo staff autorizzato.</p>
+          </div>
+        </div>
+
+        <form id="agendaLoginForm" class="login-card" autocomplete="off">
+          <h2>Accesso agenda</h2>
+          <label>
+            Nome dipendente
+            <input name="name" type="text" autocomplete="username" required>
+          </label>
+          <label>
+            PIN
+            <input name="pin" type="password" inputmode="numeric" pattern="[0-9]{4,12}" autocomplete="current-password" required>
+          </label>
+          <button type="submit">Apri agenda</button>
+          <p id="agendaLoginError" class="error" role="alert"></p>
+        </form>
+      </section>
+
+      <section id="agendaView" class="agenda-only" hidden>
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Agenda riservata</p>
+            <h1>Il Muretto</h1>
+          </div>
+          <div class="session">
+            <span id="agendaEmployeeName"></span>
+            <a class="ghost-link" href="/">Inserimento</a>
+            <button id="agendaLogoutButton" class="ghost" type="button">Esci</button>
+          </div>
+        </header>
+
+        <section class="bookings-panel agenda-page-panel">
+          <div class="panel-head">
+            <div>
+              <h2>Agenda del giorno</h2>
+              <p id="agendaRangeLabel"></p>
+            </div>
+            <input id="agendaDate" type="text" inputmode="numeric" pattern="\d{2}/\d{2}/\d{4}" placeholder="GG/MM/AAAA" aria-label="Data agenda">
+          </div>
+          <div id="agendaList" class="booking-list" aria-live="polite"></div>
+        </section>
+      </section>
+    </main>
+    <script src="/agenda.js?v=3" type="module"></script>
+  </body>
+</html>

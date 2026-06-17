@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Muretto Prenotazioni</title>
+    <link rel="stylesheet" href="/styles.css?v=5">
+  </head>
+  <body>
+    <main class="shell">
+      <section id="loginView" class="login-view" hidden>
+        <div class="brand-panel" aria-hidden="true">
+          <div class="monogram">M</div>
+          <div>
+            <p class="eyebrow">Bistrot</p>
+            <h1>Il Muretto</h1>
+            <p>Registro prenotazioni riservato allo staff.</p>
+          </div>
+        </div>
+
+        <form id="loginForm" class="login-card" autocomplete="off">
+          <h2>Accesso dipendenti</h2>
+          <label>
+            Nome dipendente
+            <input name="name" type="text" autocomplete="username" required>
+          </label>
+          <label>
+            PIN
+            <input name="pin" type="password" inputmode="numeric" pattern="[0-9]{4,12}" autocomplete="current-password" required>
+          </label>
+          <button type="submit">Entra</button>
+          <p id="loginError" class="error" role="alert"></p>
+        </form>
+      </section>
+
+      <section id="appView" class="app-view" hidden>
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Prenotazioni</p>
+            <h1>Il Muretto</h1>
+          </div>
+          <div class="session">
+            <span id="employeeName"></span>
+            <a class="ghost-link" href="/agenda.html">Agenda</a>
+            <button id="logoutButton" class="ghost" type="button">Esci</button>
+          </div>
+        </header>
+
+        <section class="stats" aria-label="Riepilogo">
+          <article>
+            <span id="todayCount">0</span>
+            <p>oggi</p>
+          </article>
+          <article>
+            <span id="pendingCount">0</span>
+            <p>in attesa</p>
+          </article>
+          <article>
+            <span id="peopleCount">0</span>
+            <p>coperti filtrati</p>
+          </article>
+        </section>
+
+        <div class="workspace">
+          <div class="side-column">
+            <form id="bookingForm" class="booking-form" autocomplete="off">
+              <input type="hidden" name="id">
+              <div class="form-head">
+                <h2 id="formTitle">Nuova prenotazione</h2>
+                <button id="resetFormButton" class="ghost compact" type="button">Pulisci</button>
+              </div>
+              <label>
+                Cliente
+                <input name="guestName" type="text" maxlength="80" required>
+              </label>
+              <div class="grid-2">
+                <label>
+                  Telefono
+                  <input name="phone" type="tel" maxlength="40">
+                </label>
+                <label>
+                  Email
+                  <input name="email" type="email" maxlength="120">
+                </label>
+              </div>
+              <div class="grid-3">
+                <label>
+                  Data
+                  <input name="date" type="text" inputmode="numeric" pattern="\d{2}/\d{2}/\d{4}" placeholder="GG/MM/AAAA" required>
+                </label>
+                <label>
+                  Ora
+                  <input name="time" type="time" required>
+                </label>
+                <label>
+                  Persone
+                  <input name="people" type="number" min="1" max="40" value="2" required>
+                </label>
+              </div>
+              <div class="grid-2">
+                <label>
+                  Sala
+                  <select name="room">
+                    <option value="">Da assegnare</option>
+                    <option>Ristorante</option>
+                    <option>Bar</option>
+                    <option>Giardino</option>
+                    <option>Interno</option>
+                  </select>
+                </label>
+                <label>
+                  Tavolo
+                  <input name="tableNumber" type="text" maxlength="30" placeholder="Es. 12">
+                </label>
+              </div>
+              <label>
+                Stato
+                <select name="status">
+                  <option>confermata</option>
+                  <option>in attesa</option>
+                  <option>annullata</option>
+                  <option>completata</option>
+                </select>
+              </label>
+              <label>
+                Note interne
+                <textarea name="notes" maxlength="300" rows="4"></textarea>
+              </label>
+              <button type="submit">Salva prenotazione</button>
+              <p id="formMessage" class="message" role="status"></p>
+            </form>
+
+            <section id="staffPanel" class="staff-panel" hidden>
+              <div class="form-head">
+                <h2>Staff</h2>
+              </div>
+              <form id="employeeForm" class="employee-form" autocomplete="off">
+                <label>
+                  Nome dipendente
+                  <input name="name" type="text" maxlength="80" required>
+                </label>
+                <div class="grid-2">
+                  <label>
+                    PIN
+                    <input name="pin" type="password" inputmode="numeric" pattern="[0-9]{4,12}" required>
+                  </label>
+                  <label>
+                    Ruolo
+                  <select name="role">
+                    <option value="staff">staff</option>
+                    <option value="agenda">solo agenda</option>
+                    <option value="admin">admin</option>
+                  </select>
+                </label>
+                </div>
+                <button type="submit">Aggiungi dipendente</button>
+                <p id="employeeMessage" class="message" role="status"></p>
+              </form>
+              <div id="employeeList" class="employee-list"></div>
+            </section>
+          </div>
+
+          <section class="bookings-panel">
+            <div class="panel-head">
+              <div>
+                <h2>Agenda</h2>
+                <p id="rangeLabel"></p>
+              </div>
+              <div class="filters">
+                <input id="filterDate" type="text" inputmode="numeric" pattern="\d{2}/\d{2}/\d{4}" placeholder="GG/MM/AAAA" aria-label="Filtra per data">
+                <input id="searchInput" type="search" placeholder="Cerca cliente o recapito">
+              </div>
+            </div>
+            <div id="bookingList" class="booking-list" aria-live="polite"></div>
+          </section>
+        </div>
+      </section>
+    </main>
+    <script src="/app.js?v=7" type="module"></script>
+  </body>
+</html>
