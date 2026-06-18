@@ -576,6 +576,11 @@ label {
   color: #80510f;
 }
 
+.status.da-verificare {
+  background: #e8ecff;
+  color: #33408f;
+}
+
 .status.annullata {
   background: #f8e2df;
   color: var(--danger);

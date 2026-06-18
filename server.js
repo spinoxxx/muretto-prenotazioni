@@ -317,7 +317,7 @@ function validateBooking(input) {
     notes: sanitizeText(input.notes, 300)
   };
 
-  const statuses = new Set(["confermata", "in attesa", "annullata", "completata"]);
+  const statuses = new Set(["confermata", "in attesa", "da verificare", "annullata", "completata"]);
   const rooms = new Set(["", "Ristorante", "Bar", "Giardino", "Interno"]);
   if (!booking.guestName) return "Inserisci il nome del cliente.";
   if (!booking.phone && !booking.email) return "Serve almeno un recapito.";
