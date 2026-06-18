@@ -302,6 +302,18 @@ label {
   font-weight: 800;
 }
 
+.meal-stats {
+  display: grid;
+  gap: 3px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.meal-stats small {
+  margin-top: 0;
+}
+
 .workspace {
   display: grid;
   grid-template-columns: 390px 1fr;

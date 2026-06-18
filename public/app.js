@@ -20,15 +20,21 @@ const rangeLabel = document.querySelector("#rangeLabel");
 const roomStats = {
   ristorante: {
     people: document.querySelector("#restaurantPeople"),
-    bookings: document.querySelector("#restaurantBookings")
+    bookings: document.querySelector("#restaurantBookings"),
+    day: document.querySelector("#restaurantDay"),
+    evening: document.querySelector("#restaurantEvening")
   },
   bar: {
     people: document.querySelector("#barPeople"),
-    bookings: document.querySelector("#barBookings")
+    bookings: document.querySelector("#barBookings"),
+    day: document.querySelector("#barDay"),
+    evening: document.querySelector("#barEvening")
   },
   giardino: {
     people: document.querySelector("#gardenPeople"),
-    bookings: document.querySelector("#gardenBookings")
+    bookings: document.querySelector("#gardenBookings"),
+    day: document.querySelector("#gardenDay"),
+    evening: document.querySelector("#gardenEvening")
   }
 };
 const staffPanel = document.querySelector("#staffPanel");
@@ -120,23 +126,47 @@ function matchesSearch(booking, term) {
 
 function renderRoomStats() {
   const stats = {
-    ristorante: { people: 0, bookings: 0 },
-    bar: { people: 0, bookings: 0 },
-    giardino: { people: 0, bookings: 0 }
+    ristorante: createRoomStat(),
+    bar: createRoomStat(),
+    giardino: createRoomStat()
   };
 
   for (const booking of bookings) {
     if (booking.status === "annullata") continue;
     const room = String(booking.room || "").trim().toLowerCase();
     if (!stats[room]) continue;
-    stats[room].people += Number(booking.people || 0);
+    const people = Number(booking.people || 0);
+    const meal = isEvening(booking.time) ? "evening" : "day";
+    stats[room].people += people;
     stats[room].bookings += 1;
+    stats[room][meal].people += people;
+    stats[room][meal].bookings += 1;
   }
 
   for (const [room, values] of Object.entries(stats)) {
     roomStats[room].people.textContent = values.people;
     roomStats[room].bookings.textContent = `${values.bookings} ${values.bookings === 1 ? "prenotazione" : "prenotazioni"}`;
+    roomStats[room].day.textContent = mealStatLine("Diurno", values.day);
+    roomStats[room].evening.textContent = mealStatLine("Serale", values.evening);
   }
+}
+
+function createRoomStat() {
+  return {
+    people: 0,
+    bookings: 0,
+    day: { people: 0, bookings: 0 },
+    evening: { people: 0, bookings: 0 }
+  };
+}
+
+function isEvening(time) {
+  const [hours] = String(time || "").split(":").map(Number);
+  return Number.isFinite(hours) && hours >= 18;
+}
+
+function mealStatLine(label, stat) {
+  return `${label} ${stat.people} ${stat.people === 1 ? "coperto" : "coperti"} / ${stat.bookings} ${stat.bookings === 1 ? "pren." : "pren."}`;
 }
 
 function renderBookings() {
