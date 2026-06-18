@@ -17,9 +17,20 @@ const nextDayButton = document.querySelector("#nextDayButton");
 const todayButton = document.querySelector("#todayButton");
 const searchInput = document.querySelector("#searchInput");
 const rangeLabel = document.querySelector("#rangeLabel");
-const todayCount = document.querySelector("#todayCount");
-const pendingCount = document.querySelector("#pendingCount");
-const peopleCount = document.querySelector("#peopleCount");
+const roomStats = {
+  ristorante: {
+    people: document.querySelector("#restaurantPeople"),
+    bookings: document.querySelector("#restaurantBookings")
+  },
+  bar: {
+    people: document.querySelector("#barPeople"),
+    bookings: document.querySelector("#barBookings")
+  },
+  giardino: {
+    people: document.querySelector("#gardenPeople"),
+    bookings: document.querySelector("#gardenBookings")
+  }
+};
 const staffPanel = document.querySelector("#staffPanel");
 const backupPanel = document.querySelector("#backupPanel");
 const createBackupButton = document.querySelector("#createBackupButton");
@@ -107,17 +118,33 @@ function matchesSearch(booking, term) {
   return haystack.includes(term.toLowerCase());
 }
 
+function renderRoomStats() {
+  const stats = {
+    ristorante: { people: 0, bookings: 0 },
+    bar: { people: 0, bookings: 0 },
+    giardino: { people: 0, bookings: 0 }
+  };
+
+  for (const booking of bookings) {
+    if (booking.status === "annullata") continue;
+    const room = String(booking.room || "").trim().toLowerCase();
+    if (!stats[room]) continue;
+    stats[room].people += Number(booking.people || 0);
+    stats[room].bookings += 1;
+  }
+
+  for (const [room, values] of Object.entries(stats)) {
+    roomStats[room].people.textContent = values.people;
+    roomStats[room].bookings.textContent = `${values.bookings} ${values.bookings === 1 ? "prenotazione" : "prenotazioni"}`;
+  }
+}
+
 function renderBookings() {
   const term = searchInput.value.trim();
   const filtered = bookings.filter((booking) => matchesSearch(booking, term));
   const filterApiDate = toApiDate(filterDate.value);
   rangeLabel.textContent = filterApiDate ? `Data ${formatDate(filterApiDate)}` : "Tutte le date";
-
-  todayCount.textContent = bookings.filter((booking) => booking.date === today && booking.status !== "annullata").length;
-  pendingCount.textContent = bookings.filter((booking) => booking.status === "in attesa").length;
-  peopleCount.textContent = filtered
-    .filter((booking) => booking.status !== "annullata")
-    .reduce((sum, booking) => sum + Number(booking.people || 0), 0);
+  renderRoomStats();
 
   if (!filtered.length) {
     bookingList.innerHTML = `<p class="empty">Nessuna prenotazione trovata.</p>`;

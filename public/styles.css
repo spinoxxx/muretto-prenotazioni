@@ -294,6 +294,14 @@ label {
   font-weight: 700;
 }
 
+.stats small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
 .workspace {
   display: grid;
   grid-template-columns: 390px 1fr;
