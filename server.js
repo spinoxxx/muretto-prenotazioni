@@ -317,7 +317,7 @@ function validateBooking(input) {
     notes: sanitizeText(input.notes, 300)
   };
 
-  const statuses = new Set(["confermata", "in attesa", "da verificare", "annullata", "completata"]);
+  const statuses = new Set(["confermata", "in attesa", "da verificare", "arrivati", "annullata", "completata"]);
   const rooms = new Set(["", "Ristorante", "Bar", "Giardino", "Interno"]);
   if (!booking.guestName) return "Inserisci il nome del cliente.";
   if (!booking.phone && !booking.email) return "Serve almeno un recapito.";
@@ -578,6 +578,36 @@ async function handleApi(req, res) {
   }
 
   const bookingMatch = url.pathname.match(/^\/api\/bookings\/([a-f0-9-]+)$/i);
+  const bookingArrivedMatch = url.pathname.match(/^\/api\/bookings\/([a-f0-9-]+)\/arrived$/i);
+  if (bookingArrivedMatch && req.method === "PATCH") {
+    if (!requireAgendaTableEditor(session, res)) return;
+    const bookings = await readJson(bookingsFile, []);
+    const index = bookings.findIndex((item) => item.id === bookingArrivedMatch[1]);
+    if (index === -1) {
+      sendJson(res, 404, { error: "Prenotazione non trovata" });
+      return;
+    }
+    const now = new Date().toISOString();
+    bookings[index] = {
+      ...bookings[index],
+      status: "arrivati",
+      arrivedAt: now,
+      arrivedBy: session.employeeName,
+      updatedAt: now,
+      updatedBy: session.employeeName
+    };
+    await writeJson(bookingsFile, bookings);
+    sendJson(res, 200, {
+      booking: {
+        id: bookings[index].id,
+        status: bookings[index].status,
+        arrivedAt: bookings[index].arrivedAt,
+        arrivedBy: bookings[index].arrivedBy
+      }
+    });
+    return;
+  }
+
   const bookingTableMatch = url.pathname.match(/^\/api\/bookings\/([a-f0-9-]+)\/table$/i);
   if (bookingTableMatch && req.method === "PATCH") {
     if (!requireAgendaTableEditor(session, res)) return;

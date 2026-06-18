@@ -557,6 +557,18 @@ label {
   border-bottom: 0;
 }
 
+.booking-row.is-arrived {
+  background: #f3f5f2;
+}
+
+.booking-row.is-arrived .booking-main h3,
+.booking-row.is-arrived .booking-details,
+.booking-row.is-arrived .booking-notes,
+.booking-row.is-arrived .agenda-notes {
+  text-decoration: line-through;
+  opacity: 0.68;
+}
+
 .time {
   font-size: 1.45rem;
   font-weight: 850;
@@ -602,6 +614,11 @@ label {
   color: #33408f;
 }
 
+.status.arrivati {
+  background: #dce8e2;
+  color: var(--accent-dark);
+}
+
 .status.annullata {
   background: #f8e2df;
   color: var(--danger);
@@ -627,6 +644,28 @@ label {
 .actions .delete {
   color: var(--danger);
   background: #f8e2df;
+}
+
+.actions .arrived,
+.arrived-agenda-button {
+  background: #2f6f5e;
+  color: #fff;
+}
+
+.actions .arrived:hover,
+.arrived-agenda-button:hover {
+  background: var(--accent-dark);
+}
+
+.actions .arrived:disabled,
+.arrived-agenda-button:disabled {
+  background: #dce8e2;
+  color: var(--accent-dark);
+  cursor: default;
+}
+
+.arrived-agenda-button {
+  margin-top: 10px;
 }
 
 .empty {

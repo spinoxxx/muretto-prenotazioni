@@ -182,16 +182,17 @@ function renderBookings() {
   }
 
   bookingList.innerHTML = filtered.map((booking) => `
-    <article class="booking-row">
+    <article class="booking-row ${booking.status === "arrivati" ? "is-arrived" : ""}">
       <div class="time">${escapeHtml(booking.time)}</div>
       <div class="booking-main">
         <h3>${escapeHtml(booking.guestName)} · ${Number(booking.people)} persone</h3>
-        <p>${formatDate(booking.date)} · ${seatLine(booking)} · ${contactLine(booking)}</p>
-        ${booking.notes ? `<p>${escapeHtml(booking.notes)}</p>` : ""}
+        <p class="booking-details">${formatDate(booking.date)} · ${seatLine(booking)} · ${contactLine(booking)}</p>
+        ${booking.notes ? `<p class="booking-notes">${escapeHtml(booking.notes)}</p>` : ""}
         <p><span class="status ${statusClass(booking.status)}">${escapeHtml(booking.status)}</span></p>
         <p class="booking-meta">${bookingMetaLine(booking)}</p>
       </div>
       <div class="actions">
+        <button class="arrived" type="button" data-action="arrived" data-id="${booking.id}" ${booking.status === "arrivati" ? "disabled" : ""}>ARRIVATI</button>
         <button class="ghost" type="button" data-action="edit" data-id="${booking.id}">Modifica</button>
         <button class="delete" type="button" data-action="delete" data-id="${booking.id}">Elimina</button>
       </div>
@@ -398,6 +399,12 @@ bookingList.addEventListener("click", async (event) => {
     updateDateDisplay(bookingForm.elements.date, bookingDateDisplay);
     formMessage.textContent = "";
     bookingForm.scrollIntoView({ behavior: "smooth", block: "start" });
+    return;
+  }
+
+  if (button.dataset.action === "arrived") {
+    await api(`/api/bookings/${booking.id}/arrived`, { method: "PATCH", body: JSON.stringify({}) });
+    await loadBookings();
     return;
   }
 

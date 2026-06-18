@@ -55,7 +55,7 @@ function renderAgenda(bookings, date) {
   }
 
   agendaList.innerHTML = bookings.map((booking) => `
-    <article class="booking-row agenda-row">
+    <article class="booking-row agenda-row ${booking.status === "arrivati" ? "is-arrived" : ""}">
       <div class="time">${escapeHtml(booking.time)}</div>
       <div class="booking-main">
         <h3>${escapeHtml(booking.guestName)} · ${Number(booking.people)} persone</h3>
@@ -70,6 +70,7 @@ function renderAgenda(bookings, date) {
           <button class="ghost compact" type="submit">Salva tavolo</button>
           <span class="row-message" role="status"></span>
         </form>
+        <button class="arrived compact arrived-agenda-button" type="button" data-action="arrived" data-id="${booking.id}" ${booking.status === "arrivati" ? "disabled" : ""}>ARRIVATI</button>
       </div>
     </article>
   `).join("");
@@ -198,6 +199,22 @@ agendaList.addEventListener("submit", async (event) => {
     message.textContent = error.message;
   } finally {
     button.disabled = false;
+  }
+});
+
+agendaList.addEventListener("click", async (event) => {
+  const button = event.target.closest("button[data-action='arrived']");
+  if (!button || button.disabled) return;
+  button.disabled = true;
+  try {
+    await api(`/api/bookings/${button.dataset.id}/arrived`, {
+      method: "PATCH",
+      body: JSON.stringify({})
+    });
+    await loadAgenda();
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = error.message;
   }
 });
 
