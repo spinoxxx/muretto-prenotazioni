@@ -540,6 +540,13 @@ label {
   color: var(--muted);
 }
 
+.booking-main .booking-meta {
+  margin-top: 8px;
+  color: #7f8982;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
 .status {
   display: inline-flex;
   align-items: center;

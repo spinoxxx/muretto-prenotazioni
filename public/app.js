@@ -159,6 +159,7 @@ function renderBookings() {
         <p>${formatDate(booking.date)} · ${seatLine(booking)} · ${contactLine(booking)}</p>
         ${booking.notes ? `<p>${escapeHtml(booking.notes)}</p>` : ""}
         <p><span class="status ${statusClass(booking.status)}">${escapeHtml(booking.status)}</span></p>
+        <p class="booking-meta">${bookingMetaLine(booking)}</p>
       </div>
       <div class="actions">
         <button class="ghost" type="button" data-action="edit" data-id="${booking.id}">Modifica</button>
@@ -202,6 +203,15 @@ async function loadBackups() {
 function contactLine(booking) {
   const parts = [booking.phone, booking.email].filter(Boolean).map(escapeHtml);
   return parts.length ? parts.join(" · ") : "nessun recapito";
+}
+
+function bookingMetaLine(booking) {
+  const created = booking.createdAt ? `${formatDateTime(booking.createdAt)}${booking.createdBy ? ` da ${booking.createdBy}` : ""}` : "";
+  const updated = booking.updatedAt ? `${formatDateTime(booking.updatedAt)}${booking.updatedBy ? ` da ${booking.updatedBy}` : ""}` : "";
+  const parts = [];
+  if (created) parts.push(`Creata ${created}`);
+  if (updated && (booking.updatedAt !== booking.createdAt || booking.updatedBy)) parts.push(`Modificata ${updated}`);
+  return parts.length ? parts.map(escapeHtml).join(" · ") : "Storico non disponibile";
 }
 
 function seatLine(booking) {
