@@ -23,6 +23,7 @@ const backupPanel = document.querySelector("#backupPanel");
 const createBackupButton = document.querySelector("#createBackupButton");
 const backupMessage = document.querySelector("#backupMessage");
 const backupDownloadLink = document.querySelector("#backupDownloadLink");
+const backupList = document.querySelector("#backupList");
 const employeeForm = document.querySelector("#employeeForm");
 const employeeList = document.querySelector("#employeeList");
 const employeeMessage = document.querySelector("#employeeMessage");
@@ -160,6 +161,12 @@ async function loadEmployees() {
   renderEmployees(payload.employees);
 }
 
+async function loadBackups() {
+  if (currentEmployee?.role !== "admin") return;
+  const payload = await api("/api/backups");
+  renderBackups(payload.backups);
+}
+
 function contactLine(booking) {
   const parts = [booking.phone, booking.email].filter(Boolean).map(escapeHtml);
   return parts.length ? parts.join(" · ") : "nessun recapito";
@@ -201,6 +208,34 @@ function formatDateTime(value) {
     hour: "2-digit",
     minute: "2-digit"
   }).format(new Date(value));
+}
+
+function formatFileSize(bytes) {
+  if (!Number.isFinite(Number(bytes))) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function backupDownloadUrl(name) {
+  return `/api/backups/${encodeURIComponent(name)}`;
+}
+
+function renderBackups(backups) {
+  if (!backups.length) {
+    backupList.innerHTML = `<p class="empty compact-empty">Nessun backup disponibile.</p>`;
+    return;
+  }
+
+  backupList.innerHTML = backups.map((backup) => `
+    <div class="backup-row">
+      <div>
+        <strong>${formatDateTime(backup.createdAt)}</strong>
+        <span>${formatFileSize(backup.size)}</span>
+      </div>
+      <a class="ghost-link compact-link" href="${backupDownloadUrl(backup.name)}" download="${escapeHtml(backup.name)}">Scarica</a>
+    </div>
+  `).join("");
 }
 
 function escapeHtml(value) {
@@ -347,6 +382,7 @@ createBackupButton.addEventListener("click", async () => {
     backupDownloadLink.href = payload.downloadUrl;
     backupDownloadLink.download = payload.backup.name;
     backupDownloadLink.hidden = false;
+    await loadBackups();
   } catch (error) {
     backupMessage.textContent = error.message;
   }
@@ -361,6 +397,7 @@ if (me.employee) {
   showApp(me.employee);
   await loadBookings();
   await loadEmployees();
+  await loadBackups();
   }
 } else {
   showLogin();

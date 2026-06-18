@@ -25,7 +25,7 @@ Ruoli disponibili:
 - `staff`: inserisce e modifica prenotazioni.
 - `solo agenda`: consulta la pagina agenda con PIN, senza inserire prenotazioni e senza vedere recapiti o note interne.
 
-Gli admin possono creare e scaricare un backup dalla sezione **Backup**. L'app crea anche backup automatici nella cartella privata `data/backups/`.
+Gli admin possono creare, vedere la lista e scaricare i backup dalla sezione **Backup**. L'app crea anche backup automatici nella cartella privata `data/backups/`.
 
 Per scegliere credenziali iniziali diverse:
 
@@ -39,7 +39,7 @@ MURETTO_ADMIN_NAME="Lucia" MURETTO_ADMIN_PIN="834921" npm start
 - Le sessioni usano cookie `HttpOnly` e `SameSite=Strict`.
 - Le modifiche alle prenotazioni richiedono un token anti-CSRF.
 - I dati restano sul computer nella cartella `data/`, ignorata da git.
-- I backup restano nella cartella privata `data/backups/`, ignorata da git, e conservano gli ultimi 30 file.
+- I backup restano nella cartella privata `data/backups/`, ignorata da git, e conservano gli ultimi 30 file. Di default viene creato un backup automatico ogni 24 ore e uno a ogni avvio del servizio.
 - L'app salva solo i dati necessari alla prenotazione: nome, recapito, data, ora, persone, sala, tavolo, stato e note interne.
 - La pagina separata `/agenda.html` richiede comunque PIN e mostra solo dati minimizzati.
 - Per cancellare dati personali, elimina la prenotazione dall'agenda.

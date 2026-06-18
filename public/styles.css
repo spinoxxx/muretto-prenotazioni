@@ -290,6 +290,40 @@ label {
   width: 100%;
 }
 
+.backup-list {
+  display: grid;
+  gap: 10px;
+}
+
+.backup-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.backup-row strong {
+  display: block;
+  font-size: 0.95rem;
+}
+
+.backup-row span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.compact-link {
+  min-height: 36px;
+  padding: 0 12px;
+}
+
+.compact-empty {
+  padding: 14px 0 0;
+}
+
 .staff-panel[hidden] {
   display: none;
 }
