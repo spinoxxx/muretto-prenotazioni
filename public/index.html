@@ -46,6 +46,22 @@
           </div>
         </header>
 
+        <section class="agenda-controls" aria-label="Data statistiche e agenda">
+          <div>
+            <p class="eyebrow">Giornata selezionata</p>
+            <p id="rangeLabel"></p>
+          </div>
+          <div class="date-nav" aria-label="Navigazione data agenda">
+            <button id="prevDayButton" class="ghost icon-button" type="button" aria-label="Giorno precedente">‹</button>
+            <span class="date-field">
+              <input id="filterDate" type="date" aria-label="Filtra per data">
+              <span id="filterDateDisplay" class="date-display" aria-hidden="true"></span>
+            </span>
+            <button id="nextDayButton" class="ghost icon-button" type="button" aria-label="Giorno successivo">›</button>
+            <button id="todayButton" class="ghost today-button" type="button">Oggi</button>
+          </div>
+        </section>
+
         <section class="stats" aria-label="Riepilogo">
           <article>
             <span id="restaurantPeople">0</span>
@@ -196,18 +212,8 @@
             <div class="panel-head">
               <div>
                 <h2>Agenda</h2>
-                <p id="rangeLabel"></p>
               </div>
               <div class="filters">
-                <div class="date-nav" aria-label="Navigazione data agenda">
-                  <button id="prevDayButton" class="ghost icon-button" type="button" aria-label="Giorno precedente">‹</button>
-                  <span class="date-field">
-                    <input id="filterDate" type="date" aria-label="Filtra per data">
-                    <span id="filterDateDisplay" class="date-display" aria-hidden="true"></span>
-                  </span>
-                  <button id="nextDayButton" class="ghost icon-button" type="button" aria-label="Giorno successivo">›</button>
-                  <button id="todayButton" class="ghost today-button" type="button">Oggi</button>
-                </div>
                 <input id="searchInput" type="search" placeholder="Cerca cliente o recapito">
               </div>
             </div>
@@ -216,6 +222,6 @@
         </div>
       </section>
     </main>
-    <script src="/app.js?v=16" type="module"></script>
+    <script src="/app.js?v=17" type="module"></script>
   </body>
 </html>

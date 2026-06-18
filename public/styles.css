@@ -270,6 +270,27 @@ label {
   font-weight: 700;
 }
 
+.agenda-controls {
+  display: grid;
+  grid-template-columns: 1fr minmax(300px, 420px);
+  gap: 14px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: var(--surface);
+}
+
+.agenda-controls p {
+  margin: 0;
+}
+
+.agenda-controls #rangeLabel {
+  color: var(--ink);
+  font-size: 1.05rem;
+  font-weight: 850;
+}
+
 .stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -508,7 +529,7 @@ label {
 
 .filters {
   display: grid;
-  grid-template-columns: minmax(300px, 420px) minmax(180px, 260px);
+  grid-template-columns: minmax(180px, 280px);
   gap: 10px;
 }
 
@@ -645,10 +666,15 @@ label {
   }
 
   .topbar,
+  .agenda-controls,
   .form-head,
   .panel-head {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .agenda-controls {
+    grid-template-columns: 1fr;
   }
 
   .stats,
