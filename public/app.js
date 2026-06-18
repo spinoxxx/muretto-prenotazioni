@@ -72,6 +72,35 @@ async function api(path, options = {}) {
   return payload;
 }
 
+async function loadBrandConfig() {
+  try {
+    const payload = await api("/api/config");
+    applyBrandConfig(payload.brand);
+  } catch {
+    applyBrandConfig(null);
+  }
+}
+
+function applyBrandConfig(brand) {
+  if (!brand) return;
+  document.title = brand.appTitle || document.title;
+  setText("[data-brand-name]", brand.name);
+  setText("[data-brand-category]", brand.category);
+  setText("[data-brand-monogram]", brand.monogram);
+  setText("[data-brand-login-description]", brand.loginDescription);
+
+  if (brand.colors?.accent) document.documentElement.style.setProperty("--accent", brand.colors.accent);
+  if (brand.colors?.accentDark) document.documentElement.style.setProperty("--accent-dark", brand.colors.accentDark);
+  if (brand.colors?.warm) document.documentElement.style.setProperty("--warm", brand.colors.warm);
+}
+
+function setText(selector, value) {
+  if (!value) return;
+  document.querySelectorAll(selector).forEach((element) => {
+    element.textContent = value;
+  });
+}
+
 function showLogin() {
   document.body.classList.remove("is-authenticated");
   loginView.hidden = false;
@@ -487,6 +516,8 @@ createBackupButton.addEventListener("click", async () => {
     backupMessage.textContent = error.message;
   }
 });
+
+await loadBrandConfig();
 
 const me = await api("/api/me").catch(() => ({ employee: null }));
 if (me.employee) {

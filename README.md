@@ -23,7 +23,7 @@ Ruoli disponibili:
 
 - `admin`: gestisce prenotazioni e staff.
 - `staff`: inserisce e modifica prenotazioni.
-- `solo agenda`: consulta la pagina agenda con PIN, senza inserire prenotazioni e senza vedere recapiti o note interne.
+- `solo agenda`: consulta la pagina agenda con PIN, senza inserire prenotazioni, ma puo vedere le note e assegnare i tavoli.
 
 Gli admin possono creare, vedere la lista e scaricare i backup dalla sezione **Backup**. L'app crea anche backup automatici nella cartella privata `data/backups/`.
 
@@ -32,6 +32,20 @@ Per scegliere credenziali iniziali diverse:
 ```bash
 MURETTO_ADMIN_NAME="Lucia" MURETTO_ADMIN_PIN="834921" npm start
 ```
+
+## White label
+
+La stessa app puo essere riutilizzata per altri locali cambiando solo variabili ambiente. Se non vengono impostate, resta configurata come Il Muretto.
+
+Variabili disponibili:
+
+- `MURETTO_BRAND_NAME`: nome mostrato nell'app.
+- `MURETTO_BRAND_CATEGORY`: categoria mostrata nel login, per esempio `Bistrot`, `Trattoria`, `Cocktail bar`.
+- `MURETTO_BRAND_MONOGRAM`: iniziale o sigla nel cerchio del login.
+- `MURETTO_APP_TITLE`: titolo della scheda browser.
+- `MURETTO_LOGIN_DESCRIPTION`: testo breve sotto il nome nel login principale.
+- `MURETTO_AGENDA_DESCRIPTION`: testo breve sotto il nome nel login agenda.
+- `MURETTO_BRAND_PRIMARY`, `MURETTO_BRAND_PRIMARY_DARK`, `MURETTO_BRAND_WARM`: colori esadecimali, per esempio `#2f6f5e`.
 
 ## Privacy e sicurezza
 
@@ -68,5 +82,6 @@ Variabili usate in produzione:
 - `MURETTO_SYNC_ADMIN_PIN=true`: su Render sincronizza l'admin dalle variabili ambiente a ogni avvio.
 - `MURETTO_BACKUP_INTERVAL_MS`: frequenza dei backup automatici in millisecondi. Default: 24 ore.
 - `MURETTO_BACKUP_RETENTION`: numero massimo di backup da conservare. Default: 30.
+- `MURETTO_BRAND_*`: nome, testi e colori per usare l'app in white label.
 
 Nota importante: su Render i file fuori dal disco persistente non restano garantiti tra deploy e riavvii. Per questo `render.yaml` monta un persistent disk e l'app scrive i dati in `DATA_DIR`.

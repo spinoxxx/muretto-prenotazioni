@@ -22,6 +22,19 @@ const BACKUP_RETENTION = Number(process.env.MURETTO_BACKUP_RETENTION || 30);
 const DEFAULT_EMPLOYEE_NAME = process.env.MURETTO_ADMIN_NAME || "Admin";
 const DEFAULT_EMPLOYEE_PIN = process.env.MURETTO_ADMIN_PIN || "123456";
 const SYNC_ADMIN_PIN = process.env.MURETTO_SYNC_ADMIN_PIN === "true";
+const BRAND_CONFIG = {
+  name: sanitizePublicText(process.env.MURETTO_BRAND_NAME, "Il Muretto", 80),
+  category: sanitizePublicText(process.env.MURETTO_BRAND_CATEGORY, "Bistrot", 40),
+  monogram: sanitizePublicText(process.env.MURETTO_BRAND_MONOGRAM, "M", 4).toUpperCase(),
+  appTitle: sanitizePublicText(process.env.MURETTO_APP_TITLE, "Muretto Prenotazioni", 80),
+  loginDescription: sanitizePublicText(process.env.MURETTO_LOGIN_DESCRIPTION, "Registro prenotazioni riservato allo staff.", 140),
+  agendaDescription: sanitizePublicText(process.env.MURETTO_AGENDA_DESCRIPTION, "Consultazione prenotazioni riservata allo staff autorizzato.", 160),
+  colors: {
+    accent: sanitizeHexColor(process.env.MURETTO_BRAND_PRIMARY, "#2f6f5e"),
+    accentDark: sanitizeHexColor(process.env.MURETTO_BRAND_PRIMARY_DARK, "#1f4e42"),
+    warm: sanitizeHexColor(process.env.MURETTO_BRAND_WARM, "#b25f3a")
+  }
+};
 
 const jsonHeaders = {
   "content-type": "application/json; charset=utf-8",
@@ -52,6 +65,16 @@ function normalizeName(name) {
 
 function sanitizeText(value, max = 180) {
   return String(value || "").trim().replace(/\s+/g, " ").slice(0, max);
+}
+
+function sanitizePublicText(value, fallback, max = 120) {
+  const text = String(value || "").trim().replace(/\s+/g, " ").slice(0, max);
+  return text || fallback;
+}
+
+function sanitizeHexColor(value, fallback) {
+  const text = String(value || "").trim();
+  return /^#[0-9a-f]{6}$/i.test(text) ? text : fallback;
 }
 
 function normalizeDate(value) {
@@ -410,6 +433,11 @@ async function handleApi(req, res) {
 
   if (url.pathname === "/api/health" && req.method === "GET") {
     sendJson(res, 200, { ok: true });
+    return;
+  }
+
+  if (url.pathname === "/api/config" && req.method === "GET") {
+    sendJson(res, 200, { brand: BRAND_CONFIG });
     return;
   }
 

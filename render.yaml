@@ -21,6 +21,24 @@ services:
         value: "true"
       - key: MURETTO_BACKUP_RETENTION
         value: "30"
+      - key: MURETTO_BRAND_NAME
+        value: Il Muretto
+      - key: MURETTO_BRAND_CATEGORY
+        value: Bistrot
+      - key: MURETTO_BRAND_MONOGRAM
+        value: M
+      - key: MURETTO_APP_TITLE
+        value: Muretto Prenotazioni
+      - key: MURETTO_LOGIN_DESCRIPTION
+        value: Registro prenotazioni riservato allo staff.
+      - key: MURETTO_AGENDA_DESCRIPTION
+        value: Consultazione prenotazioni riservata allo staff autorizzato.
+      - key: MURETTO_BRAND_PRIMARY
+        value: "#2f6f5e"
+      - key: MURETTO_BRAND_PRIMARY_DARK
+        value: "#1f4e42"
+      - key: MURETTO_BRAND_WARM
+        value: "#b25f3a"
     disk:
       name: muretto-data
       mountPath: /var/data
