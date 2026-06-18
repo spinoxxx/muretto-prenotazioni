@@ -59,6 +59,14 @@ function renderAgenda(bookings, date) {
         <h3>${escapeHtml(booking.guestName)} · ${Number(booking.people)} persone</h3>
         <p>${seatLine(booking)}</p>
         <p><span class="status ${statusClass(booking.status)}">${escapeHtml(booking.status)}</span></p>
+        <form class="table-assignment" data-booking-id="${booking.id}">
+          <label>
+            Tavolo
+            <input name="tableNumber" type="text" maxlength="30" value="${escapeAttribute(booking.tableNumber)}" placeholder="Es. 12">
+          </label>
+          <button class="ghost compact" type="submit">Salva tavolo</button>
+          <span class="row-message" role="status"></span>
+        </form>
       </div>
     </article>
   `).join("");
@@ -111,6 +119,10 @@ function escapeHtml(value) {
   })[char]);
 }
 
+function escapeAttribute(value) {
+  return escapeHtml(value).replace(/`/g, "&#096;");
+}
+
 loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   loginError.textContent = "";
@@ -144,6 +156,29 @@ agendaNextDay.addEventListener("click", async () => {
 agendaToday.addEventListener("click", async () => {
   agendaDate.value = today;
   await loadAgenda();
+});
+
+agendaList.addEventListener("submit", async (event) => {
+  const form = event.target.closest(".table-assignment");
+  if (!form) return;
+  event.preventDefault();
+  const message = form.querySelector(".row-message");
+  const button = form.querySelector("button");
+  const tableNumber = form.elements.tableNumber.value;
+  message.textContent = "Salvataggio...";
+  button.disabled = true;
+  try {
+    await api(`/api/bookings/${form.dataset.bookingId}/table`, {
+      method: "PATCH",
+      body: JSON.stringify({ tableNumber })
+    });
+    message.textContent = "Tavolo salvato.";
+    await loadAgenda();
+  } catch (error) {
+    message.textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
 });
 
 const me = await api("/api/me").catch(() => ({ employee: null }));

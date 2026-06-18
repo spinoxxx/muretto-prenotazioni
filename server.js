@@ -345,6 +345,14 @@ function requireBookingEditor(session, res) {
   return true;
 }
 
+function requireAgendaTableEditor(session, res) {
+  if (!["admin", "staff", "agenda"].includes(session.role)) {
+    sendJson(res, 403, { error: "Accesso non autorizzato" });
+    return false;
+  }
+  return true;
+}
+
 async function handleApi(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
 
@@ -569,6 +577,33 @@ async function handleApi(req, res) {
   }
 
   const bookingMatch = url.pathname.match(/^\/api\/bookings\/([a-f0-9-]+)$/i);
+  const bookingTableMatch = url.pathname.match(/^\/api\/bookings\/([a-f0-9-]+)\/table$/i);
+  if (bookingTableMatch && req.method === "PATCH") {
+    if (!requireAgendaTableEditor(session, res)) return;
+    const body = await readBody(req);
+    const tableNumber = sanitizeText(body.tableNumber, 30);
+    const bookings = await readJson(bookingsFile, []);
+    const index = bookings.findIndex((item) => item.id === bookingTableMatch[1]);
+    if (index === -1) {
+      sendJson(res, 404, { error: "Prenotazione non trovata" });
+      return;
+    }
+    bookings[index] = {
+      ...bookings[index],
+      tableNumber,
+      updatedAt: new Date().toISOString(),
+      updatedBy: session.employeeName
+    };
+    await writeJson(bookingsFile, bookings);
+    sendJson(res, 200, {
+      booking: {
+        id: bookings[index].id,
+        tableNumber: bookings[index].tableNumber || ""
+      }
+    });
+    return;
+  }
+
   if (bookingMatch && req.method === "PATCH") {
     if (!requireBookingEditor(session, res)) return;
     const body = await readBody(req);
