@@ -431,7 +431,8 @@ async function handleApi(req, res) {
         people: item.people,
         room: item.room || "",
         tableNumber: item.tableNumber || "",
-        status: item.status
+        status: item.status,
+        notes: item.notes || ""
       }));
     sendJson(res, 200, { date, bookings: visible });
     return;

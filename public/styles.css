@@ -403,6 +403,15 @@ label {
   grid-template-columns: 110px 1fr;
 }
 
+.agenda-notes {
+  border-left: 3px solid var(--warm);
+  padding-left: 10px;
+}
+
+.agenda-notes strong {
+  color: var(--ink);
+}
+
 .table-assignment {
   display: grid;
   grid-template-columns: minmax(120px, 180px) auto 1fr;
