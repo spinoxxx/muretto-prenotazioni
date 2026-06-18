@@ -5,6 +5,7 @@ const loginError = document.querySelector("#agendaLoginError");
 const employeeName = document.querySelector("#agendaEmployeeName");
 const logoutButton = document.querySelector("#agendaLogoutButton");
 const agendaDate = document.querySelector("#agendaDate");
+const agendaDateDisplay = document.querySelector("#agendaDateDisplay");
 const agendaPrevDay = document.querySelector("#agendaPrevDay");
 const agendaNextDay = document.querySelector("#agendaNextDay");
 const agendaToday = document.querySelector("#agendaToday");
@@ -15,6 +16,7 @@ let csrfToken = "";
 
 const today = new Date().toISOString().slice(0, 10);
 agendaDate.value = today;
+updateDateDisplay(agendaDate, agendaDateDisplay);
 
 async function api(path, options = {}) {
   const response = await fetch(path, {
@@ -110,6 +112,17 @@ function formatDate(value) {
   return new Intl.DateTimeFormat("it-IT", { weekday: "long", day: "2-digit", month: "long", year: "numeric" }).format(new Date(`${value}T12:00:00`));
 }
 
+function formatDisplayDate(value) {
+  if (!value) return "Seleziona data";
+  return new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "short", year: "numeric" })
+    .format(new Date(`${value}T12:00:00`))
+    .replace(/\./g, "");
+}
+
+function updateDateDisplay(input, display) {
+  display.textContent = formatDisplayDate(input.value);
+}
+
 function escapeHtml(value) {
   return String(value || "").replace(/[&<>"']/g, (char) => ({
     "&": "&amp;",
@@ -145,17 +158,23 @@ logoutButton.addEventListener("click", async () => {
   showLogin();
 });
 
-agendaDate.addEventListener("change", loadAgenda);
+agendaDate.addEventListener("change", async () => {
+  updateDateDisplay(agendaDate, agendaDateDisplay);
+  await loadAgenda();
+});
 agendaPrevDay.addEventListener("click", async () => {
   agendaDate.value = addDays(agendaDate.value, -1);
+  updateDateDisplay(agendaDate, agendaDateDisplay);
   await loadAgenda();
 });
 agendaNextDay.addEventListener("click", async () => {
   agendaDate.value = addDays(agendaDate.value, 1);
+  updateDateDisplay(agendaDate, agendaDateDisplay);
   await loadAgenda();
 });
 agendaToday.addEventListener("click", async () => {
   agendaDate.value = today;
+  updateDateDisplay(agendaDate, agendaDateDisplay);
   await loadAgenda();
 });
 

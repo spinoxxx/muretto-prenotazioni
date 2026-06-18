@@ -10,6 +10,8 @@ const logoutButton = document.querySelector("#logoutButton");
 const resetFormButton = document.querySelector("#resetFormButton");
 const formTitle = document.querySelector("#formTitle");
 const filterDate = document.querySelector("#filterDate");
+const filterDateDisplay = document.querySelector("#filterDateDisplay");
+const bookingDateDisplay = document.querySelector("#bookingDateDisplay");
 const prevDayButton = document.querySelector("#prevDayButton");
 const nextDayButton = document.querySelector("#nextDayButton");
 const todayButton = document.querySelector("#todayButton");
@@ -36,6 +38,8 @@ const today = new Date().toISOString().slice(0, 10);
 filterDate.value = today;
 bookingForm.elements.date.value = today;
 bookingForm.elements.time.value = "20:00";
+updateDateDisplay(filterDate, filterDateDisplay);
+updateDateDisplay(bookingForm.elements.date, bookingDateDisplay);
 
 async function api(path, options = {}) {
   const response = await fetch(path, {
@@ -90,6 +94,7 @@ function resetForm() {
   bookingForm.elements.status.value = "confermata";
   formTitle.textContent = "Nuova prenotazione";
   formMessage.textContent = "";
+  updateDateDisplay(bookingForm.elements.date, bookingDateDisplay);
 }
 
 function statusClass(status) {
@@ -198,6 +203,17 @@ function addDays(value, days) {
 function formatDate(value) {
   if (!value) return "";
   return new Intl.DateTimeFormat("it-IT", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(`${value}T12:00:00`));
+}
+
+function formatDisplayDate(value) {
+  if (!value) return "Seleziona data";
+  return new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "short", year: "numeric" })
+    .format(new Date(`${value}T12:00:00`))
+    .replace(/\./g, "");
+}
+
+function updateDateDisplay(input, display) {
+  display.textContent = formatDisplayDate(input.value);
 }
 
 function formatDateTime(value) {
@@ -312,6 +328,7 @@ bookingList.addEventListener("click", async (event) => {
       if (bookingForm.elements[key]) bookingForm.elements[key].value = value;
     }
     bookingForm.elements.date.value = booking.date;
+    updateDateDisplay(bookingForm.elements.date, bookingDateDisplay);
     formMessage.textContent = "";
     bookingForm.scrollIntoView({ behavior: "smooth", block: "start" });
     return;
@@ -335,17 +352,26 @@ logoutButton.addEventListener("click", async () => {
 });
 
 resetFormButton.addEventListener("click", resetForm);
-filterDate.addEventListener("change", loadBookings);
+filterDate.addEventListener("change", async () => {
+  updateDateDisplay(filterDate, filterDateDisplay);
+  await loadBookings();
+});
+bookingForm.elements.date.addEventListener("change", () => {
+  updateDateDisplay(bookingForm.elements.date, bookingDateDisplay);
+});
 prevDayButton.addEventListener("click", async () => {
   filterDate.value = addDays(filterDate.value, -1);
+  updateDateDisplay(filterDate, filterDateDisplay);
   await loadBookings();
 });
 nextDayButton.addEventListener("click", async () => {
   filterDate.value = addDays(filterDate.value, 1);
+  updateDateDisplay(filterDate, filterDateDisplay);
   await loadBookings();
 });
 todayButton.addEventListener("click", async () => {
   filterDate.value = today;
+  updateDateDisplay(filterDate, filterDateDisplay);
   await loadBookings();
 });
 searchInput.addEventListener("input", renderBookings);

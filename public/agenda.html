@@ -54,7 +54,10 @@
             </div>
             <div class="date-nav" aria-label="Navigazione data agenda">
               <button id="agendaPrevDay" class="ghost icon-button" type="button" aria-label="Giorno precedente">‹</button>
-              <input id="agendaDate" type="date" aria-label="Data agenda">
+              <span class="date-field">
+                <input id="agendaDate" type="date" aria-label="Data agenda">
+                <span id="agendaDateDisplay" class="date-display" aria-hidden="true"></span>
+              </span>
               <button id="agendaNextDay" class="ghost icon-button" type="button" aria-label="Giorno successivo">›</button>
               <button id="agendaToday" class="ghost today-button" type="button">Oggi</button>
             </div>
@@ -63,6 +66,6 @@
         </section>
       </section>
     </main>
-    <script src="/agenda.js?v=7" type="module"></script>
+    <script src="/agenda.js?v=8" type="module"></script>
   </body>
 </html>

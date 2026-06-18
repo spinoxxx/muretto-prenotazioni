@@ -108,6 +108,44 @@ textarea {
   color: var(--ink);
 }
 
+.date-field {
+  position: relative;
+  min-height: 44px;
+  display: block;
+}
+
+.date-field input[type="date"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.date-display {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 38px 10px 12px;
+  background: #fff;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.date-display::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--accent-dark);
+  border-top-width: 5px;
+  border-radius: 3px;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
 textarea {
   resize: vertical;
 }

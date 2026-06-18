@@ -86,7 +86,10 @@
               <div class="grid-3">
                 <label>
                   Data
-                  <input name="date" type="date" required>
+                  <span class="date-field">
+                    <input name="date" type="date" required aria-label="Data prenotazione">
+                    <span id="bookingDateDisplay" class="date-display" aria-hidden="true"></span>
+                  </span>
                 </label>
                 <label>
                   Ora
@@ -182,7 +185,10 @@
               <div class="filters">
                 <div class="date-nav" aria-label="Navigazione data agenda">
                   <button id="prevDayButton" class="ghost icon-button" type="button" aria-label="Giorno precedente">‹</button>
-                  <input id="filterDate" type="date" aria-label="Filtra per data">
+                  <span class="date-field">
+                    <input id="filterDate" type="date" aria-label="Filtra per data">
+                    <span id="filterDateDisplay" class="date-display" aria-hidden="true"></span>
+                  </span>
                   <button id="nextDayButton" class="ghost icon-button" type="button" aria-label="Giorno successivo">›</button>
                   <button id="todayButton" class="ghost today-button" type="button">Oggi</button>
                 </div>
@@ -194,6 +200,6 @@
         </div>
       </section>
     </main>
-    <script src="/app.js?v=11" type="module"></script>
+    <script src="/app.js?v=12" type="module"></script>
   </body>
 </html>
