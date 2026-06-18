@@ -131,7 +131,7 @@ function bookingPayload() {
 }
 
 function resetForm() {
-  const currentDate = bookingForm.elements.date.value || today;
+  const currentDate = selectedAgendaDate();
   bookingForm.reset();
   bookingForm.elements.id.value = "";
   bookingForm.elements.date.value = currentDate;
@@ -140,6 +140,16 @@ function resetForm() {
   bookingForm.elements.status.value = "confermata";
   formTitle.textContent = "Nuova prenotazione";
   formMessage.textContent = "";
+  updateDateDisplay(bookingForm.elements.date, bookingDateDisplay);
+}
+
+function selectedAgendaDate() {
+  return toApiDate(filterDate.value) || today;
+}
+
+function syncNewBookingDateWithAgenda() {
+  if (bookingForm.elements.id.value) return;
+  bookingForm.elements.date.value = selectedAgendaDate();
   updateDateDisplay(bookingForm.elements.date, bookingDateDisplay);
 }
 
@@ -457,6 +467,7 @@ logoutButton.addEventListener("click", async () => {
 resetFormButton.addEventListener("click", resetForm);
 filterDate.addEventListener("change", async () => {
   updateDateDisplay(filterDate, filterDateDisplay);
+  syncNewBookingDateWithAgenda();
   await loadBookings();
 });
 bookingForm.elements.date.addEventListener("change", () => {
@@ -465,16 +476,19 @@ bookingForm.elements.date.addEventListener("change", () => {
 prevDayButton.addEventListener("click", async () => {
   filterDate.value = addDays(filterDate.value, -1);
   updateDateDisplay(filterDate, filterDateDisplay);
+  syncNewBookingDateWithAgenda();
   await loadBookings();
 });
 nextDayButton.addEventListener("click", async () => {
   filterDate.value = addDays(filterDate.value, 1);
   updateDateDisplay(filterDate, filterDateDisplay);
+  syncNewBookingDateWithAgenda();
   await loadBookings();
 });
 todayButton.addEventListener("click", async () => {
   filterDate.value = today;
   updateDateDisplay(filterDate, filterDateDisplay);
+  syncNewBookingDateWithAgenda();
   await loadBookings();
 });
 searchInput.addEventListener("input", renderBookings);
