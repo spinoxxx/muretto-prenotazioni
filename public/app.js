@@ -192,7 +192,7 @@ function renderBookings() {
         <p class="booking-meta">${bookingMetaLine(booking)}</p>
       </div>
       <div class="actions">
-        <button class="arrived" type="button" data-action="arrived" data-id="${booking.id}" ${booking.status === "arrivati" ? "disabled" : ""}>ARRIVATI</button>
+        <button class="arrived" type="button" data-action="arrived" data-id="${booking.id}">${booking.status === "arrivati" ? "ANNULLA ARRIVO" : "ARRIVATI"}</button>
         <button class="ghost" type="button" data-action="edit" data-id="${booking.id}">Modifica</button>
         <button class="delete" type="button" data-action="delete" data-id="${booking.id}">Elimina</button>
       </div>

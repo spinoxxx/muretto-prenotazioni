@@ -70,7 +70,7 @@ function renderAgenda(bookings, date) {
           <button class="ghost compact" type="submit">Salva tavolo</button>
           <span class="row-message" role="status"></span>
         </form>
-        <button class="arrived compact arrived-agenda-button" type="button" data-action="arrived" data-id="${booking.id}" ${booking.status === "arrivati" ? "disabled" : ""}>ARRIVATI</button>
+        <button class="arrived compact arrived-agenda-button" type="button" data-action="arrived" data-id="${booking.id}">${booking.status === "arrivati" ? "ANNULLA ARRIVO" : "ARRIVATI"}</button>
       </div>
     </article>
   `).join("");

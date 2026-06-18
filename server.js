@@ -588,11 +588,12 @@ async function handleApi(req, res) {
       return;
     }
     const now = new Date().toISOString();
+    const isArrived = bookings[index].status === "arrivati";
     bookings[index] = {
       ...bookings[index],
-      status: "arrivati",
-      arrivedAt: now,
-      arrivedBy: session.employeeName,
+      status: isArrived ? "confermata" : "arrivati",
+      arrivedAt: isArrived ? "" : now,
+      arrivedBy: isArrived ? "" : session.employeeName,
       updatedAt: now,
       updatedBy: session.employeeName
     };
