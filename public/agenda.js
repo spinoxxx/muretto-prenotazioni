@@ -11,8 +11,25 @@ const agendaNextDay = document.querySelector("#agendaNextDay");
 const agendaToday = document.querySelector("#agendaToday");
 const agendaRangeLabel = document.querySelector("#agendaRangeLabel");
 const agendaList = document.querySelector("#agendaList");
+const agendaStatCards = document.querySelectorAll("[data-agenda-room-filter]");
+const agendaRoomStats = {
+  ristorante: {
+    people: document.querySelector("#agendaRestaurantPeople"),
+    bookings: document.querySelector("#agendaRestaurantBookings")
+  },
+  bar: {
+    people: document.querySelector("#agendaBarPeople"),
+    bookings: document.querySelector("#agendaBarBookings")
+  },
+  giardino: {
+    people: document.querySelector("#agendaGardenPeople"),
+    bookings: document.querySelector("#agendaGardenBookings")
+  }
+};
 
 let csrfToken = "";
+let agendaBookings = [];
+let activeRoomFilter = "";
 
 const today = new Date().toISOString().slice(0, 10);
 agendaDate.value = today;
@@ -76,13 +93,18 @@ function showAgenda(employee) {
 }
 
 function renderAgenda(bookings, date) {
-  agendaRangeLabel.textContent = formatDate(date);
-  if (!bookings.length) {
+  const filtered = bookings.filter(matchesRoomFilter);
+  const roomLabel = activeRoomFilter ? ` · ${roomFilterLabel(activeRoomFilter)}` : "";
+  agendaRangeLabel.textContent = `${formatDate(date)}${roomLabel}`;
+  renderRoomStats(bookings);
+  renderRoomFilterState();
+
+  if (!filtered.length) {
     agendaList.innerHTML = `<p class="empty">Nessuna prenotazione in agenda.</p>`;
     return;
   }
 
-  agendaList.innerHTML = bookings.map((booking) => `
+  agendaList.innerHTML = filtered.map((booking) => `
     <article class="booking-row agenda-row ${booking.status === "arrivati" ? "is-arrived" : ""}">
       <div class="time">${escapeHtml(booking.time)}</div>
       <div class="booking-main">
@@ -107,11 +129,58 @@ function renderAgenda(bookings, date) {
 async function loadAgenda() {
   const selectedDate = toApiDate(agendaDate.value) || today;
   const payload = await api(`/api/agenda?date=${selectedDate}`);
-  renderAgenda(payload.bookings, payload.date);
+  agendaBookings = payload.bookings;
+  renderAgenda(agendaBookings, payload.date);
 }
 
 function statusClass(status) {
   return String(status || "").replace(/\s+/g, "-");
+}
+
+function matchesRoomFilter(booking) {
+  if (!activeRoomFilter) return true;
+  return String(booking.room || "").trim().toLowerCase() === activeRoomFilter;
+}
+
+function renderRoomStats(bookings) {
+  const stats = {
+    ristorante: createRoomStat(),
+    bar: createRoomStat(),
+    giardino: createRoomStat()
+  };
+
+  for (const booking of bookings) {
+    const room = String(booking.room || "").trim().toLowerCase();
+    if (!stats[room]) continue;
+    stats[room].people += Number(booking.people || 0);
+    stats[room].bookings += 1;
+  }
+
+  for (const [room, values] of Object.entries(stats)) {
+    agendaRoomStats[room].people.textContent = values.people;
+    agendaRoomStats[room].bookings.textContent = `${values.bookings} ${values.bookings === 1 ? "prenotazione" : "prenotazioni"}`;
+  }
+}
+
+function createRoomStat() {
+  return { people: 0, bookings: 0 };
+}
+
+function roomFilterLabel(room) {
+  const labels = {
+    ristorante: "Ristorante",
+    bar: "Bar",
+    giardino: "Giardino"
+  };
+  return labels[room] || room;
+}
+
+function renderRoomFilterState() {
+  agendaStatCards.forEach((card) => {
+    const isActive = card.dataset.agendaRoomFilter === activeRoomFilter;
+    card.classList.toggle("is-active", isActive);
+    card.setAttribute("aria-pressed", String(isActive));
+  });
 }
 
 function seatLine(booking) {
@@ -205,6 +274,21 @@ agendaToday.addEventListener("click", async () => {
   agendaDate.value = today;
   updateDateDisplay(agendaDate, agendaDateDisplay);
   await loadAgenda();
+});
+
+agendaStatCards.forEach((card) => {
+  const toggleRoomFilter = () => {
+    const room = card.dataset.agendaRoomFilter;
+    activeRoomFilter = activeRoomFilter === room ? "" : room;
+    const selectedDate = toApiDate(agendaDate.value) || today;
+    renderAgenda(agendaBookings, selectedDate);
+  };
+  card.addEventListener("click", toggleRoomFilter);
+  card.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    toggleRoomFilter();
+  });
 });
 
 agendaList.addEventListener("submit", async (event) => {

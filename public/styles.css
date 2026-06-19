@@ -498,6 +498,11 @@ label {
   min-height: 540px;
 }
 
+.agenda-stats {
+  padding: 18px;
+  border-bottom: 1px solid var(--line);
+}
+
 .agenda-row {
   grid-template-columns: 110px 1fr;
 }
