@@ -17,6 +17,7 @@ const nextDayButton = document.querySelector("#nextDayButton");
 const todayButton = document.querySelector("#todayButton");
 const searchInput = document.querySelector("#searchInput");
 const rangeLabel = document.querySelector("#rangeLabel");
+const statCards = document.querySelectorAll("[data-room-filter]");
 const roomStats = {
   ristorante: {
     people: document.querySelector("#restaurantPeople"),
@@ -50,6 +51,7 @@ const employeeMessage = document.querySelector("#employeeMessage");
 let csrfToken = "";
 let bookings = [];
 let currentEmployee = null;
+let activeRoomFilter = "";
 
 const today = new Date().toISOString().slice(0, 10);
 filterDate.value = today;
@@ -163,6 +165,11 @@ function matchesSearch(booking, term) {
   return haystack.includes(term.toLowerCase());
 }
 
+function matchesRoomFilter(booking) {
+  if (!activeRoomFilter) return true;
+  return String(booking.room || "").trim().toLowerCase() === activeRoomFilter;
+}
+
 function renderRoomStats() {
   const stats = {
     ristorante: createRoomStat(),
@@ -210,10 +217,12 @@ function mealStatLine(label, stat) {
 
 function renderBookings() {
   const term = searchInput.value.trim();
-  const filtered = bookings.filter((booking) => matchesSearch(booking, term));
+  const filtered = bookings.filter((booking) => matchesSearch(booking, term) && matchesRoomFilter(booking));
   const filterApiDate = toApiDate(filterDate.value);
-  rangeLabel.textContent = filterApiDate ? `Data ${formatDate(filterApiDate)}` : "Tutte le date";
+  const roomLabel = activeRoomFilter ? ` · ${roomFilterLabel(activeRoomFilter)}` : "";
+  rangeLabel.textContent = filterApiDate ? `Data ${formatDate(filterApiDate)}${roomLabel}` : `Tutte le date${roomLabel}`;
   renderRoomStats();
+  renderRoomFilterState();
 
   if (!filtered.length) {
     bookingList.innerHTML = `<p class="empty">Nessuna prenotazione trovata.</p>`;
@@ -237,6 +246,23 @@ function renderBookings() {
       </div>
     </article>
   `).join("");
+}
+
+function roomFilterLabel(room) {
+  const labels = {
+    ristorante: "Ristorante",
+    bar: "Bar",
+    giardino: "Giardino"
+  };
+  return labels[room] || room;
+}
+
+function renderRoomFilterState() {
+  statCards.forEach((card) => {
+    const isActive = card.dataset.roomFilter === activeRoomFilter;
+    card.classList.toggle("is-active", isActive);
+    card.setAttribute("aria-pressed", String(isActive));
+  });
 }
 
 function renderEmployees(employees) {
@@ -492,6 +518,20 @@ todayButton.addEventListener("click", async () => {
   await loadBookings();
 });
 searchInput.addEventListener("input", renderBookings);
+
+statCards.forEach((card) => {
+  const toggleRoomFilter = () => {
+    const room = card.dataset.roomFilter;
+    activeRoomFilter = activeRoomFilter === room ? "" : room;
+    renderBookings();
+  };
+  card.addEventListener("click", toggleRoomFilter);
+  card.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    toggleRoomFilter();
+  });
+});
 
 employeeForm.addEventListener("submit", async (event) => {
   event.preventDefault();
