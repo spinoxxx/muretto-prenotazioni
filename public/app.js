@@ -40,10 +40,12 @@ const roomStats = {
 };
 const staffPanel = document.querySelector("#staffPanel");
 const backupPanel = document.querySelector("#backupPanel");
+const deleteLogPanel = document.querySelector("#deleteLogPanel");
 const createBackupButton = document.querySelector("#createBackupButton");
 const backupMessage = document.querySelector("#backupMessage");
 const backupDownloadLink = document.querySelector("#backupDownloadLink");
 const backupList = document.querySelector("#backupList");
+const deleteLogList = document.querySelector("#deleteLogList");
 const employeeForm = document.querySelector("#employeeForm");
 const employeeList = document.querySelector("#employeeList");
 const employeeMessage = document.querySelector("#employeeMessage");
@@ -111,6 +113,7 @@ function showLogin() {
   appView.style.display = "none";
   staffPanel.hidden = true;
   backupPanel.hidden = true;
+  deleteLogPanel.hidden = true;
 }
 
 function showApp(employee) {
@@ -119,6 +122,7 @@ function showApp(employee) {
   employeeName.textContent = employee.name;
   staffPanel.hidden = employee.role !== "admin";
   backupPanel.hidden = employee.role !== "admin";
+  deleteLogPanel.hidden = employee.role !== "admin";
   loginView.hidden = true;
   loginView.style.display = "none";
   appView.hidden = false;
@@ -296,6 +300,12 @@ async function loadBackups() {
   renderBackups(payload.backups);
 }
 
+async function loadDeleteLogs() {
+  if (currentEmployee?.role !== "admin") return;
+  const payload = await api("/api/deleted-bookings");
+  renderDeleteLogs(payload.logs);
+}
+
 function contactLine(booking) {
   const parts = [booking.phone, booking.email].filter(Boolean).map(escapeHtml);
   return parts.length ? parts.join(" · ") : "nessun recapito";
@@ -387,6 +397,31 @@ function renderBackups(backups) {
   `).join("");
 }
 
+function renderDeleteLogs(logs) {
+  if (!logs.length) {
+    deleteLogList.innerHTML = `<p class="empty compact-empty">Nessuna prenotazione cancellata.</p>`;
+    return;
+  }
+
+  deleteLogList.innerHTML = logs.map((log) => {
+    const booking = log.booking || {};
+    const seat = seatLine(booking);
+    return `
+      <div class="delete-log-row">
+        <div>
+          <strong>${escapeHtml(booking.guestName || "Prenotazione senza nome")}</strong>
+          <span>${formatDate(booking.date)} · ${escapeHtml(booking.time || "")} · ${Number(booking.people || 0)} persone</span>
+          <span>${seat}</span>
+        </div>
+        <div class="delete-log-meta">
+          <strong>${escapeHtml(log.deletedBy || "sconosciuto")}</strong>
+          <span>${formatDateTime(log.deletedAt)}</span>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
 function escapeHtml(value) {
   return String(value || "").replace(/[&<>"']/g, (char) => ({
     "&": "&amp;",
@@ -423,6 +458,8 @@ loginForm.addEventListener("submit", async (event) => {
     showApp(payload.employee);
     await loadBookings();
     await loadEmployees();
+    await loadBackups();
+    await loadDeleteLogs();
   } catch (error) {
     loginError.textContent = error.message;
   }
@@ -478,6 +515,7 @@ bookingList.addEventListener("click", async (event) => {
     if (!ok) return;
     await api(`/api/bookings/${booking.id}`, { method: "DELETE" });
     await loadBookings();
+    await loadDeleteLogs();
   }
 });
 
@@ -583,6 +621,7 @@ if (me.employee) {
   await loadBookings();
   await loadEmployees();
   await loadBackups();
+  await loadDeleteLogs();
   }
 } else {
   showLogin();

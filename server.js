@@ -9,6 +9,7 @@ const publicDir = path.join(__dirname, "public");
 const dataDir = process.env.DATA_DIR || path.join(__dirname, "data");
 const employeesFile = path.join(dataDir, "employees.json");
 const bookingsFile = path.join(dataDir, "bookings.json");
+const deletedBookingsFile = path.join(dataDir, "deleted-bookings.json");
 const backupsDir = path.join(dataDir, "backups");
 const sessions = new Map();
 
@@ -156,6 +157,12 @@ async function ensureDataFiles() {
   } catch {
     await writeJson(bookingsFile, []);
   }
+
+  try {
+    await fs.access(deletedBookingsFile);
+  } catch {
+    await writeJson(deletedBookingsFile, []);
+  }
 }
 
 async function readJson(file, fallback) {
@@ -210,7 +217,8 @@ async function createBackup(reason = "manuale", actor = "system") {
     actor,
     data: {
       bookings: await readJson(bookingsFile, []),
-      employees: await readJson(employeesFile, [])
+      employees: await readJson(employeesFile, []),
+      deletedBookings: await readJson(deletedBookingsFile, [])
     }
   };
   const name = backupFileName(new Date(createdAt));
@@ -494,6 +502,18 @@ async function handleApi(req, res) {
     return;
   }
 
+  if (url.pathname === "/api/deleted-bookings" && req.method === "GET") {
+    if (!requireAdmin(session, res)) return;
+    const logs = await readJson(deletedBookingsFile, []);
+    sendJson(res, 200, {
+      logs: logs
+        .slice()
+        .sort((a, b) => String(b.deletedAt).localeCompare(String(a.deletedAt)))
+        .slice(0, 100)
+    });
+    return;
+  }
+
   const backupMatch = url.pathname.match(/^\/api\/backups\/([^/]+)$/);
   if (backupMatch && req.method === "GET") {
     if (!requireAdmin(session, res)) return;
@@ -692,12 +712,37 @@ async function handleApi(req, res) {
   if (bookingMatch && req.method === "DELETE") {
     if (!requireBookingEditor(session, res)) return;
     const bookings = await readJson(bookingsFile, []);
-    const remaining = bookings.filter((item) => item.id !== bookingMatch[1]);
-    if (remaining.length === bookings.length) {
+    const booking = bookings.find((item) => item.id === bookingMatch[1]);
+    if (!booking) {
       sendJson(res, 404, { error: "Prenotazione non trovata" });
       return;
     }
+    const remaining = bookings.filter((item) => item.id !== bookingMatch[1]);
+    const logs = await readJson(deletedBookingsFile, []);
+    logs.push({
+      id: crypto.randomUUID(),
+      bookingId: booking.id,
+      deletedAt: new Date().toISOString(),
+      deletedBy: session.employeeName,
+      booking: {
+        guestName: booking.guestName,
+        date: booking.date,
+        time: booking.time,
+        people: booking.people,
+        room: booking.room,
+        tableNumber: booking.tableNumber,
+        status: booking.status,
+        phone: booking.phone,
+        email: booking.email,
+        notes: booking.notes,
+        createdBy: booking.createdBy,
+        createdAt: booking.createdAt,
+        updatedBy: booking.updatedBy,
+        updatedAt: booking.updatedAt
+      }
+    });
     await writeJson(bookingsFile, remaining);
+    await writeJson(deletedBookingsFile, logs);
     sendJson(res, 200, { ok: true });
     return;
   }
