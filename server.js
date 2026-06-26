@@ -32,6 +32,8 @@ const DEFAULT_EMPLOYEE_NAME = process.env.MURETTO_ADMIN_NAME || "Admin";
 const DEFAULT_EMPLOYEE_PIN = process.env.MURETTO_ADMIN_PIN || "123456";
 const SYNC_ADMIN_PIN = process.env.MURETTO_SYNC_ADMIN_PIN === "true";
 const privacyControllerEnv = process.env.MURETTO_PRIVACY_CONTROLLER;
+const EMAIL_FROM = sanitizePublicText(process.env.MURETTO_EMAIL_FROM, "", 160);
+const RESEND_API_KEY = process.env.MURETTO_RESEND_API_KEY || "";
 const BRAND_CONFIG = {
   name: sanitizePublicText(process.env.MURETTO_BRAND_NAME, "Il Muretto", 80),
   category: sanitizePublicText(process.env.MURETTO_BRAND_CATEGORY, "Bistrot", 40),
@@ -462,6 +464,21 @@ async function getZoneSettings(date) {
   return normalizeZoneSettings(date, allSettings[date]);
 }
 
+function publicZoneSettings(settings) {
+  const zones = {};
+  for (const room of ZONE_ROOMS) {
+    zones[room] = {};
+    for (const period of ZONE_PERIODS) {
+      const rule = settings?.zones?.[room]?.[period] || {};
+      zones[room][period] = {
+        limit: Number(rule.limit || 0),
+        blocked: Boolean(rule.blocked)
+      };
+    }
+  }
+  return { zones };
+}
+
 function zoneOccupancy(bookings, booking) {
   const period = mealPeriod(booking.time);
   return bookings
@@ -506,6 +523,69 @@ function eraseDeletedBookingPersonalData(log, actor) {
 function publicClientKey(req) {
   const forwarded = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
   return forwarded || req.socket.remoteAddress || "unknown";
+}
+
+function bookingConfirmationText(booking) {
+  const seat = [booking.room ? `Sala ${booking.room}` : "", booking.tableNumber ? `Tavolo ${booking.tableNumber}` : ""].filter(Boolean).join(" - ");
+  return [
+    `Ciao ${booking.guestName},`,
+    "",
+    `la tua prenotazione da ${BRAND_CONFIG.name} e confermata.`,
+    "",
+    `Data: ${booking.date}`,
+    `Ora: ${booking.time}`,
+    `Persone: ${booking.people}`,
+    seat ? `Zona: ${seat}` : "",
+    "",
+    "A presto."
+  ].filter(Boolean).join("\n");
+}
+
+async function sendBookingConfirmationEmail(booking) {
+  if (!booking.email || !EMAIL_FROM || !RESEND_API_KEY) {
+    return { sent: false, reason: "email_not_configured" };
+  }
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "authorization": `Bearer ${RESEND_API_KEY}`,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      from: EMAIL_FROM,
+      to: [booking.email],
+      subject: `Prenotazione confermata - ${BRAND_CONFIG.name}`,
+      text: bookingConfirmationText(booking)
+    })
+  });
+  if (!response.ok) {
+    const details = await response.text().catch(() => "");
+    throw new Error(`Invio email non riuscito: ${response.status} ${details}`.trim());
+  }
+  return { sent: true };
+}
+
+async function markConfirmationEmailIfNeeded(previousBooking, booking, actor) {
+  const wasConfirmed = previousBooking?.status === "confermata";
+  const isConfirmed = booking.status === "confermata";
+  if (!isConfirmed || wasConfirmed || !booking.email || booking.confirmationEmailSentAt) return booking;
+
+  try {
+    const result = await sendBookingConfirmationEmail(booking);
+    if (!result.sent) return booking;
+    return {
+      ...booking,
+      confirmationEmailSentAt: new Date().toISOString(),
+      confirmationEmailSentBy: actor,
+      confirmationEmailError: ""
+    };
+  } catch (error) {
+    console.error(error);
+    return {
+      ...booking,
+      confirmationEmailError: "Invio conferma email non riuscito"
+    };
+  }
 }
 
 function allowPublicBookingAttempt(req) {
@@ -664,6 +744,7 @@ async function handleApi(req, res) {
   if (url.pathname === "/api/agenda" && req.method === "GET") {
     const bookings = await readJson(bookingsFile, []);
     const date = normalizeDate(url.searchParams.get("date") || new Date().toISOString().slice(0, 10));
+    const zoneSettings = publicZoneSettings(await getZoneSettings(date));
     const visible = bookings
       .filter((item) => item.date === date)
       .filter((item) => item.status !== "annullata")
@@ -679,7 +760,7 @@ async function handleApi(req, res) {
         status: item.status,
         notes: item.notes || ""
       }));
-    sendJson(res, 200, { date, bookings: visible });
+    sendJson(res, 200, { date, bookings: visible, zoneSettings });
     return;
   }
 
@@ -845,11 +926,12 @@ async function handleApi(req, res) {
     const bookings = await readJson(bookingsFile, []);
     const from = normalizeDate(url.searchParams.get("from"));
     const to = normalizeDate(url.searchParams.get("to"));
+    const zoneSettings = from && from === to ? publicZoneSettings(await getZoneSettings(from)) : null;
     const visible = bookings
       .filter((item) => !from || item.date >= from)
       .filter((item) => !to || item.date <= to)
       .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
-    sendJson(res, 200, { bookings: visible });
+    sendJson(res, 200, { bookings: visible, zoneSettings });
     return;
   }
 
@@ -949,12 +1031,13 @@ async function handleApi(req, res) {
       sendJson(res, 404, { error: "Prenotazione non trovata" });
       return;
     }
-    bookings[index] = {
-      ...bookings[index],
+    const previousBooking = bookings[index];
+    bookings[index] = await markConfirmationEmailIfNeeded(previousBooking, {
+      ...previousBooking,
       ...result,
       updatedAt: new Date().toISOString(),
       updatedBy: session.employeeName
-    };
+    }, session.employeeName);
     await writeJson(bookingsFile, bookings);
     sendJson(res, 200, { booking: bookings[index] });
     return;

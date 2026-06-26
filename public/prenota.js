@@ -100,12 +100,14 @@ bookingForm.addEventListener("submit", async (event) => {
   const submitButton = bookingForm.querySelector("button[type='submit']");
   submitButton.disabled = true;
   try {
+    const request = toPayload();
     const payload = await api("/api/public-bookings", {
       method: "POST",
-      body: JSON.stringify(toPayload())
+      body: JSON.stringify(request)
     });
     const roomText = payload.booking.room === "Giardino" ? "Giardino richiesto, da confermare" : `Zona proposta: ${payload.booking.room}`;
-    message.textContent = `Richiesta ricevuta per ${formatDate(payload.booking.date)} alle ${payload.booking.time}. ${roomText}.`;
+    const emailText = request.email ? " Riceverai conferma via mail appena verificata." : "";
+    message.textContent = `Richiesta ricevuta per ${formatDate(payload.booking.date)} alle ${payload.booking.time}. ${roomText}.${emailText}`;
     bookingForm.reset();
     bookingDate.value = today;
     bookingForm.elements.time.value = "20:00";

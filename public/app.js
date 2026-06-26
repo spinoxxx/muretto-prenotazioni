@@ -20,22 +20,28 @@ const rangeLabel = document.querySelector("#rangeLabel");
 const statCards = document.querySelectorAll("[data-room-filter]");
 const roomStats = {
   ristorante: {
+    card: document.querySelector("[data-room-filter='ristorante']"),
     people: document.querySelector("#restaurantPeople"),
     bookings: document.querySelector("#restaurantBookings"),
     day: document.querySelector("#restaurantDay"),
-    evening: document.querySelector("#restaurantEvening")
+    evening: document.querySelector("#restaurantEvening"),
+    warning: document.querySelector("#restaurantLimitWarning")
   },
   bar: {
+    card: document.querySelector("[data-room-filter='bar']"),
     people: document.querySelector("#barPeople"),
     bookings: document.querySelector("#barBookings"),
     day: document.querySelector("#barDay"),
-    evening: document.querySelector("#barEvening")
+    evening: document.querySelector("#barEvening"),
+    warning: document.querySelector("#barLimitWarning")
   },
   giardino: {
+    card: document.querySelector("[data-room-filter='giardino']"),
     people: document.querySelector("#gardenPeople"),
     bookings: document.querySelector("#gardenBookings"),
     day: document.querySelector("#gardenDay"),
-    evening: document.querySelector("#gardenEvening")
+    evening: document.querySelector("#gardenEvening"),
+    warning: document.querySelector("#gardenLimitWarning")
   }
 };
 const staffPanel = document.querySelector("#staffPanel");
@@ -56,6 +62,7 @@ const employeeMessage = document.querySelector("#employeeMessage");
 
 let csrfToken = "";
 let bookings = [];
+let zoneStatsSettings = null;
 let currentEmployee = null;
 let activeRoomFilter = "";
 
@@ -204,6 +211,7 @@ function renderRoomStats() {
     roomStats[room].bookings.textContent = `${values.bookings} ${values.bookings === 1 ? "prenotazione" : "prenotazioni"}`;
     roomStats[room].day.textContent = mealStatLine("Diurno", values.day);
     roomStats[room].evening.textContent = mealStatLine("Serale", values.evening);
+    renderLimitWarning(room, values);
   }
 }
 
@@ -223,6 +231,39 @@ function isEvening(time) {
 
 function mealStatLine(label, stat) {
   return `${label} ${stat.people} ${stat.people === 1 ? "coperto" : "coperti"} / ${stat.bookings} ${stat.bookings === 1 ? "pren." : "pren."}`;
+}
+
+function roomSettingName(room) {
+  return {
+    ristorante: "Ristorante",
+    bar: "Bar",
+    giardino: "Giardino"
+  }[room] || "";
+}
+
+function limitWarnings(room, values) {
+  const settings = zoneStatsSettings?.zones?.[roomSettingName(room)];
+  if (!settings) return [];
+  return [
+    limitWarningLine("Diurno", values.day, settings.day),
+    limitWarningLine("Serale", values.evening, settings.evening)
+  ].filter(Boolean);
+}
+
+function limitWarningLine(label, stat, rule = {}) {
+  const people = Number(stat.people || 0);
+  const limit = Number(rule.limit || 0);
+  if (rule.blocked && people > 0) return `${label}: zona bloccata`;
+  if (limit > 0 && people > limit) return `${label}: ${people}/${limit} coperti`;
+  return "";
+}
+
+function renderLimitWarning(room, values) {
+  const warningLines = limitWarnings(room, values);
+  const elements = roomStats[room];
+  elements.card.classList.toggle("is-over-limit", warningLines.length > 0);
+  elements.warning.hidden = warningLines.length === 0;
+  elements.warning.textContent = warningLines.length ? `Oltre limite: ${warningLines.join(" · ")}` : "";
 }
 
 function renderBookings() {
@@ -476,6 +517,7 @@ async function loadBookings() {
   const query = filterApiDate ? `?from=${filterApiDate}&to=${filterApiDate}` : "";
   const payload = await api(`/api/bookings${query}`);
   bookings = payload.bookings;
+  zoneStatsSettings = payload.zoneSettings || null;
   renderBookings();
 }
 
@@ -670,6 +712,7 @@ zoneSettingsForm.addEventListener("submit", async (event) => {
   try {
     await api("/api/zone-settings", { method: "PUT", body: JSON.stringify(zoneSettingsPayload()) });
     zoneSettingsMessage.textContent = "Limiti salvati.";
+    await loadBookings();
   } catch (error) {
     zoneSettingsMessage.textContent = error.message;
   }

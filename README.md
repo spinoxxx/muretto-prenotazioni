@@ -16,6 +16,8 @@ Per il modulo pubblico clienti apri `http://localhost:4220/prenota.html`.
 
 L'informativa privacy pubblica e disponibile su `http://localhost:4220/privacy.html`.
 
+La cookie policy pubblica e disponibile su `http://localhost:4220/cookie.html`.
+
 Al primo avvio viene creato un dipendente:
 
 - nome: `Admin`
@@ -62,6 +64,8 @@ Variabili disponibili:
 - La pagina separata `/agenda.html` richiede comunque PIN e mostra solo dati minimizzati.
 - Il modulo pubblico `/prenota.html` crea richieste con stato `da verificare` e non mostra mai dati dell'agenda.
 - Il modulo pubblico richiede accettazione dell'informativa privacy e salva la versione accettata.
+- Il modulo pubblico non usa cookie di marketing o profilazione. L'area staff usa solo il cookie tecnico `muretto_session`; per questo non viene mostrato un banner consenso cookie.
+- Se `MURETTO_EMAIL_FROM` e `MURETTO_RESEND_API_KEY` sono configurati, quando una prenotazione con email passa a `confermata` viene inviata una conferma via mail.
 - Gli admin possono rimuovere i dati personali dai log di cancellazione lasciando solo lo storico operativo.
 - Per cancellare dati personali, elimina la prenotazione dall'agenda.
 - Per revocare un accesso, un admin puo disattivare il dipendente dalla sezione **Staff**.
@@ -91,5 +95,7 @@ Variabili usate in produzione:
 - `MURETTO_BACKUP_RETENTION`: numero massimo di backup da conservare. Default: 30.
 - `MURETTO_BRAND_*`: nome, testi e colori per usare l'app in white label.
 - `MURETTO_PRIVACY_CONTROLLER`, `MURETTO_PRIVACY_CONTACT`, `MURETTO_PRIVACY_RETENTION`: testi mostrati nell'informativa privacy pubblica.
+- `MURETTO_EMAIL_FROM`: mittente usato per inviare conferme via mail, es. `Prenotazioni Il Muretto <prenotazioni@dominio.it>`.
+- `MURETTO_RESEND_API_KEY`: chiave API Resend per inviare le conferme email. Se non e presente, le conferme email non vengono inviate.
 
 Nota importante: su Render i file fuori dal disco persistente non restano garantiti tra deploy e riavvii. Per questo `render.yaml` monta un persistent disk e l'app scrive i dati in `DATA_DIR`.

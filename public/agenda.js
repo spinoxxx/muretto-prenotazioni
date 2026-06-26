@@ -14,27 +14,34 @@ const agendaList = document.querySelector("#agendaList");
 const agendaStatCards = document.querySelectorAll("[data-agenda-room-filter]");
 const agendaRoomStats = {
   ristorante: {
+    card: document.querySelector("[data-agenda-room-filter='ristorante']"),
     people: document.querySelector("#agendaRestaurantPeople"),
     bookings: document.querySelector("#agendaRestaurantBookings"),
     day: document.querySelector("#agendaRestaurantDay"),
-    evening: document.querySelector("#agendaRestaurantEvening")
+    evening: document.querySelector("#agendaRestaurantEvening"),
+    warning: document.querySelector("#agendaRestaurantLimitWarning")
   },
   bar: {
+    card: document.querySelector("[data-agenda-room-filter='bar']"),
     people: document.querySelector("#agendaBarPeople"),
     bookings: document.querySelector("#agendaBarBookings"),
     day: document.querySelector("#agendaBarDay"),
-    evening: document.querySelector("#agendaBarEvening")
+    evening: document.querySelector("#agendaBarEvening"),
+    warning: document.querySelector("#agendaBarLimitWarning")
   },
   giardino: {
+    card: document.querySelector("[data-agenda-room-filter='giardino']"),
     people: document.querySelector("#agendaGardenPeople"),
     bookings: document.querySelector("#agendaGardenBookings"),
     day: document.querySelector("#agendaGardenDay"),
-    evening: document.querySelector("#agendaGardenEvening")
+    evening: document.querySelector("#agendaGardenEvening"),
+    warning: document.querySelector("#agendaGardenLimitWarning")
   }
 };
 
 let csrfToken = "";
 let agendaBookings = [];
+let agendaZoneSettings = null;
 let activeRoomFilter = "";
 
 const today = new Date().toISOString().slice(0, 10);
@@ -136,6 +143,7 @@ async function loadAgenda() {
   const selectedDate = toApiDate(agendaDate.value) || today;
   const payload = await api(`/api/agenda?date=${selectedDate}`);
   agendaBookings = payload.bookings;
+  agendaZoneSettings = payload.zoneSettings || null;
   renderAgenda(agendaBookings, payload.date);
 }
 
@@ -171,6 +179,7 @@ function renderRoomStats(bookings) {
     agendaRoomStats[room].bookings.textContent = `${values.bookings} ${values.bookings === 1 ? "prenotazione" : "prenotazioni"}`;
     agendaRoomStats[room].day.textContent = mealStatLine("Diurno", values.day);
     agendaRoomStats[room].evening.textContent = mealStatLine("Serale", values.evening);
+    renderLimitWarning(room, values);
   }
 }
 
@@ -190,6 +199,39 @@ function isEvening(time) {
 
 function mealStatLine(label, stat) {
   return `${label} ${stat.people} ${stat.people === 1 ? "coperto" : "coperti"} / ${stat.bookings} pren.`;
+}
+
+function roomSettingName(room) {
+  return {
+    ristorante: "Ristorante",
+    bar: "Bar",
+    giardino: "Giardino"
+  }[room] || "";
+}
+
+function limitWarnings(room, values) {
+  const settings = agendaZoneSettings?.zones?.[roomSettingName(room)];
+  if (!settings) return [];
+  return [
+    limitWarningLine("Diurno", values.day, settings.day),
+    limitWarningLine("Serale", values.evening, settings.evening)
+  ].filter(Boolean);
+}
+
+function limitWarningLine(label, stat, rule = {}) {
+  const people = Number(stat.people || 0);
+  const limit = Number(rule.limit || 0);
+  if (rule.blocked && people > 0) return `${label}: zona bloccata`;
+  if (limit > 0 && people > limit) return `${label}: ${people}/${limit} coperti`;
+  return "";
+}
+
+function renderLimitWarning(room, values) {
+  const warningLines = limitWarnings(room, values);
+  const elements = agendaRoomStats[room];
+  elements.card.classList.toggle("is-over-limit", warningLines.length > 0);
+  elements.warning.hidden = warningLines.length === 0;
+  elements.warning.textContent = warningLines.length ? `Oltre limite: ${warningLines.join(" · ")}` : "";
 }
 
 function roomFilterLabel(room) {
