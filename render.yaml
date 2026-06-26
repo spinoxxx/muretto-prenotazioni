@@ -40,7 +40,7 @@ services:
       - key: MURETTO_BRAND_WARM
         value: "#b25f3a"
       - key: MURETTO_PRIVACY_CONTROLLER
-        value: Il Muretto
+        value: Bar Flora srl, Piazza Vecchia 13, 24129 Bergamo
       - key: MURETTO_PRIVACY_CONTACT
         value: Contatta il locale per richieste privacy o cancellazione dati.
       - key: MURETTO_PRIVACY_RETENTION

@@ -26,10 +26,12 @@ const PUBLIC_BOOKING_MAX_ATTEMPTS = 8;
 const ZONE_ROOMS = ["Ristorante", "Bar", "Giardino"];
 const ZONE_PERIODS = ["day", "evening"];
 const PRIVACY_VERSION = "2026-06-26";
+const PRIVACY_CONTROLLER = "Bar Flora srl, Piazza Vecchia 13, 24129 Bergamo";
 
 const DEFAULT_EMPLOYEE_NAME = process.env.MURETTO_ADMIN_NAME || "Admin";
 const DEFAULT_EMPLOYEE_PIN = process.env.MURETTO_ADMIN_PIN || "123456";
 const SYNC_ADMIN_PIN = process.env.MURETTO_SYNC_ADMIN_PIN === "true";
+const privacyControllerEnv = process.env.MURETTO_PRIVACY_CONTROLLER;
 const BRAND_CONFIG = {
   name: sanitizePublicText(process.env.MURETTO_BRAND_NAME, "Il Muretto", 80),
   category: sanitizePublicText(process.env.MURETTO_BRAND_CATEGORY, "Bistrot", 40),
@@ -39,7 +41,7 @@ const BRAND_CONFIG = {
   agendaDescription: sanitizePublicText(process.env.MURETTO_AGENDA_DESCRIPTION, "Consultazione prenotazioni riservata allo staff autorizzato.", 160),
   privacy: {
     version: PRIVACY_VERSION,
-    controller: sanitizePublicText(process.env.MURETTO_PRIVACY_CONTROLLER, process.env.MURETTO_BRAND_NAME || "Il Muretto", 120),
+    controller: sanitizePublicText(privacyControllerEnv && privacyControllerEnv !== "Il Muretto" ? privacyControllerEnv : PRIVACY_CONTROLLER, PRIVACY_CONTROLLER, 160),
     contact: sanitizePublicText(process.env.MURETTO_PRIVACY_CONTACT, "Contatta il locale per richieste privacy o cancellazione dati.", 180),
     retention: sanitizePublicText(process.env.MURETTO_PRIVACY_RETENTION, "I dati vengono conservati solo per gestire la prenotazione e le esigenze operative del locale.", 220)
   },
