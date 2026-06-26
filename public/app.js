@@ -39,6 +39,10 @@ const roomStats = {
   }
 };
 const staffPanel = document.querySelector("#staffPanel");
+const zoneSettingsPanel = document.querySelector("#zoneSettingsPanel");
+const zoneSettingsForm = document.querySelector("#zoneSettingsForm");
+const zoneSettingsDateLabel = document.querySelector("#zoneSettingsDateLabel");
+const zoneSettingsMessage = document.querySelector("#zoneSettingsMessage");
 const backupPanel = document.querySelector("#backupPanel");
 const deleteLogPanel = document.querySelector("#deleteLogPanel");
 const createBackupButton = document.querySelector("#createBackupButton");
@@ -112,6 +116,7 @@ function showLogin() {
   appView.hidden = true;
   appView.style.display = "none";
   staffPanel.hidden = true;
+  zoneSettingsPanel.hidden = true;
   backupPanel.hidden = true;
   deleteLogPanel.hidden = true;
 }
@@ -121,6 +126,7 @@ function showApp(employee) {
   document.body.classList.add("is-authenticated");
   employeeName.textContent = employee.name;
   staffPanel.hidden = employee.role !== "admin";
+  zoneSettingsPanel.hidden = employee.role !== "admin";
   backupPanel.hidden = employee.role !== "admin";
   deleteLogPanel.hidden = employee.role !== "admin";
   loginView.hidden = true;
@@ -300,6 +306,14 @@ async function loadBackups() {
   renderBackups(payload.backups);
 }
 
+async function loadZoneSettings() {
+  if (currentEmployee?.role !== "admin") return;
+  const date = selectedAgendaDate();
+  zoneSettingsDateLabel.textContent = `Giornata ${formatDate(date)}`;
+  const payload = await api(`/api/zone-settings?date=${date}`);
+  renderZoneSettings(payload.settings);
+}
+
 async function loadDeleteLogs() {
   if (currentEmployee?.role !== "admin") return;
   const payload = await api("/api/deleted-bookings");
@@ -397,6 +411,24 @@ function renderBackups(backups) {
   `).join("");
 }
 
+function renderZoneSettings(settings) {
+  zoneSettingsForm.querySelectorAll("[data-zone][data-period][data-field]").forEach((input) => {
+    const value = settings.zones?.[input.dataset.zone]?.[input.dataset.period]?.[input.dataset.field];
+    if (input.type === "checkbox") input.checked = Boolean(value);
+    else input.value = value || "";
+  });
+}
+
+function zoneSettingsPayload() {
+  const zones = {};
+  zoneSettingsForm.querySelectorAll("[data-zone][data-period][data-field]").forEach((input) => {
+    zones[input.dataset.zone] ||= {};
+    zones[input.dataset.zone][input.dataset.period] ||= {};
+    zones[input.dataset.zone][input.dataset.period][input.dataset.field] = input.type === "checkbox" ? input.checked : Number(input.value || 0);
+  });
+  return { date: selectedAgendaDate(), zones };
+}
+
 function renderDeleteLogs(logs) {
   if (!logs.length) {
     deleteLogList.innerHTML = `<p class="empty compact-empty">Nessuna prenotazione cancellata.</p>`;
@@ -458,6 +490,7 @@ loginForm.addEventListener("submit", async (event) => {
     showApp(payload.employee);
     await loadBookings();
     await loadEmployees();
+    await loadZoneSettings();
     await loadBackups();
     await loadDeleteLogs();
   } catch (error) {
@@ -533,6 +566,7 @@ filterDate.addEventListener("change", async () => {
   updateDateDisplay(filterDate, filterDateDisplay);
   syncNewBookingDateWithAgenda();
   await loadBookings();
+  await loadZoneSettings();
 });
 bookingForm.elements.date.addEventListener("change", () => {
   updateDateDisplay(bookingForm.elements.date, bookingDateDisplay);
@@ -542,18 +576,21 @@ prevDayButton.addEventListener("click", async () => {
   updateDateDisplay(filterDate, filterDateDisplay);
   syncNewBookingDateWithAgenda();
   await loadBookings();
+  await loadZoneSettings();
 });
 nextDayButton.addEventListener("click", async () => {
   filterDate.value = addDays(filterDate.value, 1);
   updateDateDisplay(filterDate, filterDateDisplay);
   syncNewBookingDateWithAgenda();
   await loadBookings();
+  await loadZoneSettings();
 });
 todayButton.addEventListener("click", async () => {
   filterDate.value = today;
   updateDateDisplay(filterDate, filterDateDisplay);
   syncNewBookingDateWithAgenda();
   await loadBookings();
+  await loadZoneSettings();
 });
 searchInput.addEventListener("input", renderBookings);
 
@@ -609,6 +646,17 @@ createBackupButton.addEventListener("click", async () => {
   }
 });
 
+zoneSettingsForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  zoneSettingsMessage.textContent = "Salvataggio limiti...";
+  try {
+    await api("/api/zone-settings", { method: "PUT", body: JSON.stringify(zoneSettingsPayload()) });
+    zoneSettingsMessage.textContent = "Limiti salvati.";
+  } catch (error) {
+    zoneSettingsMessage.textContent = error.message;
+  }
+});
+
 await loadBrandConfig();
 
 const me = await api("/api/me").catch(() => ({ employee: null }));
@@ -620,6 +668,7 @@ if (me.employee) {
   showApp(me.employee);
   await loadBookings();
   await loadEmployees();
+  await loadZoneSettings();
   await loadBackups();
   await loadDeleteLogs();
   }

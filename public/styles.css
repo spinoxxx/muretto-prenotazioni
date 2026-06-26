@@ -432,6 +432,33 @@ label {
   padding: 0 12px;
 }
 
+.zone-settings-form {
+  display: grid;
+  gap: 12px;
+}
+
+.zone-settings-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.zone-setting-card {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.zone-setting-card h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.compact-check {
+  min-height: 38px;
+  padding: 10px;
+}
+
 .compact-empty {
   padding: 14px 0 0;
 }

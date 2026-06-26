@@ -197,6 +197,80 @@
               <div id="employeeList" class="employee-list"></div>
             </section>
 
+            <section id="zoneSettingsPanel" class="staff-panel zone-settings-panel" hidden>
+              <div class="form-head">
+                <div>
+                  <h2>Limiti zone</h2>
+                  <p id="zoneSettingsDateLabel">Giornata selezionata</p>
+                </div>
+              </div>
+              <form id="zoneSettingsForm" class="zone-settings-form">
+                <div class="zone-settings-grid">
+                  <section class="zone-setting-card">
+                    <h3>Ristorante</h3>
+                    <label>
+                      Diurno coperti max
+                      <input type="number" min="0" max="999" inputmode="numeric" data-zone="Ristorante" data-period="day" data-field="limit">
+                    </label>
+                    <label class="check-row compact-check">
+                      <input type="checkbox" data-zone="Ristorante" data-period="day" data-field="blocked">
+                      <span>Blocca diurno</span>
+                    </label>
+                    <label>
+                      Serale coperti max
+                      <input type="number" min="0" max="999" inputmode="numeric" data-zone="Ristorante" data-period="evening" data-field="limit">
+                    </label>
+                    <label class="check-row compact-check">
+                      <input type="checkbox" data-zone="Ristorante" data-period="evening" data-field="blocked">
+                      <span>Blocca serale</span>
+                    </label>
+                  </section>
+
+                  <section class="zone-setting-card">
+                    <h3>Bar</h3>
+                    <label>
+                      Diurno coperti max
+                      <input type="number" min="0" max="999" inputmode="numeric" data-zone="Bar" data-period="day" data-field="limit">
+                    </label>
+                    <label class="check-row compact-check">
+                      <input type="checkbox" data-zone="Bar" data-period="day" data-field="blocked">
+                      <span>Blocca diurno</span>
+                    </label>
+                    <label>
+                      Serale coperti max
+                      <input type="number" min="0" max="999" inputmode="numeric" data-zone="Bar" data-period="evening" data-field="limit">
+                    </label>
+                    <label class="check-row compact-check">
+                      <input type="checkbox" data-zone="Bar" data-period="evening" data-field="blocked">
+                      <span>Blocca serale</span>
+                    </label>
+                  </section>
+
+                  <section class="zone-setting-card">
+                    <h3>Giardino</h3>
+                    <label>
+                      Diurno coperti max
+                      <input type="number" min="0" max="999" inputmode="numeric" data-zone="Giardino" data-period="day" data-field="limit">
+                    </label>
+                    <label class="check-row compact-check">
+                      <input type="checkbox" data-zone="Giardino" data-period="day" data-field="blocked">
+                      <span>Blocca diurno</span>
+                    </label>
+                    <label>
+                      Serale coperti max
+                      <input type="number" min="0" max="999" inputmode="numeric" data-zone="Giardino" data-period="evening" data-field="limit">
+                    </label>
+                    <label class="check-row compact-check">
+                      <input type="checkbox" data-zone="Giardino" data-period="evening" data-field="blocked">
+                      <span>Blocca serale</span>
+                    </label>
+                  </section>
+                </div>
+                <button type="submit">Salva limiti</button>
+                <p id="zoneSettingsMessage" class="message" role="status"></p>
+              </form>
+            </section>
+
             <section id="backupPanel" class="staff-panel backup-panel" hidden>
               <div class="form-head">
                 <div>

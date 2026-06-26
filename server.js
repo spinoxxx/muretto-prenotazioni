@@ -10,6 +10,7 @@ const dataDir = process.env.DATA_DIR || path.join(__dirname, "data");
 const employeesFile = path.join(dataDir, "employees.json");
 const bookingsFile = path.join(dataDir, "bookings.json");
 const deletedBookingsFile = path.join(dataDir, "deleted-bookings.json");
+const zoneSettingsFile = path.join(dataDir, "zone-settings.json");
 const backupsDir = path.join(dataDir, "backups");
 const sessions = new Map();
 const publicBookingAttempts = new Map();
@@ -22,6 +23,8 @@ const BACKUP_INTERVAL_MS = Number(process.env.MURETTO_BACKUP_INTERVAL_MS || 1000
 const BACKUP_RETENTION = Number(process.env.MURETTO_BACKUP_RETENTION || 30);
 const PUBLIC_BOOKING_WINDOW_MS = 1000 * 60 * 10;
 const PUBLIC_BOOKING_MAX_ATTEMPTS = 8;
+const ZONE_ROOMS = ["Ristorante", "Bar", "Giardino"];
+const ZONE_PERIODS = ["day", "evening"];
 
 const DEFAULT_EMPLOYEE_NAME = process.env.MURETTO_ADMIN_NAME || "Admin";
 const DEFAULT_EMPLOYEE_PIN = process.env.MURETTO_ADMIN_PIN || "123456";
@@ -166,6 +169,12 @@ async function ensureDataFiles() {
   } catch {
     await writeJson(deletedBookingsFile, []);
   }
+
+  try {
+    await fs.access(zoneSettingsFile);
+  } catch {
+    await writeJson(zoneSettingsFile, {});
+  }
 }
 
 async function readJson(file, fallback) {
@@ -221,7 +230,8 @@ async function createBackup(reason = "manuale", actor = "system") {
     data: {
       bookings: await readJson(bookingsFile, []),
       employees: await readJson(employeesFile, []),
-      deletedBookings: await readJson(deletedBookingsFile, [])
+      deletedBookings: await readJson(deletedBookingsFile, []),
+      zoneSettings: await readJson(zoneSettingsFile, {})
     }
   };
   const name = backupFileName(new Date(createdAt));
@@ -392,6 +402,79 @@ function validatePublicBooking(input) {
   });
 }
 
+function mealPeriod(time) {
+  const [hours] = String(time || "").split(":").map(Number);
+  return Number.isFinite(hours) && hours >= 18 ? "evening" : "day";
+}
+
+function emptyZonePeriod() {
+  return { limit: 0, blocked: false };
+}
+
+function emptyZoneRoom() {
+  return {
+    day: emptyZonePeriod(),
+    evening: emptyZonePeriod()
+  };
+}
+
+function defaultZoneSettings(date) {
+  return {
+    date,
+    zones: Object.fromEntries(ZONE_ROOMS.map((room) => [room, emptyZoneRoom()]))
+  };
+}
+
+function normalizeLimit(value) {
+  const number = Number(value || 0);
+  if (!Number.isFinite(number) || number < 0) return 0;
+  return Math.min(999, Math.floor(number));
+}
+
+function normalizeZoneSettings(date, input = {}) {
+  const settings = defaultZoneSettings(date);
+  const zones = input.zones && typeof input.zones === "object" ? input.zones : input;
+  for (const room of ZONE_ROOMS) {
+    for (const period of ZONE_PERIODS) {
+      const source = zones?.[room]?.[period] || {};
+      settings.zones[room][period] = {
+        limit: normalizeLimit(source.limit),
+        blocked: source.blocked === true || source.blocked === "true" || source.blocked === "on"
+      };
+    }
+  }
+  return settings;
+}
+
+async function getZoneSettings(date) {
+  const allSettings = await readJson(zoneSettingsFile, {});
+  return normalizeZoneSettings(date, allSettings[date]);
+}
+
+function zoneOccupancy(bookings, booking) {
+  const period = mealPeriod(booking.time);
+  return bookings
+    .filter((item) => item.date === booking.date)
+    .filter((item) => item.status !== "annullata")
+    .filter((item) => item.room === booking.room)
+    .filter((item) => mealPeriod(item.time) === period)
+    .reduce((total, item) => total + Number(item.people || 0), 0);
+}
+
+async function publicZoneError(booking, bookings) {
+  if (!ZONE_ROOMS.includes(booking.room)) return "";
+  const settings = await getZoneSettings(booking.date);
+  const period = mealPeriod(booking.time);
+  const rule = settings.zones[booking.room][period];
+  const periodLabel = period === "evening" ? "serale" : "diurna";
+  if (rule.blocked) return `${booking.room} non e disponibile nella fascia ${periodLabel}.`;
+  const occupied = zoneOccupancy(bookings, booking);
+  if (rule.limit > 0 && occupied + booking.people > rule.limit) {
+    return `${booking.room} non ha abbastanza disponibilita nella fascia ${periodLabel}.`;
+  }
+  return "";
+}
+
 function publicClientKey(req) {
   const forwarded = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
   return forwarded || req.socket.remoteAddress || "unknown";
@@ -515,6 +598,11 @@ async function handleApi(req, res) {
       return;
     }
     const bookings = await readJson(bookingsFile, []);
+    const zoneError = await publicZoneError(result, bookings);
+    if (zoneError) {
+      sendJson(res, 409, { error: zoneError });
+      return;
+    }
     const now = new Date().toISOString();
     const booking = {
       id: crypto.randomUUID(),
@@ -602,6 +690,33 @@ async function handleApi(req, res) {
         .sort((a, b) => String(b.deletedAt).localeCompare(String(a.deletedAt)))
         .slice(0, 100)
     });
+    return;
+  }
+
+  if (url.pathname === "/api/zone-settings" && req.method === "GET") {
+    if (!requireAdmin(session, res)) return;
+    const date = normalizeDate(url.searchParams.get("date") || new Date().toISOString().slice(0, 10));
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      sendJson(res, 400, { error: "Data non valida" });
+      return;
+    }
+    sendJson(res, 200, { settings: await getZoneSettings(date) });
+    return;
+  }
+
+  if (url.pathname === "/api/zone-settings" && req.method === "PUT") {
+    if (!requireAdmin(session, res)) return;
+    const body = await readBody(req);
+    const date = normalizeDate(body.date);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      sendJson(res, 400, { error: "Data non valida" });
+      return;
+    }
+    const allSettings = await readJson(zoneSettingsFile, {});
+    const settings = normalizeZoneSettings(date, body);
+    allSettings[date] = settings.zones;
+    await writeJson(zoneSettingsFile, allSettings);
+    sendJson(res, 200, { settings });
     return;
   }
 
