@@ -17,6 +17,7 @@ try {
   const brand = payload.brand || {};
   const privacy = brand.privacy || {};
   document.title = brand.name ? `Privacy ${brand.name}` : document.title;
+  setText("[data-brand-name]", brand.name);
   setText("[data-brand-category]", brand.category);
   setText("[data-privacy-controller]", privacy.controller);
   setText("[data-privacy-contact]", privacy.contact);
