@@ -25,6 +25,7 @@ const PUBLIC_BOOKING_WINDOW_MS = 1000 * 60 * 10;
 const PUBLIC_BOOKING_MAX_ATTEMPTS = 8;
 const ZONE_ROOMS = ["Ristorante", "Bar", "Giardino"];
 const ZONE_PERIODS = ["day", "evening"];
+const PRIVACY_VERSION = "2026-06-26";
 
 const DEFAULT_EMPLOYEE_NAME = process.env.MURETTO_ADMIN_NAME || "Admin";
 const DEFAULT_EMPLOYEE_PIN = process.env.MURETTO_ADMIN_PIN || "123456";
@@ -36,6 +37,12 @@ const BRAND_CONFIG = {
   appTitle: sanitizePublicText(process.env.MURETTO_APP_TITLE, "Muretto Prenotazioni", 80),
   loginDescription: sanitizePublicText(process.env.MURETTO_LOGIN_DESCRIPTION, "Registro prenotazioni riservato allo staff.", 140),
   agendaDescription: sanitizePublicText(process.env.MURETTO_AGENDA_DESCRIPTION, "Consultazione prenotazioni riservata allo staff autorizzato.", 160),
+  privacy: {
+    version: PRIVACY_VERSION,
+    controller: sanitizePublicText(process.env.MURETTO_PRIVACY_CONTROLLER, process.env.MURETTO_BRAND_NAME || "Il Muretto", 120),
+    contact: sanitizePublicText(process.env.MURETTO_PRIVACY_CONTACT, "Contatta il locale per richieste privacy o cancellazione dati.", 180),
+    retention: sanitizePublicText(process.env.MURETTO_PRIVACY_RETENTION, "I dati vengono conservati solo per gestire la prenotazione e le esigenze operative del locale.", 220)
+  },
   colors: {
     accent: sanitizeHexColor(process.env.MURETTO_BRAND_PRIMARY, "#2f6f5e"),
     accentDark: sanitizeHexColor(process.env.MURETTO_BRAND_PRIMARY_DARK, "#1f4e42"),
@@ -376,7 +383,9 @@ function validateBooking(input) {
 function validatePublicBooking(input) {
   const consumption = sanitizeText(input.consumption, 20).toLowerCase();
   const gardenRequested = input.gardenRequested === true || input.gardenRequested === "on" || input.gardenRequested === "true";
+  const privacyAccepted = input.privacyAccepted === true || input.privacyAccepted === "on" || input.privacyAccepted === "true";
   const allowedConsumptions = new Set(["cena", "aperitivo"]);
+  if (!privacyAccepted) return "Devi leggere e accettare l'informativa privacy.";
   if (!allowedConsumptions.has(consumption)) return "Scegli cena o aperitivo.";
   if (gardenRequested && consumption !== "cena") return "Il giardino si puo richiedere solo per cena.";
 
@@ -473,6 +482,23 @@ async function publicZoneError(booking, bookings) {
     return `${booking.room} non ha abbastanza disponibilita nella fascia ${periodLabel}.`;
   }
   return "";
+}
+
+function eraseDeletedBookingPersonalData(log, actor) {
+  return {
+    ...log,
+    personalDataErasedAt: new Date().toISOString(),
+    personalDataErasedBy: actor,
+    booking: {
+      ...(log.booking || {}),
+      guestName: "Dati rimossi",
+      phone: "",
+      email: "",
+      notes: "",
+      privacyAcceptedAt: "",
+      privacyVersion: ""
+    }
+  };
 }
 
 function publicClientKey(req) {
@@ -610,7 +636,9 @@ async function handleApi(req, res) {
       createdBy: "modulo online",
       createdAt: now,
       updatedAt: now,
-      updatedBy: "modulo online"
+      updatedBy: "modulo online",
+      privacyAcceptedAt: now,
+      privacyVersion: PRIVACY_VERSION
     };
     bookings.push(booking);
     await writeJson(bookingsFile, bookings);
@@ -690,6 +718,21 @@ async function handleApi(req, res) {
         .sort((a, b) => String(b.deletedAt).localeCompare(String(a.deletedAt)))
         .slice(0, 100)
     });
+    return;
+  }
+
+  const deletedBookingPrivacyMatch = url.pathname.match(/^\/api\/deleted-bookings\/([a-f0-9-]+)\/personal-data$/i);
+  if (deletedBookingPrivacyMatch && req.method === "DELETE") {
+    if (!requireAdmin(session, res)) return;
+    const logs = await readJson(deletedBookingsFile, []);
+    const index = logs.findIndex((item) => item.id === deletedBookingPrivacyMatch[1]);
+    if (index === -1) {
+      sendJson(res, 404, { error: "Log cancellazione non trovato" });
+      return;
+    }
+    logs[index] = eraseDeletedBookingPersonalData(logs[index], session.employeeName);
+    await writeJson(deletedBookingsFile, logs);
+    sendJson(res, 200, { log: logs[index] });
     return;
   }
 

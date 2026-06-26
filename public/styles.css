@@ -427,6 +427,14 @@ label {
   text-align: right;
 }
 
+.delete-log-row.is-erased {
+  opacity: 0.76;
+}
+
+.privacy-erase-button {
+  margin-top: 8px;
+}
+
 .compact-link {
   min-height: 36px;
   padding: 0 12px;
@@ -872,6 +880,62 @@ label {
   gap: 10px;
 }
 
+.privacy-check {
+  align-items: flex-start;
+}
+
+.privacy-check a {
+  color: var(--accent-dark);
+  font-weight: 850;
+}
+
+.privacy-page {
+  display: grid;
+  gap: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 28px;
+  background: rgb(255 255 255 / 94%);
+  box-shadow: var(--shadow);
+}
+
+.privacy-page h1,
+.privacy-page h2,
+.privacy-page p {
+  margin: 0;
+}
+
+.privacy-page h1 {
+  font-size: clamp(2rem, 6vw, 3.5rem);
+  line-height: 1;
+}
+
+.privacy-page section {
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+
+.privacy-page h2 {
+  font-size: 1rem;
+}
+
+.privacy-page p,
+.privacy-page small {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.privacy-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+
 @media (max-width: 900px) {
   .login-view,
   .workspace {
@@ -910,7 +974,8 @@ label {
   .topbar,
   .agenda-controls,
   .form-head,
-  .panel-head {
+  .panel-head,
+  .privacy-footer {
     align-items: stretch;
     flex-direction: column;
   }

@@ -438,16 +438,19 @@ function renderDeleteLogs(logs) {
   deleteLogList.innerHTML = logs.map((log) => {
     const booking = log.booking || {};
     const seat = seatLine(booking);
+    const erased = Boolean(log.personalDataErasedAt);
     return `
-      <div class="delete-log-row">
+      <div class="delete-log-row ${erased ? "is-erased" : ""}">
         <div>
           <strong>${escapeHtml(booking.guestName || "Prenotazione senza nome")}</strong>
           <span>${formatDate(booking.date)} · ${escapeHtml(booking.time || "")} · ${Number(booking.people || 0)} persone</span>
           <span>${seat}</span>
+          ${erased ? `<span>Dati personali rimossi il ${formatDateTime(log.personalDataErasedAt)}</span>` : ""}
         </div>
         <div class="delete-log-meta">
           <strong>${escapeHtml(log.deletedBy || "sconosciuto")}</strong>
           <span>${formatDateTime(log.deletedAt)}</span>
+          ${erased ? "" : `<button class="ghost compact privacy-erase-button" type="button" data-delete-log-id="${log.id}">Rimuovi dati personali</button>`}
         </div>
       </div>
     `;
@@ -643,6 +646,21 @@ createBackupButton.addEventListener("click", async () => {
     await loadBackups();
   } catch (error) {
     backupMessage.textContent = error.message;
+  }
+});
+
+deleteLogList.addEventListener("click", async (event) => {
+  const button = event.target.closest("button[data-delete-log-id]");
+  if (!button) return;
+  const ok = confirm("Rimuovere nome, recapiti e note personali da questo log?");
+  if (!ok) return;
+  button.disabled = true;
+  try {
+    await api(`/api/deleted-bookings/${button.dataset.deleteLogId}/personal-data`, { method: "DELETE" });
+    await loadDeleteLogs();
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = error.message;
   }
 });
 

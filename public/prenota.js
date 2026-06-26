@@ -54,6 +54,7 @@ function setText(selector, value) {
 function toPayload() {
   const data = Object.fromEntries(new FormData(bookingForm).entries());
   data.gardenRequested = bookingForm.elements.gardenRequested.checked;
+  data.privacyAccepted = bookingForm.elements.privacyAccepted.checked;
   return data;
 }
 

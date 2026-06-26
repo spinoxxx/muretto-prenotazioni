@@ -90,11 +90,16 @@
             <textarea name="notes" maxlength="220" rows="4" placeholder="Es. passeggino, compleanno, intolleranze, preferenze"></textarea>
           </label>
 
+          <label class="check-row privacy-check">
+            <input name="privacyAccepted" type="checkbox" required>
+            <span>Ho letto l'<a href="/privacy.html" target="_blank" rel="noopener">informativa privacy</a> e autorizzo l'uso dei dati per gestire questa richiesta di prenotazione.</span>
+          </label>
+
           <button type="submit">Invia richiesta</button>
           <p id="publicBookingMessage" class="message" role="status"></p>
         </form>
       </section>
     </main>
-    <script src="/prenota.js?v=1" type="module"></script>
+    <script src="/prenota.js?v=2" type="module"></script>
   </body>
 </html>
