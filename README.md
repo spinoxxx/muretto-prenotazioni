@@ -12,6 +12,8 @@ Apri poi `http://localhost:4220`.
 
 Per la consultazione separata dell'agenda apri `http://localhost:4220/agenda.html`.
 
+Per il modulo pubblico clienti apri `http://localhost:4220/prenota.html`.
+
 Al primo avvio viene creato un dipendente:
 
 - nome: `Admin`
@@ -56,6 +58,7 @@ Variabili disponibili:
 - I backup restano nella cartella privata `data/backups/`, ignorata da git, e conservano gli ultimi 30 file. Di default viene creato un backup automatico ogni 24 ore e uno a ogni avvio del servizio.
 - L'app salva solo i dati necessari alla prenotazione: nome, recapito, data, ora, persone, sala, tavolo, stato e note interne.
 - La pagina separata `/agenda.html` richiede comunque PIN e mostra solo dati minimizzati.
+- Il modulo pubblico `/prenota.html` crea richieste con stato `da verificare` e non mostra mai dati dell'agenda.
 - Per cancellare dati personali, elimina la prenotazione dall'agenda.
 - Per revocare un accesso, un admin puo disattivare il dipendente dalla sezione **Staff**.
 

@@ -12,6 +12,7 @@ const bookingsFile = path.join(dataDir, "bookings.json");
 const deletedBookingsFile = path.join(dataDir, "deleted-bookings.json");
 const backupsDir = path.join(dataDir, "backups");
 const sessions = new Map();
+const publicBookingAttempts = new Map();
 
 const PORT = Number(process.env.PORT || 4220);
 const HOST = process.env.HOST || "127.0.0.1";
@@ -19,6 +20,8 @@ const SESSION_TTL_MS = 1000 * 60 * 60 * 8;
 const MAX_BODY_BYTES = 32 * 1024;
 const BACKUP_INTERVAL_MS = Number(process.env.MURETTO_BACKUP_INTERVAL_MS || 1000 * 60 * 60 * 24);
 const BACKUP_RETENTION = Number(process.env.MURETTO_BACKUP_RETENTION || 30);
+const PUBLIC_BOOKING_WINDOW_MS = 1000 * 60 * 10;
+const PUBLIC_BOOKING_MAX_ATTEMPTS = 8;
 
 const DEFAULT_EMPLOYEE_NAME = process.env.MURETTO_ADMIN_NAME || "Admin";
 const DEFAULT_EMPLOYEE_PIN = process.env.MURETTO_ADMIN_PIN || "123456";
@@ -360,6 +363,53 @@ function validateBooking(input) {
   return booking;
 }
 
+function validatePublicBooking(input) {
+  const consumption = sanitizeText(input.consumption, 20).toLowerCase();
+  const gardenRequested = input.gardenRequested === true || input.gardenRequested === "on" || input.gardenRequested === "true";
+  const allowedConsumptions = new Set(["cena", "aperitivo"]);
+  if (!allowedConsumptions.has(consumption)) return "Scegli cena o aperitivo.";
+  if (gardenRequested && consumption !== "cena") return "Il giardino si puo richiedere solo per cena.";
+
+  const room = consumption === "aperitivo" ? "Bar" : gardenRequested ? "Giardino" : "Ristorante";
+  const notes = [
+    "Richiesta dal modulo online.",
+    `Consumazione prevista: ${consumption}.`,
+    gardenRequested ? "Richiesta giardino: da confermare." : "",
+    sanitizeText(input.notes, 220)
+  ].filter(Boolean).join(" ");
+
+  return validateBooking({
+    guestName: input.guestName,
+    phone: input.phone,
+    email: input.email,
+    date: input.date,
+    time: input.time,
+    people: input.people,
+    room,
+    tableNumber: "",
+    status: "da verificare",
+    notes
+  });
+}
+
+function publicClientKey(req) {
+  const forwarded = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
+  return forwarded || req.socket.remoteAddress || "unknown";
+}
+
+function allowPublicBookingAttempt(req) {
+  const key = publicClientKey(req);
+  const now = Date.now();
+  const attempts = (publicBookingAttempts.get(key) || []).filter((time) => now - time < PUBLIC_BOOKING_WINDOW_MS);
+  if (attempts.length >= PUBLIC_BOOKING_MAX_ATTEMPTS) {
+    publicBookingAttempts.set(key, attempts);
+    return false;
+  }
+  attempts.push(now);
+  publicBookingAttempts.set(key, attempts);
+  return true;
+}
+
 function requireAdmin(session, res) {
   if (session.role !== "admin") {
     sendJson(res, 403, { error: "Solo un amministratore puo gestire lo staff" });
@@ -446,6 +496,47 @@ async function handleApi(req, res) {
 
   if (url.pathname === "/api/config" && req.method === "GET") {
     sendJson(res, 200, { brand: BRAND_CONFIG });
+    return;
+  }
+
+  if (url.pathname === "/api/public-bookings" && req.method === "POST") {
+    if (!allowPublicBookingAttempt(req)) {
+      sendJson(res, 429, { error: "Troppe richieste. Riprova tra qualche minuto." });
+      return;
+    }
+    const body = await readBody(req);
+    if (sanitizeText(body.website, 80)) {
+      sendJson(res, 200, { ok: true });
+      return;
+    }
+    const result = validatePublicBooking(body);
+    if (typeof result === "string") {
+      sendJson(res, 400, { error: result });
+      return;
+    }
+    const bookings = await readJson(bookingsFile, []);
+    const now = new Date().toISOString();
+    const booking = {
+      id: crypto.randomUUID(),
+      ...result,
+      createdBy: "modulo online",
+      createdAt: now,
+      updatedAt: now,
+      updatedBy: "modulo online"
+    };
+    bookings.push(booking);
+    await writeJson(bookingsFile, bookings);
+    sendJson(res, 201, {
+      ok: true,
+      booking: {
+        id: booking.id,
+        date: booking.date,
+        time: booking.time,
+        people: booking.people,
+        room: booking.room,
+        status: booking.status
+      }
+    });
     return;
   }
 

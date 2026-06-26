@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Prenota</title>
+    <link rel="stylesheet" href="/styles.css?v=6">
+  </head>
+  <body>
+    <main class="shell public-shell">
+      <section class="public-booking-page">
+        <header class="public-booking-hero">
+          <div class="monogram" data-brand-monogram>M</div>
+          <div>
+            <p class="eyebrow" data-brand-category>Bistrot</p>
+            <h1 data-brand-name>Il Muretto</h1>
+            <p>Richiedi una prenotazione. Ti confermeremo appena possibile.</p>
+          </div>
+        </header>
+
+        <form id="publicBookingForm" class="public-booking-form" autocomplete="on">
+          <input name="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
+
+          <div class="form-head">
+            <div>
+              <h2>Richiesta prenotazione</h2>
+              <p>La sala viene proposta automaticamente in base alla consumazione.</p>
+            </div>
+          </div>
+
+          <label>
+            Nome e cognome
+            <input name="guestName" type="text" maxlength="80" autocomplete="name" required>
+          </label>
+
+          <div class="grid-2">
+            <label>
+              Telefono
+              <input name="phone" type="tel" maxlength="40" autocomplete="tel">
+            </label>
+            <label>
+              Email
+              <input name="email" type="email" maxlength="120" autocomplete="email">
+            </label>
+          </div>
+
+          <div class="grid-3">
+            <label>
+              Data
+              <span class="date-field">
+                <input id="publicBookingDate" name="date" type="date" required aria-label="Data prenotazione">
+                <span id="publicBookingDateDisplay" class="date-display" aria-hidden="true"></span>
+              </span>
+            </label>
+            <label>
+              Ora
+              <input name="time" type="time" required>
+            </label>
+            <label>
+              Persone
+              <input name="people" type="number" min="1" max="40" value="2" required>
+            </label>
+          </div>
+
+          <fieldset class="choice-group">
+            <legend>Tipo di consumazione</legend>
+            <label class="choice-card">
+              <input name="consumption" type="radio" value="cena" checked>
+              <span>
+                <strong>Cena</strong>
+                <small>Zona ristorante</small>
+              </span>
+            </label>
+            <label class="choice-card">
+              <input name="consumption" type="radio" value="aperitivo">
+              <span>
+                <strong>Aperitivo</strong>
+                <small>Zona bar</small>
+              </span>
+            </label>
+          </fieldset>
+
+          <label id="gardenRequest" class="check-row">
+            <input name="gardenRequested" type="checkbox">
+            <span>Vorrei il giardino, se disponibile. Solo per cena e da confermare.</span>
+          </label>
+
+          <label>
+            Note
+            <textarea name="notes" maxlength="220" rows="4" placeholder="Es. passeggino, compleanno, intolleranze, preferenze"></textarea>
+          </label>
+
+          <button type="submit">Invia richiesta</button>
+          <p id="publicBookingMessage" class="message" role="status"></p>
+        </form>
+      </section>
+    </main>
+    <script src="/prenota.js?v=1" type="module"></script>
+  </body>
+</html>
