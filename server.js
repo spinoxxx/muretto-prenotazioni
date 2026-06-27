@@ -545,26 +545,26 @@ function bookingConfirmationText(booking) {
   const gardenRequested = String(booking.notes || "").toLowerCase().includes("richiesta giardino");
   const confirmedAwayFromGarden = gardenRequested && String(booking.room || "").trim().toLowerCase() !== "giardino";
   const gardenChangeLine = confirmedAwayFromGarden
-    ? `Avevi richiesto il giardino; la prenotazione è stata confermata in ${booking.room || "un'altra zona"}.`
+    ? `Avevi richiesto il giardino, ma in questo momento è al completo. Vi abbiamo comunque riservato la zona ${booking.room || "indicata"}.`
     : "";
   return [
     `Ciao ${booking.guestName},`,
     "",
-    `la tua prenotazione da ${BRAND_CONFIG.name} è confermata.`,
+    `La tua prenotazione da ${BRAND_CONFIG.name} è confermata.`,
     gardenChangeLine,
-    "",
-    "Nota importante:",
-    "Visto lo squilibrio tra le sedute interne ed esterne, in caso di pioggia non garantiamo di poter spostare la prenotazione in area protetta.",
-    "Il tavolo verra tenuto per un massimo di 30 minuti.",
-    "Eventuali ritardi possono essere comunicati al 328.8123575.",
-    "Le modifiche alla prenotazione possono essere comunicate via mail.",
     "",
     `Data: ${booking.date}`,
     `Ora: ${booking.time}`,
     `Persone: ${booking.people}`,
     seat ? `Zona: ${seat}` : "",
     "",
-    "A presto."
+    "Nota importante:",
+    "- Visto lo squilibrio tra le sedute interne ed esterne, in caso di pioggia non garantiamo di poter spostare la prenotazione in area protetta.",
+    "- Il tavolo verrà tenuto per un massimo di 30 minuti. Eventuali ritardi possono essere comunicati al 3288123575.",
+    "- Se hai necessità di MODIFICARE o CANCELLARE la prenotazione puoi farlo rispondendo a questa email.",
+    "",
+    "A presto!",
+    `Lo Staff del ${BRAND_CONFIG.name}`
   ].filter(Boolean).join("\n");
 }
 
