@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Prenota</title>
-    <link rel="stylesheet" href="/styles.css?v=8">
+    <link rel="stylesheet" href="/styles.css?v=9">
   </head>
   <body>
     <main class="shell public-shell">
@@ -17,6 +17,14 @@
             <p>Richiedi una prenotazione. Riceverai conferma via mail appena possibile.</p>
           </div>
         </header>
+
+        <section class="public-location-card" aria-label="Indirizzo del locale">
+          <div>
+            <p class="eyebrow">Dove siamo</p>
+            <p class="public-location-address">Viale delle Mura 1, 24129 Bergamo</p>
+          </div>
+          <a class="ghost-link public-map-link" href="https://www.google.com/maps/search/?api=1&amp;query=Viale%20delle%20Mura%201%2C%2024129%20Bergamo" target="_blank" rel="noopener">Apri mappa</a>
+        </section>
 
         <form id="publicBookingForm" class="public-booking-form" autocomplete="on">
           <input name="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">

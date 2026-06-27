@@ -30,6 +30,8 @@ const ZONE_ROOMS = [RESTAURANT_ROOM, "Bar", "Giardino"];
 const ZONE_PERIODS = ["day", "evening"];
 const PRIVACY_VERSION = "2026-06-26";
 const PRIVACY_CONTROLLER = "Bar Flora srl, Piazza Vecchia 13, 24129 Bergamo";
+const VENUE_ADDRESS = "Viale delle Mura 1, 24129 Bergamo";
+const VENUE_MAP_URL = "https://www.google.com/maps/search/?api=1&query=Viale%20delle%20Mura%201%2C%2024129%20Bergamo";
 
 const DEFAULT_EMPLOYEE_NAME = process.env.MURETTO_ADMIN_NAME || "Admin";
 const DEFAULT_EMPLOYEE_PIN = process.env.MURETTO_ADMIN_PIN || "123456";
@@ -557,6 +559,8 @@ function bookingConfirmationText(booking) {
     `Ora: ${booking.time}`,
     `Persone: ${booking.people}`,
     seat ? `Zona: ${seat}` : "",
+    `Indirizzo: ${VENUE_ADDRESS}`,
+    `Mappa: ${VENUE_MAP_URL}`,
     "",
     "Nota importante:",
     "- Visto lo squilibrio tra le sedute interne ed esterne, in caso di pioggia non garantiamo di poter spostare la prenotazione in area protetta.",

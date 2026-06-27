@@ -825,6 +825,33 @@ label {
   font-size: 1.05rem;
 }
 
+.public-location-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px 18px;
+  background: rgb(255 255 255 / 92%);
+  box-shadow: var(--shadow);
+}
+
+.public-location-card p {
+  margin: 0;
+}
+
+.public-location-address {
+  color: var(--ink);
+  font-weight: 850;
+}
+
+.public-map-link {
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 10px 14px;
+}
+
 .public-booking-form {
   display: grid;
   gap: 15px;
@@ -976,6 +1003,16 @@ label {
     align-items: start;
     flex-direction: column;
     justify-content: end;
+  }
+
+  .public-location-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .public-map-link {
+    justify-content: center;
+    width: 100%;
   }
 }
 
