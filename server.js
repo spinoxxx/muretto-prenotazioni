@@ -90,6 +90,10 @@ function normalizeName(name) {
   return String(name || "").trim().replace(/\s+/g, " ").slice(0, 80);
 }
 
+function normalizeLanguage(language) {
+  return String(language || "").trim().toLowerCase() === "en" ? "en" : "it";
+}
+
 function sanitizeText(value, max = 180) {
   return String(value || "").trim().replace(/\s+/g, " ").slice(0, max);
 }
@@ -378,6 +382,7 @@ function validateBooking(input) {
     room: sanitizeText(input.room, 60),
     tableNumber: sanitizeText(input.tableNumber, 30),
     status: sanitizeText(input.status || "confermata", 20),
+    language: normalizeLanguage(input.language),
     notes: sanitizeText(input.notes, 300)
   };
 
@@ -394,14 +399,29 @@ function validateBooking(input) {
   return booking;
 }
 
+function publicValidationError(error, language) {
+  if (language !== "en") return error;
+  const translations = new Map([
+    ["Inserisci il nome del cliente.", "Enter the guest name."],
+    ["Serve almeno un recapito.", "Enter at least one contact detail."],
+    ["Data non valida.", "Invalid date."],
+    ["Orario non valido.", "Invalid time."],
+    ["Numero di persone non valido.", "Invalid number of guests."],
+    ["Sala non valida.", "Invalid area."],
+    ["Stato non valido.", "Invalid status."]
+  ]);
+  return translations.get(error) || "Something went wrong";
+}
+
 function validatePublicBooking(input) {
   const consumption = sanitizeText(input.consumption, 20).toLowerCase();
+  const language = normalizeLanguage(input.language);
   const gardenRequested = input.gardenRequested === true || input.gardenRequested === "on" || input.gardenRequested === "true";
   const privacyAccepted = input.privacyAccepted === true || input.privacyAccepted === "on" || input.privacyAccepted === "true";
   const allowedConsumptions = new Set(["cena", "aperitivo"]);
-  if (!privacyAccepted) return "Devi leggere e accettare l'informativa privacy.";
-  if (!allowedConsumptions.has(consumption)) return "Scegli cena o aperitivo.";
-  if (gardenRequested && consumption !== "cena") return "Il giardino si puo richiedere solo per cena.";
+  if (!privacyAccepted) return language === "en" ? "You must read and accept the privacy notice." : "Devi leggere e accettare l'informativa privacy.";
+  if (!allowedConsumptions.has(consumption)) return language === "en" ? "Choose dinner or aperitif." : "Scegli cena o aperitivo.";
+  if (gardenRequested && consumption !== "cena") return language === "en" ? "The garden can only be requested for dinner." : "Il giardino si puo richiedere solo per cena.";
 
   const room = consumption === "aperitivo" ? "Bar" : gardenRequested ? "Giardino" : RESTAURANT_ROOM;
   const notes = [
@@ -411,7 +431,7 @@ function validatePublicBooking(input) {
     sanitizeText(input.notes, 220)
   ].filter(Boolean).join(" ");
 
-  return validateBooking({
+  const booking = validateBooking({
     guestName: input.guestName,
     phone: input.phone,
     email: input.email,
@@ -421,8 +441,10 @@ function validatePublicBooking(input) {
     room,
     tableNumber: "",
     status: "da verificare",
+    language,
     notes
   });
+  return typeof booking === "string" ? publicValidationError(booking, language) : booking;
 }
 
 function mealPeriod(time) {
@@ -508,14 +530,16 @@ function zoneOccupancy(bookings, booking) {
 
 async function publicZoneError(booking, bookings) {
   if (!ZONE_ROOMS.includes(booking.room)) return "";
+  const language = normalizeLanguage(booking.language);
   const settings = await getZoneSettings(booking.date);
   const period = mealPeriod(booking.time);
   const rule = settings.zones[booking.room][period];
-  const periodLabel = period === "evening" ? "serale" : "diurna";
-  if (rule.blocked) return `${booking.room} non e disponibile nella fascia ${periodLabel}.`;
+  const periodLabel = language === "en" ? (period === "evening" ? "evening" : "daytime") : (period === "evening" ? "serale" : "diurna");
+  const roomName = emailRoomName(booking.room, language);
+  if (rule.blocked) return language === "en" ? `${roomName} is not available for the ${periodLabel} service.` : `${booking.room} non e disponibile nella fascia ${periodLabel}.`;
   const occupied = zoneOccupancy(bookings, booking);
   if (rule.limit > 0 && occupied + booking.people > rule.limit) {
-    return `${booking.room} non ha abbastanza disponibilita nella fascia ${periodLabel}.`;
+    return language === "en" ? `${roomName} does not have enough availability for the ${periodLabel} service.` : `${booking.room} non ha abbastanza disponibilita nella fascia ${periodLabel}.`;
   }
   return "";
 }
@@ -542,13 +566,58 @@ function publicClientKey(req) {
   return forwarded || req.socket.remoteAddress || "unknown";
 }
 
+function emailRoomName(room, language) {
+  if (language !== "en") return room;
+  if (room === RESTAURANT_ROOM || room === LEGACY_RESTAURANT_ROOM) return "Outdoor Restaurant";
+  if (room === "Giardino") return "Garden";
+  if (room === "Interno") return "Indoor";
+  return room;
+}
+
+function emailSeatLine(booking, language) {
+  const room = booking.room ? `${language === "en" ? "" : "Sala "}${emailRoomName(booking.room, language)}` : "";
+  const table = booking.tableNumber ? `${language === "en" ? "Table" : "Tavolo"} ${booking.tableNumber}` : "";
+  return [room, table].filter(Boolean).join(" - ");
+}
+
+function bookingEmailSubject(booking) {
+  const language = normalizeLanguage(booking.language);
+  return language === "en" ? `Booking confirmed - ${BRAND_CONFIG.name}` : `Prenotazione confermata - ${BRAND_CONFIG.name}`;
+}
+
 function bookingConfirmationText(booking) {
-  const seat = [booking.room ? `Sala ${booking.room}` : "", booking.tableNumber ? `Tavolo ${booking.tableNumber}` : ""].filter(Boolean).join(" - ");
+  const language = normalizeLanguage(booking.language);
+  const seat = emailSeatLine(booking, language);
   const gardenRequested = String(booking.notes || "").toLowerCase().includes("richiesta giardino");
   const confirmedAwayFromGarden = gardenRequested && String(booking.room || "").trim().toLowerCase() !== "giardino";
   const gardenChangeLine = confirmedAwayFromGarden
-    ? `Avevi richiesto il giardino, ma in questo momento è al completo. Vi abbiamo comunque riservato la zona ${booking.room || "indicata"}.`
+    ? language === "en"
+      ? `You requested the garden, but it is currently fully booked. We have reserved the ${emailRoomName(booking.room, language) || "assigned"} area for you.`
+      : `Avevi richiesto il giardino, ma in questo momento è al completo. Vi abbiamo comunque riservato la zona ${booking.room || "indicata"}.`
     : "";
+  if (language === "en") {
+    return [
+      `Hi ${booking.guestName},`,
+      "",
+      `Your booking at ${BRAND_CONFIG.name} is confirmed.`,
+      gardenChangeLine,
+      "",
+      `Date: ${booking.date}`,
+      `Time: ${booking.time}`,
+      `Guests: ${booking.people}`,
+      seat ? `Area: ${seat}` : "",
+      `Address: ${VENUE_ADDRESS}`,
+      `Map: ${VENUE_MAP_URL}`,
+      "",
+      "Important note:",
+      "- Due to the imbalance between indoor and outdoor seating, in case of rain we cannot guarantee that the booking can be moved to a sheltered area.",
+      "- The table will be held for a maximum of 30 minutes. Any delays can be communicated to 3288123575.",
+      "- If you need to CHANGE or CANCEL your booking, you can do so by replying to this email.",
+      "",
+      "See you soon!",
+      `The ${BRAND_CONFIG.name} Team`
+    ].filter(Boolean).join("\n");
+  }
   return [
     `Ciao ${booking.guestName},`,
     "",
@@ -587,7 +656,7 @@ function smtpReady() {
 
 function smtpMessage(booking) {
   const fromAddress = extractEmailAddress(EMAIL_FROM);
-  const subject = `Prenotazione confermata - ${BRAND_CONFIG.name}`;
+  const subject = bookingEmailSubject(booking);
   const body = bookingConfirmationText(booking);
   return [
     `From: ${EMAIL_FROM}`,
@@ -697,7 +766,7 @@ async function sendBookingConfirmationEmail(booking) {
     body: JSON.stringify({
       from: EMAIL_FROM,
       to: [booking.email],
-      subject: `Prenotazione confermata - ${BRAND_CONFIG.name}`,
+      subject: bookingEmailSubject(booking),
       text: bookingConfirmationText(booking)
     })
   });

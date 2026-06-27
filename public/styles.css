@@ -792,6 +792,31 @@ label {
   gap: 18px;
 }
 
+.public-language-switch {
+  display: flex;
+  justify-content: end;
+  gap: 8px;
+}
+
+.public-language-switch a,
+.public-language-switch span {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: rgb(255 255 255 / 88%);
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.public-language-switch span {
+  border-color: var(--accent-dark);
+  background: var(--accent-dark);
+  color: #fff;
+}
+
 .public-booking-hero,
 .public-booking-form {
   border: 1px solid var(--line);

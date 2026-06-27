@@ -1,17 +1,17 @@
 <!doctype html>
-<html lang="it">
+<html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Prenota</title>
+    <title>Book a Table</title>
     <link rel="stylesheet" href="/styles.css?v=10">
   </head>
   <body>
     <main class="shell public-shell">
       <section class="public-booking-page">
-        <nav class="public-language-switch" aria-label="Lingua">
-          <span>IT</span>
-          <a href="/prenota-en.html">EN</a>
+        <nav class="public-language-switch" aria-label="Language">
+          <a href="/prenota.html">IT</a>
+          <span>EN</span>
         </nav>
 
         <header class="public-booking-hero">
@@ -19,24 +19,24 @@
           <div>
             <p class="eyebrow" data-brand-category>Bistrot</p>
             <h1 data-brand-name>Il Muretto</h1>
-            <p>Richiedi una prenotazione. Riceverai conferma via mail appena possibile.</p>
+            <p>Request a booking. You will receive confirmation by email as soon as possible.</p>
           </div>
         </header>
 
-        <section class="public-location-card" aria-label="Indirizzo del locale">
+        <section class="public-location-card" aria-label="Restaurant address">
           <div>
-            <p class="eyebrow">Dove siamo</p>
+            <p class="eyebrow">Where we are</p>
             <p class="public-location-address">Viale delle Mura 1, 24129 Bergamo</p>
           </div>
-          <a class="ghost-link public-map-link" href="https://www.google.com/maps/search/?api=1&amp;query=Viale%20delle%20Mura%201%2C%2024129%20Bergamo" target="_blank" rel="noopener">Apri mappa</a>
+          <a class="ghost-link public-map-link" href="https://www.google.com/maps/search/?api=1&amp;query=Viale%20delle%20Mura%201%2C%2024129%20Bergamo" target="_blank" rel="noopener">Open map</a>
         </section>
 
-        <section class="public-disclaimer-card" aria-label="Nota importante">
-          <h2>Nota importante</h2>
+        <section class="public-disclaimer-card" aria-label="Important note">
+          <h2>Important note</h2>
           <ul>
-            <li>Visto lo squilibrio tra le sedute interne ed esterne, in caso di pioggia non garantiamo di poter spostare la prenotazione in area protetta.</li>
-            <li>Il tavolo verrà tenuto per un massimo di 30 minuti. Eventuali ritardi possono essere comunicati al 3288123575.</li>
-            <li>Se hai necessità di modificare o cancellare la prenotazione puoi farlo rispondendo alla mail di conferma.</li>
+            <li>Due to the imbalance between indoor and outdoor seating, in case of rain we cannot guarantee that the booking can be moved to a sheltered area.</li>
+            <li>The table will be held for a maximum of 30 minutes. Any delays can be communicated to 3288123575.</li>
+            <li>If you need to change or cancel your booking, you can do so by replying to the confirmation email.</li>
           </ul>
         </section>
 
@@ -45,19 +45,19 @@
 
           <div class="form-head">
             <div>
-              <h2>Richiesta prenotazione</h2>
-              <p>La sala viene proposta automaticamente in base alla consumazione.</p>
+              <h2>Booking request</h2>
+              <p>The area is suggested automatically based on the type of visit.</p>
             </div>
           </div>
 
           <label>
-            Nome e cognome
+            Full name
             <input name="guestName" type="text" maxlength="80" autocomplete="name" required>
           </label>
 
           <div class="grid-2">
             <label>
-              Telefono
+              Phone
               <input name="phone" type="tel" maxlength="40" autocomplete="tel">
             </label>
             <label>
@@ -68,56 +68,56 @@
 
           <div class="grid-3">
             <label>
-              Data
+              Date
               <span class="date-field">
-                <input id="publicBookingDate" name="date" type="date" required aria-label="Data prenotazione">
+                <input id="publicBookingDate" name="date" type="date" required aria-label="Booking date">
                 <span id="publicBookingDateDisplay" class="date-display" aria-hidden="true"></span>
               </span>
             </label>
             <label>
-              Ora
+              Time
               <input name="time" type="time" required>
             </label>
             <label>
-              Persone
+              Guests
               <input name="people" type="number" min="1" max="40" value="2" required>
             </label>
           </div>
 
           <fieldset class="choice-group">
-            <legend>Tipo di consumazione</legend>
+            <legend>Type of visit</legend>
             <label class="choice-card">
               <input name="consumption" type="radio" value="cena" checked>
               <span>
-                <strong>Cena</strong>
-                <small>Zona ristorante esterno</small>
+                <strong>Dinner</strong>
+                <small>Outdoor restaurant area</small>
               </span>
             </label>
             <label class="choice-card">
               <input name="consumption" type="radio" value="aperitivo">
               <span>
-                <strong>Aperitivo</strong>
-                <small>Zona bar</small>
+                <strong>Aperitif</strong>
+                <small>Bar area</small>
               </span>
             </label>
           </fieldset>
 
           <label id="gardenRequest" class="check-row">
             <input name="gardenRequested" type="checkbox">
-            <span>Vorrei il giardino, se disponibile. Solo per cena e da confermare.</span>
+            <span>I would like the garden, if available. Dinner only and subject to confirmation.</span>
           </label>
 
           <label>
-            Note
-            <textarea name="notes" maxlength="220" rows="4" placeholder="Es. passeggino, compleanno, intolleranze, preferenze"></textarea>
+            Notes
+            <textarea name="notes" maxlength="220" rows="4" placeholder="E.g. stroller, birthday, allergies, preferences"></textarea>
           </label>
 
           <label class="check-row privacy-check">
             <input name="privacyAccepted" type="checkbox" required>
-            <span>Ho letto l'<a href="/privacy.html" target="_blank" rel="noopener">informativa privacy</a> e la <a href="/cookie.html" target="_blank" rel="noopener">cookie policy</a>, e autorizzo l'uso dei dati per gestire questa richiesta di prenotazione.</span>
+            <span>I have read the <a href="/privacy.html" target="_blank" rel="noopener">privacy notice</a> and the <a href="/cookie.html" target="_blank" rel="noopener">cookie policy</a>, and I authorize the use of my data to manage this booking request.</span>
           </label>
 
-          <button type="submit">Invia richiesta</button>
+          <button type="submit">Send request</button>
           <p id="publicBookingMessage" class="message" role="status"></p>
         </form>
       </section>
