@@ -542,10 +542,16 @@ function publicClientKey(req) {
 
 function bookingConfirmationText(booking) {
   const seat = [booking.room ? `Sala ${booking.room}` : "", booking.tableNumber ? `Tavolo ${booking.tableNumber}` : ""].filter(Boolean).join(" - ");
+  const gardenRequested = String(booking.notes || "").toLowerCase().includes("richiesta giardino");
+  const confirmedAwayFromGarden = gardenRequested && String(booking.room || "").trim().toLowerCase() !== "giardino";
+  const gardenChangeLine = confirmedAwayFromGarden
+    ? `Avevi richiesto il giardino; la prenotazione è stata confermata in ${booking.room || "un'altra zona"}.`
+    : "";
   return [
     `Ciao ${booking.guestName},`,
     "",
-    `la tua prenotazione da ${BRAND_CONFIG.name} e confermata.`,
+    `la tua prenotazione da ${BRAND_CONFIG.name} è confermata.`,
+    gardenChangeLine,
     "",
     "Nota importante:",
     "Visto lo squilibrio tra le sedute interne ed esterne, in caso di pioggia non garantiamo di poter spostare la prenotazione in area protetta.",
