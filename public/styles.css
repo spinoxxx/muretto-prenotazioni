@@ -825,16 +825,20 @@ label {
   font-size: 1.05rem;
 }
 
-.public-location-card {
+.public-location-card,
+.public-disclaimer-card {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
   gap: 16px;
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 16px 18px;
   background: rgb(255 255 255 / 92%);
   box-shadow: var(--shadow);
+}
+
+.public-location-card {
+  align-items: center;
+  justify-content: space-between;
 }
 
 .public-location-card p {
@@ -850,6 +854,27 @@ label {
   flex: 0 0 auto;
   min-height: 40px;
   padding: 10px 14px;
+}
+
+.public-disclaimer-card {
+  flex-direction: column;
+  gap: 10px;
+}
+
+.public-disclaimer-card h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.public-disclaimer-card ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 720;
+  line-height: 1.45;
 }
 
 .public-booking-form {
