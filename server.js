@@ -24,7 +24,9 @@ const BACKUP_INTERVAL_MS = Number(process.env.MURETTO_BACKUP_INTERVAL_MS || 1000
 const BACKUP_RETENTION = Number(process.env.MURETTO_BACKUP_RETENTION || 30);
 const PUBLIC_BOOKING_WINDOW_MS = 1000 * 60 * 10;
 const PUBLIC_BOOKING_MAX_ATTEMPTS = 8;
-const ZONE_ROOMS = ["Ristorante", "Bar", "Giardino"];
+const RESTAURANT_ROOM = "Ristorante Esterno";
+const LEGACY_RESTAURANT_ROOM = "Ristorante";
+const ZONE_ROOMS = [RESTAURANT_ROOM, "Bar", "Giardino"];
 const ZONE_PERIODS = ["day", "evening"];
 const PRIVACY_VERSION = "2026-06-26";
 const PRIVACY_CONTROLLER = "Bar Flora srl, Piazza Vecchia 13, 24129 Bergamo";
@@ -378,7 +380,8 @@ function validateBooking(input) {
   };
 
   const statuses = new Set(["confermata", "in attesa", "da verificare", "arrivati", "annullata", "completata"]);
-  const rooms = new Set(["", "Ristorante", "Bar", "Giardino", "Interno"]);
+  const rooms = new Set(["", RESTAURANT_ROOM, LEGACY_RESTAURANT_ROOM, "Bar", "Giardino", "Interno"]);
+  if (booking.room === LEGACY_RESTAURANT_ROOM) booking.room = RESTAURANT_ROOM;
   if (!booking.guestName) return "Inserisci il nome del cliente.";
   if (!booking.phone && !booking.email) return "Serve almeno un recapito.";
   if (!/^\d{4}-\d{2}-\d{2}$/.test(booking.date)) return "Data non valida.";
@@ -398,7 +401,7 @@ function validatePublicBooking(input) {
   if (!allowedConsumptions.has(consumption)) return "Scegli cena o aperitivo.";
   if (gardenRequested && consumption !== "cena") return "Il giardino si puo richiedere solo per cena.";
 
-  const room = consumption === "aperitivo" ? "Bar" : gardenRequested ? "Giardino" : "Ristorante";
+  const room = consumption === "aperitivo" ? "Bar" : gardenRequested ? "Giardino" : RESTAURANT_ROOM;
   const notes = [
     "Richiesta dal modulo online.",
     `Consumazione prevista: ${consumption}.`,
@@ -454,7 +457,7 @@ function normalizeZoneSettings(date, input = {}) {
   const zones = input.zones && typeof input.zones === "object" ? input.zones : input;
   for (const room of ZONE_ROOMS) {
     for (const period of ZONE_PERIODS) {
-      const source = zones?.[room]?.[period] || {};
+      const source = zones?.[room]?.[period] || (room === RESTAURANT_ROOM ? zones?.[LEGACY_RESTAURANT_ROOM]?.[period] : {}) || {};
       settings.zones[room][period] = {
         limit: normalizeLimit(source.limit),
         blocked: source.blocked === true || source.blocked === "true" || source.blocked === "on"
@@ -484,12 +487,19 @@ function publicZoneSettings(settings) {
   return { zones };
 }
 
+function roomKey(room) {
+  const value = String(room || "").trim().toLowerCase();
+  if (value === "ristorante" || value === "ristorante esterno") return "ristorante";
+  return value;
+}
+
 function zoneOccupancy(bookings, booking) {
   const period = mealPeriod(booking.time);
+  const targetRoom = roomKey(booking.room);
   return bookings
     .filter((item) => item.date === booking.date)
     .filter((item) => item.status !== "annullata")
-    .filter((item) => item.room === booking.room)
+    .filter((item) => roomKey(item.room) === targetRoom)
     .filter((item) => mealPeriod(item.time) === period)
     .reduce((total, item) => total + Number(item.people || 0), 0);
 }

@@ -153,7 +153,7 @@ function statusClass(status) {
 
 function matchesRoomFilter(booking) {
   if (!activeRoomFilter) return true;
-  return String(booking.room || "").trim().toLowerCase() === activeRoomFilter;
+  return roomStatKey(booking.room) === activeRoomFilter;
 }
 
 function renderRoomStats(bookings) {
@@ -164,7 +164,7 @@ function renderRoomStats(bookings) {
   };
 
   for (const booking of bookings) {
-    const room = String(booking.room || "").trim().toLowerCase();
+    const room = roomStatKey(booking.room);
     if (!stats[room]) continue;
     const people = Number(booking.people || 0);
     const meal = isEvening(booking.time) ? "evening" : "day";
@@ -203,10 +203,16 @@ function mealStatLine(label, stat) {
 
 function roomSettingName(room) {
   return {
-    ristorante: "Ristorante",
+    ristorante: "Ristorante Esterno",
     bar: "Bar",
     giardino: "Giardino"
   }[room] || "";
+}
+
+function roomStatKey(room) {
+  const value = String(room || "").trim().toLowerCase();
+  if (value === "ristorante" || value === "ristorante esterno") return "ristorante";
+  return value;
 }
 
 function limitWarnings(room, values) {
@@ -236,11 +242,15 @@ function renderLimitWarning(room, values) {
 
 function roomFilterLabel(room) {
   const labels = {
-    ristorante: "Ristorante",
+    ristorante: "Ristorante Esterno",
     bar: "Bar",
     giardino: "Giardino"
   };
   return labels[room] || room;
+}
+
+function roomDisplayName(room) {
+  return roomStatKey(room) === "ristorante" ? "Ristorante Esterno" : String(room || "");
 }
 
 function renderRoomFilterState() {
@@ -253,7 +263,7 @@ function renderRoomFilterState() {
 
 function seatLine(booking) {
   const parts = [];
-  if (booking.room) parts.push(`Sala ${booking.room}`);
+  if (booking.room) parts.push(`Sala ${roomDisplayName(booking.room)}`);
   if (booking.tableNumber) parts.push(`Tavolo ${booking.tableNumber}`);
   return parts.length ? parts.map(escapeHtml).join(" · ") : "Sala/tavolo da assegnare";
 }

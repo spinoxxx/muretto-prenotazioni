@@ -184,7 +184,7 @@ function matchesSearch(booking, term) {
 
 function matchesRoomFilter(booking) {
   if (!activeRoomFilter) return true;
-  return String(booking.room || "").trim().toLowerCase() === activeRoomFilter;
+  return roomStatKey(booking.room) === activeRoomFilter;
 }
 
 function renderRoomStats() {
@@ -196,7 +196,7 @@ function renderRoomStats() {
 
   for (const booking of bookings) {
     if (booking.status === "annullata") continue;
-    const room = String(booking.room || "").trim().toLowerCase();
+    const room = roomStatKey(booking.room);
     if (!stats[room]) continue;
     const people = Number(booking.people || 0);
     const meal = isEvening(booking.time) ? "evening" : "day";
@@ -235,10 +235,16 @@ function mealStatLine(label, stat) {
 
 function roomSettingName(room) {
   return {
-    ristorante: "Ristorante",
+    ristorante: "Ristorante Esterno",
     bar: "Bar",
     giardino: "Giardino"
   }[room] || "";
+}
+
+function roomStatKey(room) {
+  const value = String(room || "").trim().toLowerCase();
+  if (value === "ristorante" || value === "ristorante esterno") return "ristorante";
+  return value;
 }
 
 function limitWarnings(room, values) {
@@ -301,11 +307,15 @@ function renderBookings() {
 
 function roomFilterLabel(room) {
   const labels = {
-    ristorante: "Ristorante",
+    ristorante: "Ristorante Esterno",
     bar: "Bar",
     giardino: "Giardino"
   };
   return labels[room] || room;
+}
+
+function roomDisplayName(room) {
+  return roomStatKey(room) === "ristorante" ? "Ristorante Esterno" : String(room || "");
 }
 
 function renderRoomFilterState() {
@@ -377,7 +387,7 @@ function bookingMetaLine(booking) {
 
 function seatLine(booking) {
   const parts = [];
-  if (booking.room) parts.push(`Sala ${booking.room}`);
+  if (booking.room) parts.push(`Sala ${roomDisplayName(booking.room)}`);
   if (booking.tableNumber) parts.push(`Tavolo ${booking.tableNumber}`);
   return parts.length ? parts.map(escapeHtml).join(" · ") : "sala/tavolo da assegnare";
 }
@@ -575,6 +585,7 @@ bookingList.addEventListener("click", async (event) => {
     for (const [key, value] of Object.entries(booking)) {
       if (bookingForm.elements[key]) bookingForm.elements[key].value = value;
     }
+    if (roomStatKey(booking.room) === "ristorante") bookingForm.elements.room.value = "Ristorante Esterno";
     bookingForm.elements.date.value = booking.date;
     updateDateDisplay(bookingForm.elements.date, bookingDateDisplay);
     formMessage.textContent = "";
