@@ -65,7 +65,7 @@ Variabili disponibili:
 - Il modulo pubblico `/prenota.html` crea richieste con stato `da verificare` e non mostra mai dati dell'agenda.
 - Il modulo pubblico richiede accettazione dell'informativa privacy e salva la versione accettata.
 - Il modulo pubblico non usa cookie di marketing o profilazione. L'area staff usa solo il cookie tecnico `muretto_session`; per questo non viene mostrato un banner consenso cookie.
-- Se `MURETTO_EMAIL_FROM` e `MURETTO_RESEND_API_KEY` sono configurati, quando una prenotazione con email passa a `confermata` viene inviata una conferma via mail.
+- Se `MURETTO_EMAIL_FROM` e le variabili SMTP Gmail sono configurate, quando una prenotazione con email passa a `confermata` viene inviata una conferma via mail.
 - Gli admin possono rimuovere i dati personali dai log di cancellazione lasciando solo lo storico operativo.
 - Per cancellare dati personali, elimina la prenotazione dall'agenda.
 - Per revocare un accesso, un admin puo disattivare il dipendente dalla sezione **Staff**.
@@ -95,7 +95,8 @@ Variabili usate in produzione:
 - `MURETTO_BACKUP_RETENTION`: numero massimo di backup da conservare. Default: 30.
 - `MURETTO_BRAND_*`: nome, testi e colori per usare l'app in white label.
 - `MURETTO_PRIVACY_CONTROLLER`, `MURETTO_PRIVACY_CONTACT`, `MURETTO_PRIVACY_RETENTION`: testi mostrati nell'informativa privacy pubblica.
-- `MURETTO_EMAIL_FROM`: mittente usato per inviare conferme via mail, es. `Prenotazioni Il Muretto <prenotazioni@dominio.it>`.
-- `MURETTO_RESEND_API_KEY`: chiave API Resend per inviare le conferme email. Se non e presente, le conferme email non vengono inviate.
+- `MURETTO_EMAIL_FROM`: mittente usato per inviare conferme via mail, es. `Il Muretto <murettobergamo@gmail.com>`.
+- `MURETTO_SMTP_HOST`, `MURETTO_SMTP_PORT`, `MURETTO_SMTP_USER`, `MURETTO_SMTP_PASS`: configurazione SMTP Gmail. `MURETTO_SMTP_PASS` deve essere una password per app Google, non la password normale.
+- `MURETTO_RESEND_API_KEY`: alternativa Resend per inviare le conferme email. Se SMTP e Resend non sono configurati, le conferme email non vengono inviate.
 
 Nota importante: su Render i file fuori dal disco persistente non restano garantiti tra deploy e riavvii. Per questo `render.yaml` monta un persistent disk e l'app scrive i dati in `DATA_DIR`.

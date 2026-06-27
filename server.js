@@ -3,6 +3,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import crypto from "node:crypto";
+import tls from "node:tls";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(__dirname, "public");
@@ -34,6 +35,10 @@ const SYNC_ADMIN_PIN = process.env.MURETTO_SYNC_ADMIN_PIN === "true";
 const privacyControllerEnv = process.env.MURETTO_PRIVACY_CONTROLLER;
 const EMAIL_FROM = sanitizePublicText(process.env.MURETTO_EMAIL_FROM, "", 160);
 const RESEND_API_KEY = process.env.MURETTO_RESEND_API_KEY || "";
+const SMTP_HOST = sanitizePublicText(process.env.MURETTO_SMTP_HOST, "", 120);
+const SMTP_PORT = Number(process.env.MURETTO_SMTP_PORT || 465);
+const SMTP_USER = sanitizePublicText(process.env.MURETTO_SMTP_USER, "", 160);
+const SMTP_PASS = String(process.env.MURETTO_SMTP_PASS || "").replace(/\s+/g, "");
 const BRAND_CONFIG = {
   name: sanitizePublicText(process.env.MURETTO_BRAND_NAME, "Il Muretto", 80),
   category: sanitizePublicText(process.env.MURETTO_BRAND_CATEGORY, "Bistrot", 40),
@@ -541,10 +546,122 @@ function bookingConfirmationText(booking) {
   ].filter(Boolean).join("\n");
 }
 
+function extractEmailAddress(value) {
+  const match = String(value || "").match(/<([^>]+)>/);
+  return (match ? match[1] : String(value || "")).trim();
+}
+
+function encodeEmailHeader(value) {
+  return `=?UTF-8?B?${Buffer.from(String(value || ""), "utf8").toString("base64")}?=`;
+}
+
+function smtpReady() {
+  return Boolean(EMAIL_FROM && SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_PASS);
+}
+
+function smtpMessage(booking) {
+  const fromAddress = extractEmailAddress(EMAIL_FROM);
+  const subject = `Prenotazione confermata - ${BRAND_CONFIG.name}`;
+  const body = bookingConfirmationText(booking);
+  return [
+    `From: ${EMAIL_FROM}`,
+    `To: ${booking.email}`,
+    `Subject: ${encodeEmailHeader(subject)}`,
+    `Date: ${new Date().toUTCString()}`,
+    "MIME-Version: 1.0",
+    "Content-Type: text/plain; charset=UTF-8",
+    "Content-Transfer-Encoding: 8bit",
+    "",
+    body
+  ].join("\r\n").replace(/^\./gm, "..") + "\r\n";
+}
+
+async function smtpSendCommand(socket, command, expectedCodes, state) {
+  if (command) socket.write(`${command}\r\n`);
+  while (true) {
+    const line = await smtpReadLine(socket, state);
+    const match = line.match(/^(\d{3})([ -])/);
+    if (!match) continue;
+    if (match[2] === "-") continue;
+    const code = Number(match[1]);
+    if (!expectedCodes.includes(code)) {
+      throw new Error(`SMTP ${code}: ${line}`);
+    }
+    return line;
+  }
+}
+
+function smtpReadLine(socket, state) {
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      socket.off("data", onData);
+      socket.off("error", onError);
+      socket.off("end", onEnd);
+    };
+    const onError = (error) => {
+      cleanup();
+      reject(error);
+    };
+    const onEnd = () => {
+      cleanup();
+      reject(new Error("Connessione SMTP chiusa"));
+    };
+    const takeLine = () => {
+      const index = state.buffer.indexOf("\n");
+      if (index === -1) return false;
+      const line = state.buffer.slice(0, index + 1).trimEnd();
+      state.buffer = state.buffer.slice(index + 1);
+      cleanup();
+      resolve(line);
+      return true;
+    };
+    const onData = (chunk) => {
+      state.buffer += chunk.toString("utf8");
+      takeLine();
+    };
+    if (takeLine()) return;
+    socket.on("data", onData);
+    socket.on("error", onError);
+    socket.on("end", onEnd);
+  });
+}
+
+async function sendBookingConfirmationSmtp(booking) {
+  const fromAddress = extractEmailAddress(EMAIL_FROM);
+  const socket = tls.connect({
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    servername: SMTP_HOST,
+    rejectUnauthorized: true
+  });
+  const state = { buffer: "" };
+  try {
+    await new Promise((resolve, reject) => {
+      socket.once("secureConnect", resolve);
+      socket.once("error", reject);
+    });
+    await smtpSendCommand(socket, "", [220], state);
+    await smtpSendCommand(socket, `EHLO ${SMTP_HOST}`, [250], state);
+    await smtpSendCommand(socket, "AUTH LOGIN", [334], state);
+    await smtpSendCommand(socket, Buffer.from(SMTP_USER, "utf8").toString("base64"), [334], state);
+    await smtpSendCommand(socket, Buffer.from(SMTP_PASS, "utf8").toString("base64"), [235], state);
+    await smtpSendCommand(socket, `MAIL FROM:<${fromAddress}>`, [250], state);
+    await smtpSendCommand(socket, `RCPT TO:<${booking.email}>`, [250, 251], state);
+    await smtpSendCommand(socket, "DATA", [354], state);
+    await smtpSendCommand(socket, `${smtpMessage(booking)}.`, [250], state);
+    await smtpSendCommand(socket, "QUIT", [221], state).catch(() => {});
+    return { sent: true };
+  } finally {
+    socket.end();
+  }
+}
+
 async function sendBookingConfirmationEmail(booking) {
-  if (!booking.email || !EMAIL_FROM || !RESEND_API_KEY) {
+  if (!booking.email || !EMAIL_FROM) {
     return { sent: false, reason: "email_not_configured" };
   }
+  if (smtpReady()) return sendBookingConfirmationSmtp(booking);
+  if (!RESEND_API_KEY) return { sent: false, reason: "email_not_configured" };
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {

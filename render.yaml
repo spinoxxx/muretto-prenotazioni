@@ -45,6 +45,14 @@ services:
         value: Contatta il locale per richieste privacy o cancellazione dati.
       - key: MURETTO_PRIVACY_RETENTION
         value: I dati vengono conservati solo per gestire la prenotazione e le esigenze operative del locale.
+      - key: MURETTO_EMAIL_FROM
+        value: Il Muretto <murettobergamo@gmail.com>
+      - key: MURETTO_SMTP_HOST
+        value: smtp.gmail.com
+      - key: MURETTO_SMTP_PORT
+        value: "465"
+      - key: MURETTO_SMTP_USER
+        value: murettobergamo@gmail.com
     disk:
       name: muretto-data
       mountPath: /var/data
