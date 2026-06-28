@@ -23,23 +23,6 @@
           </div>
         </header>
 
-        <section class="public-location-card" aria-label="Restaurant address">
-          <div>
-            <p class="eyebrow">Where we are</p>
-            <p class="public-location-address">Viale delle Mura 1, 24129 Bergamo</p>
-          </div>
-          <a class="ghost-link public-map-link" href="https://www.google.com/maps/search/?api=1&amp;query=Viale%20delle%20Mura%201%2C%2024129%20Bergamo" target="_blank" rel="noopener">Open map</a>
-        </section>
-
-        <section class="public-disclaimer-card" aria-label="Important note">
-          <h2>Important note</h2>
-          <ul>
-            <li>Due to the imbalance between indoor and outdoor seating, in case of rain we cannot guarantee that the booking can be moved to a sheltered area.</li>
-            <li>The table will be held for a maximum of 30 minutes. Any delays can be communicated to 3288123575.</li>
-            <li>If you need to change or cancel your booking, you can do so by replying to the confirmation email.</li>
-          </ul>
-        </section>
-
         <form id="publicBookingForm" class="public-booking-form" autocomplete="on">
           <input name="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
 
@@ -120,6 +103,23 @@
           <button type="submit">Send request</button>
           <p id="publicBookingMessage" class="message" role="status"></p>
         </form>
+
+        <section class="public-disclaimer-card" aria-label="Important note">
+          <h2>Important note</h2>
+          <ul>
+            <li>Due to the imbalance between indoor and outdoor seating, in case of rain we cannot guarantee that the booking can be moved to a sheltered area.</li>
+            <li>The table will be held for a maximum of 30 minutes. Any delays can be communicated to 3288123575.</li>
+            <li>If you need to change or cancel your booking, you can do so by replying to the confirmation email.</li>
+          </ul>
+        </section>
+
+        <section class="public-location-card" aria-label="Restaurant address">
+          <div>
+            <p class="eyebrow">Where we are</p>
+            <p class="public-location-address">Viale delle Mura 1, 24129 Bergamo</p>
+          </div>
+          <a class="ghost-link public-map-link" href="https://www.google.com/maps/search/?api=1&amp;query=Viale%20delle%20Mura%201%2C%2024129%20Bergamo" target="_blank" rel="noopener">Open map</a>
+        </section>
       </section>
     </main>
     <script src="/prenota.js?v=5" type="module"></script>
