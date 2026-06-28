@@ -420,8 +420,8 @@ function validatePublicBooking(input) {
   const privacyAccepted = input.privacyAccepted === true || input.privacyAccepted === "on" || input.privacyAccepted === "true";
   const allowedConsumptions = new Set(["cena", "aperitivo"]);
   if (!privacyAccepted) return language === "en" ? "You must read and accept the privacy notice." : "Devi leggere e accettare l'informativa privacy.";
-  if (!allowedConsumptions.has(consumption)) return language === "en" ? "Choose dinner or aperitif." : "Scegli cena o aperitivo.";
-  if (gardenRequested && consumption !== "cena") return language === "en" ? "The garden can only be requested for dinner." : "Il giardino si puo richiedere solo per cena.";
+  if (!allowedConsumptions.has(consumption)) return language === "en" ? "Choose lunch/dinner or aperitif." : "Scegli pranzo/cena o aperitivo.";
+  if (gardenRequested && consumption !== "cena") return language === "en" ? "The garden can only be requested for lunch/dinner." : "Il giardino si puo richiedere solo per pranzo/cena.";
 
   const room = consumption === "aperitivo" ? "Bar" : gardenRequested ? "Giardino" : RESTAURANT_ROOM;
   const notes = [
