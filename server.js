@@ -38,6 +38,7 @@ const DEFAULT_EMPLOYEE_PIN = process.env.MURETTO_ADMIN_PIN || "123456";
 const SYNC_ADMIN_PIN = process.env.MURETTO_SYNC_ADMIN_PIN === "true";
 const privacyControllerEnv = process.env.MURETTO_PRIVACY_CONTROLLER;
 const EMAIL_FROM = sanitizePublicText(process.env.MURETTO_EMAIL_FROM, "", 160);
+const NOTIFICATION_EMAIL = sanitizePublicText(process.env.MURETTO_NOTIFICATION_EMAIL || extractEmailAddress(EMAIL_FROM), "", 160);
 const RESEND_API_KEY = process.env.MURETTO_RESEND_API_KEY || "";
 const SMTP_HOST = sanitizePublicText(process.env.MURETTO_SMTP_HOST, "", 120);
 const SMTP_PORT = Number(process.env.MURETTO_SMTP_PORT || 465);
@@ -654,21 +655,26 @@ function smtpReady() {
   return Boolean(EMAIL_FROM && SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_PASS);
 }
 
-function smtpMessage(booking) {
-  const fromAddress = extractEmailAddress(EMAIL_FROM);
-  const subject = bookingEmailSubject(booking);
-  const body = bookingConfirmationText(booking);
+function emailMessage({ to, subject, text }) {
   return [
     `From: ${EMAIL_FROM}`,
-    `To: ${booking.email}`,
+    `To: ${to}`,
     `Subject: ${encodeEmailHeader(subject)}`,
     `Date: ${new Date().toUTCString()}`,
     "MIME-Version: 1.0",
     "Content-Type: text/plain; charset=UTF-8",
     "Content-Transfer-Encoding: 8bit",
     "",
-    body
+    text
   ].join("\r\n").replace(/^\./gm, "..") + "\r\n";
+}
+
+function smtpMessage(booking) {
+  return emailMessage({
+    to: booking.email,
+    subject: bookingEmailSubject(booking),
+    text: bookingConfirmationText(booking)
+  });
 }
 
 async function smtpSendCommand(socket, command, expectedCodes, state) {
@@ -751,6 +757,60 @@ async function sendBookingConfirmationSmtp(booking) {
   }
 }
 
+async function sendPlainSmtpEmail({ to, subject, text }) {
+  const fromAddress = extractEmailAddress(EMAIL_FROM);
+  const socket = tls.connect({
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    servername: SMTP_HOST,
+    rejectUnauthorized: true
+  });
+  const state = { buffer: "" };
+  try {
+    await new Promise((resolve, reject) => {
+      socket.once("secureConnect", resolve);
+      socket.once("error", reject);
+    });
+    await smtpSendCommand(socket, "", [220], state);
+    await smtpSendCommand(socket, `EHLO ${SMTP_HOST}`, [250], state);
+    await smtpSendCommand(socket, "AUTH LOGIN", [334], state);
+    await smtpSendCommand(socket, Buffer.from(SMTP_USER, "utf8").toString("base64"), [334], state);
+    await smtpSendCommand(socket, Buffer.from(SMTP_PASS, "utf8").toString("base64"), [235], state);
+    await smtpSendCommand(socket, `MAIL FROM:<${fromAddress}>`, [250], state);
+    await smtpSendCommand(socket, `RCPT TO:<${to}>`, [250, 251], state);
+    await smtpSendCommand(socket, "DATA", [354], state);
+    await smtpSendCommand(socket, `${emailMessage({ to, subject, text })}.`, [250], state);
+    await smtpSendCommand(socket, "QUIT", [221], state).catch(() => {});
+    return { sent: true };
+  } finally {
+    socket.end();
+  }
+}
+
+async function sendPlainEmail({ to, subject, text }) {
+  if (!to || !EMAIL_FROM) return { sent: false, reason: "email_not_configured" };
+  if (smtpReady()) return sendPlainSmtpEmail({ to, subject, text });
+  if (!RESEND_API_KEY) return { sent: false, reason: "email_not_configured" };
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "authorization": `Bearer ${RESEND_API_KEY}`,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      from: EMAIL_FROM,
+      to: [to],
+      subject,
+      text
+    })
+  });
+  if (!response.ok) {
+    const details = await response.text().catch(() => "");
+    throw new Error(`Invio email non riuscito: ${response.status} ${details}`.trim());
+  }
+  return { sent: true };
+}
+
 async function sendBookingConfirmationEmail(booking) {
   if (!booking.email || !EMAIL_FROM) {
     return { sent: false, reason: "email_not_configured" };
@@ -796,6 +856,50 @@ async function markConfirmationEmailIfNeeded(previousBooking, booking, actor) {
     return {
       ...booking,
       confirmationEmailError: "Invio conferma email non riuscito"
+    };
+  }
+}
+
+function publicBookingNotificationText(booking) {
+  const seat = emailSeatLine(booking, "it");
+  return [
+    "Nuova prenotazione ricevuta dal modulo online.",
+    "",
+    `Cliente: ${booking.guestName}`,
+    `Data prenotazione: ${booking.date}`,
+    `Ora: ${booking.time}`,
+    `Persone: ${booking.people}`,
+    seat ? `Zona proposta: ${seat}` : "",
+    booking.phone ? `Telefono: ${booking.phone}` : "",
+    booking.email ? `Email cliente: ${booking.email}` : "",
+    booking.notes ? `Note: ${booking.notes}` : "",
+    "",
+    `Ricevuta il: ${booking.createdAt}`,
+    "Stato iniziale: da verificare",
+    "",
+    "Apri il pannello admin per confermare o modificare la prenotazione."
+  ].filter(Boolean).join("\n");
+}
+
+async function markPublicBookingNotification(booking) {
+  try {
+    const result = await sendPlainEmail({
+      to: NOTIFICATION_EMAIL,
+      subject: `Nuova prenotazione ricevuta - ${BRAND_CONFIG.name}`,
+      text: publicBookingNotificationText(booking)
+    });
+    if (!result.sent) return booking;
+    return {
+      ...booking,
+      notificationEmailSentAt: new Date().toISOString(),
+      notificationEmailTo: NOTIFICATION_EMAIL,
+      notificationEmailError: ""
+    };
+  } catch (error) {
+    console.error(error);
+    return {
+      ...booking,
+      notificationEmailError: "Invio notifica email non riuscito"
     };
   }
 }
@@ -924,7 +1028,7 @@ async function handleApi(req, res) {
       return;
     }
     const now = new Date().toISOString();
-    const booking = {
+    let booking = {
       id: crypto.randomUUID(),
       ...result,
       createdBy: "modulo online",
@@ -935,6 +1039,9 @@ async function handleApi(req, res) {
       privacyVersion: PRIVACY_VERSION
     };
     bookings.push(booking);
+    await writeJson(bookingsFile, bookings);
+    booking = await markPublicBookingNotification(booking);
+    bookings[bookings.length - 1] = booking;
     await writeJson(bookingsFile, bookings);
     sendJson(res, 201, {
       ok: true,
@@ -973,6 +1080,34 @@ async function handleApi(req, res) {
         notes: item.notes || ""
       }));
     sendJson(res, 200, { date, bookings: visible, zoneSettings });
+    return;
+  }
+
+  if (url.pathname === "/api/received-bookings" && req.method === "GET") {
+    if (!requireAdmin(session, res)) return;
+    const bookings = await readJson(bookingsFile, []);
+    const received = bookings
+      .filter((item) => item.createdBy === "modulo online")
+      .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
+      .slice(0, 200)
+      .map((item) => ({
+        id: item.id,
+        guestName: item.guestName,
+        phone: item.phone || "",
+        email: item.email || "",
+        date: item.date,
+        time: item.time,
+        people: item.people,
+        room: item.room || "",
+        tableNumber: item.tableNumber || "",
+        status: item.status,
+        notes: item.notes || "",
+        language: normalizeLanguage(item.language),
+        createdAt: item.createdAt,
+        notificationEmailSentAt: item.notificationEmailSentAt || "",
+        notificationEmailError: item.notificationEmailError || ""
+      }));
+    sendJson(res, 200, { bookings: received });
     return;
   }
 

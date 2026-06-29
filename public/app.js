@@ -51,11 +51,13 @@ const zoneSettingsDateLabel = document.querySelector("#zoneSettingsDateLabel");
 const zoneSettingsMessage = document.querySelector("#zoneSettingsMessage");
 const backupPanel = document.querySelector("#backupPanel");
 const deleteLogPanel = document.querySelector("#deleteLogPanel");
+const receivedBookingsPanel = document.querySelector("#receivedBookingsPanel");
 const createBackupButton = document.querySelector("#createBackupButton");
 const backupMessage = document.querySelector("#backupMessage");
 const backupDownloadLink = document.querySelector("#backupDownloadLink");
 const backupList = document.querySelector("#backupList");
 const deleteLogList = document.querySelector("#deleteLogList");
+const receivedBookingsList = document.querySelector("#receivedBookingsList");
 const employeeForm = document.querySelector("#employeeForm");
 const employeeList = document.querySelector("#employeeList");
 const employeeMessage = document.querySelector("#employeeMessage");
@@ -124,6 +126,7 @@ function showLogin() {
   appView.style.display = "none";
   staffPanel.hidden = true;
   zoneSettingsPanel.hidden = true;
+  receivedBookingsPanel.hidden = true;
   backupPanel.hidden = true;
   deleteLogPanel.hidden = true;
 }
@@ -134,6 +137,7 @@ function showApp(employee) {
   employeeName.textContent = employee.name;
   staffPanel.hidden = employee.role !== "admin";
   zoneSettingsPanel.hidden = employee.role !== "admin";
+  receivedBookingsPanel.hidden = employee.role !== "admin";
   backupPanel.hidden = employee.role !== "admin";
   deleteLogPanel.hidden = employee.role !== "admin";
   loginView.hidden = true;
@@ -371,6 +375,12 @@ async function loadDeleteLogs() {
   renderDeleteLogs(payload.logs);
 }
 
+async function loadReceivedBookings() {
+  if (currentEmployee?.role !== "admin") return;
+  const payload = await api("/api/received-bookings");
+  renderReceivedBookings(payload.bookings);
+}
+
 function contactLine(booking) {
   const parts = [booking.phone, booking.email].filter(Boolean).map(escapeHtml);
   return parts.length ? parts.join(" · ") : "nessun recapito";
@@ -508,6 +518,34 @@ function renderDeleteLogs(logs) {
   }).join("");
 }
 
+function renderReceivedBookings(receivedBookings) {
+  if (!receivedBookings.length) {
+    receivedBookingsList.innerHTML = `<p class="empty compact-empty">Nessuna prenotazione ricevuta dal modulo online.</p>`;
+    return;
+  }
+
+  receivedBookingsList.innerHTML = receivedBookings.map((booking) => {
+    const notification = booking.notificationEmailError
+      ? `<span class="warning-text">${escapeHtml(booking.notificationEmailError)}</span>`
+      : booking.notificationEmailSentAt
+        ? `<span>Notifica email inviata il ${formatDateTime(booking.notificationEmailSentAt)}</span>`
+        : "";
+    return `
+      <div class="received-booking-row">
+        <div>
+          <strong>${escapeHtml(booking.guestName || "Prenotazione senza nome")}</strong>
+          <span>Ricevuta ${formatDateTime(booking.createdAt)}</span>
+          <span>${formatDate(booking.date)} · ${escapeHtml(booking.time || "")} · ${Number(booking.people || 0)} persone</span>
+          <span>${seatLine(booking)} · ${contactLine(booking)}</span>
+          ${booking.notes ? `<span>${escapeHtml(booking.notes)}</span>` : ""}
+          ${notification}
+        </div>
+        <span class="status ${statusClass(booking.status)}">${escapeHtml(booking.status)}</span>
+      </div>
+    `;
+  }).join("");
+}
+
 function escapeHtml(value) {
   return String(value || "").replace(/[&<>"']/g, (char) => ({
     "&": "&amp;",
@@ -544,6 +582,7 @@ loginForm.addEventListener("submit", async (event) => {
     }
     showApp(payload.employee);
     await loadBookings();
+    await loadReceivedBookings();
     await loadEmployees();
     await loadZoneSettings();
     await loadBackups();
@@ -739,6 +778,7 @@ if (me.employee) {
   } else {
   showApp(me.employee);
   await loadBookings();
+  await loadReceivedBookings();
   await loadEmployees();
   await loadZoneSettings();
   await loadBackups();

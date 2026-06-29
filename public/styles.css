@@ -464,7 +464,8 @@ label {
 }
 
 .backup-row,
-.delete-log-row {
+.delete-log-row,
+.received-booking-row {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 10px;
@@ -474,22 +475,33 @@ label {
 }
 
 .backup-row strong,
-.delete-log-row strong {
+.delete-log-row strong,
+.received-booking-row strong {
   display: block;
   font-size: 0.95rem;
 }
 
 .backup-row span,
-.delete-log-row span {
+.delete-log-row span,
+.received-booking-row span {
   display: block;
   color: var(--muted);
   font-size: 0.82rem;
   font-weight: 700;
 }
 
-.delete-log-list {
+.delete-log-list,
+.received-bookings-list {
   display: grid;
   gap: 10px;
+}
+
+.received-booking-row .status {
+  align-self: start;
+}
+
+.warning-text {
+  color: #9a3412 !important;
 }
 
 .delete-log-meta {

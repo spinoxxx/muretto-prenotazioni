@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Muretto Prenotazioni</title>
-    <link rel="stylesheet" href="/styles.css?v=12">
+    <link rel="stylesheet" href="/styles.css?v=13">
   </head>
   <body>
     <main class="shell">
@@ -171,6 +171,13 @@
               <p id="formMessage" class="message" role="status"></p>
             </form>
 
+            <section id="receivedBookingsPanel" class="staff-panel received-bookings-panel" hidden>
+              <details class="collapsible-admin-section">
+                <summary>Prenotazioni ricevute</summary>
+                <div id="receivedBookingsList" class="received-bookings-list" aria-live="polite"></div>
+              </details>
+            </section>
+
             <section id="staffPanel" class="staff-panel" hidden>
               <details class="collapsible-admin-section">
                 <summary>Staff</summary>
@@ -318,6 +325,6 @@
         </div>
       </section>
     </main>
-    <script src="/app.js?v=22" type="module"></script>
+    <script src="/app.js?v=23" type="module"></script>
   </body>
 </html>
