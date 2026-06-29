@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Muretto Prenotazioni</title>
-    <link rel="stylesheet" href="/styles.css?v=11">
+    <link rel="stylesheet" href="/styles.css?v=12">
   </head>
   <body>
     <main class="shell">
@@ -172,106 +172,106 @@
             </form>
 
             <section id="staffPanel" class="staff-panel" hidden>
-              <div class="form-head">
-                <h2>Staff</h2>
-              </div>
-              <form id="employeeForm" class="employee-form" autocomplete="off">
-                <label>
-                  Nome dipendente
-                  <input name="name" type="text" maxlength="80" required>
-                </label>
-                <div class="grid-2">
+              <details class="collapsible-admin-section">
+                <summary>Staff</summary>
+                <form id="employeeForm" class="employee-form" autocomplete="off">
                   <label>
-                    PIN
-                    <input name="pin" type="password" inputmode="numeric" pattern="[0-9]{4,12}" required>
+                    Nome dipendente
+                    <input name="name" type="text" maxlength="80" required>
                   </label>
-                  <label>
-                    Ruolo
-                  <select name="role">
-                    <option value="staff">staff</option>
-                    <option value="agenda">solo agenda</option>
-                    <option value="admin">admin</option>
-                  </select>
-                </label>
-                </div>
-                <button type="submit">Aggiungi dipendente</button>
-                <p id="employeeMessage" class="message" role="status"></p>
-              </form>
-              <div id="employeeList" class="employee-list"></div>
+                  <div class="grid-2">
+                    <label>
+                      PIN
+                      <input name="pin" type="password" inputmode="numeric" pattern="[0-9]{4,12}" required>
+                    </label>
+                    <label>
+                      Ruolo
+                    <select name="role">
+                      <option value="staff">staff</option>
+                      <option value="agenda">solo agenda</option>
+                      <option value="admin">admin</option>
+                    </select>
+                  </label>
+                  </div>
+                  <button type="submit">Aggiungi dipendente</button>
+                  <p id="employeeMessage" class="message" role="status"></p>
+                </form>
+                <div id="employeeList" class="employee-list"></div>
+              </details>
             </section>
 
             <section id="zoneSettingsPanel" class="staff-panel zone-settings-panel" hidden>
-              <div class="form-head">
-                <div>
-                  <h2>Limiti zone</h2>
-                  <p id="zoneSettingsDateLabel">Giornata selezionata</p>
-                </div>
-              </div>
-              <form id="zoneSettingsForm" class="zone-settings-form">
-                <div class="zone-settings-grid">
-                  <section class="zone-setting-card">
-                    <h3>Ristorante Esterno</h3>
-                    <label>
-                      Diurno coperti max
-                      <input type="number" min="0" max="999" inputmode="numeric" data-zone="Ristorante Esterno" data-period="day" data-field="limit">
-                    </label>
-                    <label class="check-row compact-check">
-                      <input type="checkbox" data-zone="Ristorante Esterno" data-period="day" data-field="blocked">
-                      <span>Blocca diurno</span>
-                    </label>
-                    <label>
-                      Serale coperti max
-                      <input type="number" min="0" max="999" inputmode="numeric" data-zone="Ristorante Esterno" data-period="evening" data-field="limit">
-                    </label>
-                    <label class="check-row compact-check">
-                      <input type="checkbox" data-zone="Ristorante Esterno" data-period="evening" data-field="blocked">
-                      <span>Blocca serale</span>
-                    </label>
-                  </section>
+              <details class="collapsible-admin-section">
+                <summary>
+                  <span>Limiti zone</span>
+                  <small id="zoneSettingsDateLabel">Giornata selezionata</small>
+                </summary>
+                <form id="zoneSettingsForm" class="zone-settings-form">
+                  <div class="zone-settings-grid">
+                    <section class="zone-setting-card">
+                      <h3>Ristorante Esterno</h3>
+                      <label>
+                        Diurno coperti max
+                        <input type="number" min="0" max="999" inputmode="numeric" data-zone="Ristorante Esterno" data-period="day" data-field="limit">
+                      </label>
+                      <label class="check-row compact-check">
+                        <input type="checkbox" data-zone="Ristorante Esterno" data-period="day" data-field="blocked">
+                        <span>Blocca diurno</span>
+                      </label>
+                      <label>
+                        Serale coperti max
+                        <input type="number" min="0" max="999" inputmode="numeric" data-zone="Ristorante Esterno" data-period="evening" data-field="limit">
+                      </label>
+                      <label class="check-row compact-check">
+                        <input type="checkbox" data-zone="Ristorante Esterno" data-period="evening" data-field="blocked">
+                        <span>Blocca serale</span>
+                      </label>
+                    </section>
 
-                  <section class="zone-setting-card">
-                    <h3>Bar</h3>
-                    <label>
-                      Diurno coperti max
-                      <input type="number" min="0" max="999" inputmode="numeric" data-zone="Bar" data-period="day" data-field="limit">
-                    </label>
-                    <label class="check-row compact-check">
-                      <input type="checkbox" data-zone="Bar" data-period="day" data-field="blocked">
-                      <span>Blocca diurno</span>
-                    </label>
-                    <label>
-                      Serale coperti max
-                      <input type="number" min="0" max="999" inputmode="numeric" data-zone="Bar" data-period="evening" data-field="limit">
-                    </label>
-                    <label class="check-row compact-check">
-                      <input type="checkbox" data-zone="Bar" data-period="evening" data-field="blocked">
-                      <span>Blocca serale</span>
-                    </label>
-                  </section>
+                    <section class="zone-setting-card">
+                      <h3>Bar</h3>
+                      <label>
+                        Diurno coperti max
+                        <input type="number" min="0" max="999" inputmode="numeric" data-zone="Bar" data-period="day" data-field="limit">
+                      </label>
+                      <label class="check-row compact-check">
+                        <input type="checkbox" data-zone="Bar" data-period="day" data-field="blocked">
+                        <span>Blocca diurno</span>
+                      </label>
+                      <label>
+                        Serale coperti max
+                        <input type="number" min="0" max="999" inputmode="numeric" data-zone="Bar" data-period="evening" data-field="limit">
+                      </label>
+                      <label class="check-row compact-check">
+                        <input type="checkbox" data-zone="Bar" data-period="evening" data-field="blocked">
+                        <span>Blocca serale</span>
+                      </label>
+                    </section>
 
-                  <section class="zone-setting-card">
-                    <h3>Giardino</h3>
-                    <label>
-                      Diurno coperti max
-                      <input type="number" min="0" max="999" inputmode="numeric" data-zone="Giardino" data-period="day" data-field="limit">
-                    </label>
-                    <label class="check-row compact-check">
-                      <input type="checkbox" data-zone="Giardino" data-period="day" data-field="blocked">
-                      <span>Blocca diurno</span>
-                    </label>
-                    <label>
-                      Serale coperti max
-                      <input type="number" min="0" max="999" inputmode="numeric" data-zone="Giardino" data-period="evening" data-field="limit">
-                    </label>
-                    <label class="check-row compact-check">
-                      <input type="checkbox" data-zone="Giardino" data-period="evening" data-field="blocked">
-                      <span>Blocca serale</span>
-                    </label>
-                  </section>
-                </div>
-                <button type="submit">Salva limiti</button>
-                <p id="zoneSettingsMessage" class="message" role="status"></p>
-              </form>
+                    <section class="zone-setting-card">
+                      <h3>Giardino</h3>
+                      <label>
+                        Diurno coperti max
+                        <input type="number" min="0" max="999" inputmode="numeric" data-zone="Giardino" data-period="day" data-field="limit">
+                      </label>
+                      <label class="check-row compact-check">
+                        <input type="checkbox" data-zone="Giardino" data-period="day" data-field="blocked">
+                        <span>Blocca diurno</span>
+                      </label>
+                      <label>
+                        Serale coperti max
+                        <input type="number" min="0" max="999" inputmode="numeric" data-zone="Giardino" data-period="evening" data-field="limit">
+                      </label>
+                      <label class="check-row compact-check">
+                        <input type="checkbox" data-zone="Giardino" data-period="evening" data-field="blocked">
+                        <span>Blocca serale</span>
+                      </label>
+                    </section>
+                  </div>
+                  <button type="submit">Salva limiti</button>
+                  <p id="zoneSettingsMessage" class="message" role="status"></p>
+                </form>
+              </details>
             </section>
 
             <section id="backupPanel" class="staff-panel backup-panel" hidden>

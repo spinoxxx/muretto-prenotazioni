@@ -400,6 +400,30 @@ label {
   padding: 18px;
 }
 
+.collapsible-admin-section {
+  display: block;
+}
+
+.collapsible-admin-section summary {
+  cursor: pointer;
+  color: var(--ink);
+  font-size: 1.02rem;
+  font-weight: 900;
+  list-style-position: inside;
+}
+
+.collapsible-admin-section summary small {
+  display: block;
+  margin: 5px 0 0 24px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.collapsible-admin-section[open] summary {
+  margin-bottom: 14px;
+}
+
 .backup-panel p {
   margin: 4px 0 0;
   color: var(--muted);
