@@ -410,6 +410,30 @@ label {
   width: 100%;
 }
 
+.collapsible-admin-list {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.collapsible-admin-list summary {
+  cursor: pointer;
+  padding: 13px 14px;
+  color: var(--ink);
+  font-size: 0.92rem;
+  font-weight: 900;
+  list-style-position: inside;
+}
+
+.collapsible-admin-list[open] summary {
+  border-bottom: 1px solid var(--line);
+}
+
+.collapsible-admin-list .backup-list,
+.collapsible-admin-list .delete-log-list {
+  padding: 12px 14px 14px;
+}
+
 .backup-list {
   display: grid;
   gap: 10px;

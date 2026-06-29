@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Muretto Prenotazioni</title>
-    <link rel="stylesheet" href="/styles.css?v=8">
+    <link rel="stylesheet" href="/styles.css?v=11">
   </head>
   <body>
     <main class="shell">
@@ -284,7 +284,10 @@
               <button id="createBackupButton" type="button">Crea backup</button>
               <p id="backupMessage" class="message" role="status"></p>
               <a id="backupDownloadLink" class="ghost-link backup-download" href="#" hidden>Scarica ultimo backup</a>
-              <div id="backupList" class="backup-list" aria-live="polite"></div>
+              <details class="collapsible-admin-list">
+                <summary>Lista backup</summary>
+                <div id="backupList" class="backup-list" aria-live="polite"></div>
+              </details>
             </section>
 
             <section id="deleteLogPanel" class="staff-panel backup-panel" hidden>
@@ -294,7 +297,10 @@
                   <p>Ultime prenotazioni eliminate e dipendente responsabile.</p>
                 </div>
               </div>
-              <div id="deleteLogList" class="delete-log-list" aria-live="polite"></div>
+              <details class="collapsible-admin-list">
+                <summary>Lista cancellazioni</summary>
+                <div id="deleteLogList" class="delete-log-list" aria-live="polite"></div>
+              </details>
             </section>
           </div>
 
