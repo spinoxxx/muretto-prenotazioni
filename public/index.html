@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Muretto Prenotazioni</title>
-    <link rel="stylesheet" href="/styles.css?v=13">
+    <link rel="stylesheet" href="/styles.css?v=14">
   </head>
   <body>
     <main class="shell">
@@ -61,7 +61,26 @@
             </span>
             <button id="nextDayButton" class="ghost icon-button" type="button" aria-label="Giorno successivo">›</button>
             <button id="todayButton" class="ghost today-button" type="button">Oggi</button>
+            <button id="exportWeekButton" class="ghost today-button" type="button">Esporta settimana</button>
           </div>
+        </section>
+
+        <section id="weeklyExportPanel" class="weekly-export-panel" hidden>
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Stampa A4</p>
+              <h2>Lista prenotazioni settimana</h2>
+              <p id="weeklyExportLabel"></p>
+            </div>
+            <button id="closeWeeklyExportButton" class="ghost compact" type="button">Chiudi</button>
+          </div>
+          <div class="weekly-export-actions">
+            <button id="selectAllWeeklyButton" class="ghost compact" type="button">Seleziona tutte</button>
+            <button id="clearWeeklyButton" class="ghost compact" type="button">Deseleziona</button>
+            <button id="printWeeklyButton" type="button">Stampa selezionate</button>
+            <span id="weeklySelectedCount"></span>
+          </div>
+          <div id="weeklyExportList" class="weekly-export-list" aria-live="polite"></div>
         </section>
 
         <section class="stats" aria-label="Riepilogo">
@@ -325,6 +344,7 @@
         </div>
       </section>
     </main>
-    <script src="/app.js?v=23" type="module"></script>
+    <section id="weeklyPrintArea" class="weekly-print-area" aria-hidden="true"></section>
+    <script src="/app.js?v=24" type="module"></script>
   </body>
 </html>

@@ -376,6 +376,67 @@ label {
   font-size: 0.78rem;
 }
 
+.weekly-export-panel {
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.weekly-export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.weekly-export-actions span {
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.weekly-export-list {
+  display: grid;
+  gap: 10px;
+}
+
+.weekly-export-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: start;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 13px;
+  background: #fff;
+}
+
+.weekly-export-row input {
+  width: auto;
+  min-height: auto;
+  margin-top: 3px;
+}
+
+.weekly-export-row strong,
+.weekly-export-row small {
+  display: block;
+}
+
+.weekly-export-row small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 750;
+}
+
+.weekly-print-area {
+  display: none;
+}
+
 .workspace {
   display: grid;
   grid-template-columns: 390px 1fr;
@@ -1156,7 +1217,8 @@ label {
   .grid-2,
   .grid-3,
   .choice-group,
-  .booking-row {
+  .booking-row,
+  .weekly-export-row {
     grid-template-columns: 1fr;
   }
 
@@ -1174,5 +1236,71 @@ label {
 
   .actions {
     flex-wrap: wrap;
+  }
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  body.is-printing-week {
+    background: #fff;
+  }
+
+  body.is-printing-week > :not(.weekly-print-area) {
+    display: none !important;
+  }
+
+  body.is-printing-week .weekly-print-area {
+    display: block;
+    color: #111;
+    font-family: Arial, sans-serif;
+  }
+
+  .weekly-print-sheet header {
+    border-bottom: 2px solid #111;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+  }
+
+  .weekly-print-sheet header p,
+  .weekly-print-sheet header h1,
+  .weekly-print-sheet header span {
+    margin: 0;
+  }
+
+  .weekly-print-sheet header p {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .weekly-print-sheet header h1 {
+    font-size: 20px;
+    line-height: 1.2;
+  }
+
+  .weekly-print-booking {
+    break-inside: avoid;
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 10px;
+    border-bottom: 1px solid #bbb;
+    padding: 10px 0;
+  }
+
+  .weekly-print-booking h2 {
+    margin: 0 0 4px;
+    font-size: 15px;
+  }
+
+  .weekly-print-booking p,
+  .weekly-print-booking strong {
+    display: block;
+    margin: 0 0 3px;
+    font-size: 11px;
+    line-height: 1.35;
   }
 }

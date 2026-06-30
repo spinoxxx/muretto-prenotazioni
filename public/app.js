@@ -15,6 +15,16 @@ const bookingDateDisplay = document.querySelector("#bookingDateDisplay");
 const prevDayButton = document.querySelector("#prevDayButton");
 const nextDayButton = document.querySelector("#nextDayButton");
 const todayButton = document.querySelector("#todayButton");
+const exportWeekButton = document.querySelector("#exportWeekButton");
+const weeklyExportPanel = document.querySelector("#weeklyExportPanel");
+const closeWeeklyExportButton = document.querySelector("#closeWeeklyExportButton");
+const selectAllWeeklyButton = document.querySelector("#selectAllWeeklyButton");
+const clearWeeklyButton = document.querySelector("#clearWeeklyButton");
+const printWeeklyButton = document.querySelector("#printWeeklyButton");
+const weeklyExportLabel = document.querySelector("#weeklyExportLabel");
+const weeklyExportList = document.querySelector("#weeklyExportList");
+const weeklySelectedCount = document.querySelector("#weeklySelectedCount");
+const weeklyPrintArea = document.querySelector("#weeklyPrintArea");
 const searchInput = document.querySelector("#searchInput");
 const rangeLabel = document.querySelector("#rangeLabel");
 const statCards = document.querySelectorAll("[data-room-filter]");
@@ -65,6 +75,7 @@ const employeeMessage = document.querySelector("#employeeMessage");
 let csrfToken = "";
 let bookings = [];
 let zoneStatsSettings = null;
+let weeklyExportBookings = [];
 let currentEmployee = null;
 let activeRoomFilter = "";
 
@@ -418,6 +429,17 @@ function addDays(value, days) {
   return date.toISOString().slice(0, 10);
 }
 
+function weekRangeFor(value) {
+  const apiDate = toApiDate(value) || today;
+  const date = new Date(`${apiDate}T12:00:00`);
+  const day = date.getDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  date.setDate(date.getDate() + mondayOffset);
+  const from = date.toISOString().slice(0, 10);
+  date.setDate(date.getDate() + 6);
+  return { from, to: date.toISOString().slice(0, 10) };
+}
+
 function formatDate(value) {
   if (!value) return "";
   return new Intl.DateTimeFormat("it-IT", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(`${value}T12:00:00`));
@@ -544,6 +566,82 @@ function renderReceivedBookings(receivedBookings) {
       </div>
     `;
   }).join("");
+}
+
+async function openWeeklyExport() {
+  const { from, to } = weekRangeFor(selectedAgendaDate());
+  weeklyExportPanel.hidden = false;
+  weeklyExportLabel.textContent = `Settimana ${formatDate(from)} - ${formatDate(to)}`;
+  weeklyExportList.innerHTML = `<p class="empty compact-empty">Caricamento prenotazioni...</p>`;
+  printWeeklyButton.disabled = true;
+
+  const payload = await api(`/api/bookings?from=${from}&to=${to}`);
+  weeklyExportBookings = payload.bookings
+    .filter((booking) => booking.status !== "annullata")
+    .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
+  renderWeeklyExport();
+  weeklyExportPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function renderWeeklyExport() {
+  if (!weeklyExportBookings.length) {
+    weeklyExportList.innerHTML = `<p class="empty compact-empty">Nessuna prenotazione stampabile nella settimana selezionata.</p>`;
+    updateWeeklySelectedCount();
+    return;
+  }
+
+  weeklyExportList.innerHTML = weeklyExportBookings.map((booking) => `
+    <label class="weekly-export-row">
+      <input type="checkbox" value="${escapeHtml(booking.id)}" checked>
+      <span>
+        <strong>${escapeHtml(booking.guestName || "Prenotazione senza nome")}</strong>
+        <small>${formatDate(booking.date)} · ${escapeHtml(booking.time || "")} · ${Number(booking.people || 0)} persone · ${seatLine(booking)}</small>
+        <small>${contactLine(booking)}${booking.notes ? ` · ${escapeHtml(booking.notes)}` : ""}</small>
+      </span>
+      <span class="status ${statusClass(booking.status)}">${escapeHtml(booking.status)}</span>
+    </label>
+  `).join("");
+  updateWeeklySelectedCount();
+}
+
+function selectedWeeklyBookings() {
+  const selectedIds = new Set(Array.from(weeklyExportList.querySelectorAll("input[type='checkbox']:checked")).map((input) => input.value));
+  return weeklyExportBookings.filter((booking) => selectedIds.has(booking.id));
+}
+
+function updateWeeklySelectedCount() {
+  const selected = selectedWeeklyBookings();
+  weeklySelectedCount.textContent = weeklyExportBookings.length ? `${selected.length} selezionate su ${weeklyExportBookings.length}` : "";
+  printWeeklyButton.disabled = selected.length === 0;
+}
+
+function renderWeeklyPrintArea(selected) {
+  const { from, to } = weekRangeFor(selectedAgendaDate());
+  weeklyPrintArea.innerHTML = `
+    <article class="weekly-print-sheet">
+      <header>
+        <p>Il Muretto</p>
+        <h1>Prenotazioni settimana</h1>
+        <span>${formatDate(from)} - ${formatDate(to)}</span>
+      </header>
+      <section>
+        ${selected.map((booking) => `
+          <article class="weekly-print-booking">
+            <div>
+              <h2>${escapeHtml(booking.guestName || "Prenotazione senza nome")}</h2>
+              <p>${formatDate(booking.date)} · ${escapeHtml(booking.time || "")} · ${Number(booking.people || 0)} persone</p>
+              <p>${seatLine(booking)}</p>
+              <p>${contactLine(booking)}</p>
+            </div>
+            <div>
+              <strong>${escapeHtml(booking.status)}</strong>
+              ${booking.notes ? `<p>${escapeHtml(booking.notes)}</p>` : ""}
+            </div>
+          </article>
+        `).join("")}
+      </section>
+    </article>
+  `;
 }
 
 function escapeHtml(value) {
@@ -687,6 +785,47 @@ todayButton.addEventListener("click", async () => {
   await loadBookings();
   await loadZoneSettings();
 });
+
+exportWeekButton.addEventListener("click", async () => {
+  try {
+    await openWeeklyExport();
+  } catch (error) {
+    weeklyExportPanel.hidden = false;
+    weeklyExportList.innerHTML = `<p class="empty compact-empty">${escapeHtml(error.message)}</p>`;
+  }
+});
+
+closeWeeklyExportButton.addEventListener("click", () => {
+  weeklyExportPanel.hidden = true;
+});
+
+selectAllWeeklyButton.addEventListener("click", () => {
+  weeklyExportList.querySelectorAll("input[type='checkbox']").forEach((input) => {
+    input.checked = true;
+  });
+  updateWeeklySelectedCount();
+});
+
+clearWeeklyButton.addEventListener("click", () => {
+  weeklyExportList.querySelectorAll("input[type='checkbox']").forEach((input) => {
+    input.checked = false;
+  });
+  updateWeeklySelectedCount();
+});
+
+weeklyExportList.addEventListener("change", (event) => {
+  if (event.target.matches("input[type='checkbox']")) updateWeeklySelectedCount();
+});
+
+printWeeklyButton.addEventListener("click", () => {
+  const selected = selectedWeeklyBookings();
+  if (!selected.length) return;
+  renderWeeklyPrintArea(selected);
+  document.body.classList.add("is-printing-week");
+  window.print();
+  setTimeout(() => document.body.classList.remove("is-printing-week"), 500);
+});
+
 searchInput.addEventListener("input", renderBookings);
 
 statCards.forEach((card) => {
