@@ -104,6 +104,15 @@ function sanitizePublicText(value, fallback, max = 120) {
   return text || fallback;
 }
 
+function sanitizeMessageText(value, max = 2000) {
+  return String(value || "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .replace(/[ \t]+\n/g, "\n")
+    .trim()
+    .slice(0, max);
+}
+
 function sanitizeHexColor(value, fallback) {
   const text = String(value || "").trim();
   return /^#[0-9a-f]{6}$/i.test(text) ? text : fallback;
@@ -904,6 +913,22 @@ async function markPublicBookingNotification(booking) {
   }
 }
 
+function customerMessageEmailText(booking, message) {
+  const seat = emailSeatLine(booking, normalizeLanguage(booking.language));
+  return [
+    message,
+    "",
+    "---",
+    "Riepilogo richiesta:",
+    `Cliente: ${booking.guestName}`,
+    `Data: ${booking.date}`,
+    `Ora: ${booking.time}`,
+    `Persone: ${booking.people}`,
+    seat ? `Zona: ${seat}` : "",
+    booking.notes ? `Note: ${booking.notes}` : ""
+  ].filter(Boolean).join("\n");
+}
+
 function allowPublicBookingAttempt(req) {
   const key = publicClientKey(req);
   const now = Date.now();
@@ -1361,6 +1386,48 @@ async function handleApi(req, res) {
         tableNumber: bookings[index].tableNumber || ""
       }
     });
+    return;
+  }
+
+  const bookingMessageMatch = url.pathname.match(/^\/api\/bookings\/([a-f0-9-]+)\/message$/i);
+  if (bookingMessageMatch && req.method === "POST") {
+    if (!requireBookingEditor(session, res)) return;
+    const body = await readBody(req);
+    const subject = sanitizeText(body.subject, 140);
+    const message = sanitizeMessageText(body.message, 2000);
+    if (!subject) {
+      sendJson(res, 400, { error: "Inserisci l'oggetto del messaggio" });
+      return;
+    }
+    if (!message) {
+      sendJson(res, 400, { error: "Scrivi il messaggio da inviare" });
+      return;
+    }
+    const bookings = await readJson(bookingsFile, []);
+    const index = bookings.findIndex((item) => item.id === bookingMessageMatch[1]);
+    if (index === -1) {
+      sendJson(res, 404, { error: "Prenotazione non trovata" });
+      return;
+    }
+    if (!bookings[index].email) {
+      sendJson(res, 400, { error: "Questa prenotazione non ha un indirizzo email" });
+      return;
+    }
+    await sendPlainEmail({
+      to: bookings[index].email,
+      subject,
+      text: customerMessageEmailText(bookings[index], message)
+    });
+    bookings[index] = {
+      ...bookings[index],
+      customerMessageSentAt: new Date().toISOString(),
+      customerMessageSentBy: session.employeeName,
+      customerMessageSubject: subject,
+      updatedAt: new Date().toISOString(),
+      updatedBy: session.employeeName
+    };
+    await writeJson(bookingsFile, bookings);
+    sendJson(res, 200, { ok: true, booking: bookings[index] });
     return;
   }
 

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Muretto Prenotazioni</title>
-    <link rel="stylesheet" href="/styles.css?v=14">
+    <link rel="stylesheet" href="/styles.css?v=16">
   </head>
   <body>
     <main class="shell">
@@ -344,7 +344,32 @@
         </div>
       </section>
     </main>
+    <dialog id="customerMessageDialog" class="message-dialog">
+      <form id="customerMessageForm" method="dialog" class="message-dialog-card">
+        <div class="form-head">
+          <div>
+            <p class="eyebrow">Risposta cliente</p>
+            <h2 id="customerMessageTitle">Invia messaggio</h2>
+            <p id="customerMessageSubtitle"></p>
+          </div>
+          <button id="closeCustomerMessageButton" class="ghost compact" type="button">Chiudi</button>
+        </div>
+        <input name="bookingId" type="hidden">
+        <label>
+          Oggetto
+          <input name="subject" type="text" maxlength="140" required>
+        </label>
+        <label>
+          Messaggio
+          <textarea name="message" maxlength="2000" rows="8" required></textarea>
+        </label>
+        <div class="message-dialog-actions">
+          <button id="sendCustomerMessageButton" type="submit">Invia email</button>
+          <p id="customerMessageStatus" class="message" role="status"></p>
+        </div>
+      </form>
+    </dialog>
     <section id="weeklyPrintArea" class="weekly-print-area" aria-hidden="true"></section>
-    <script src="/app.js?v=24" type="module"></script>
+    <script src="/app.js?v=25" type="module"></script>
   </body>
 </html>

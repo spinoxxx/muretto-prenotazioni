@@ -25,6 +25,13 @@ const weeklyExportLabel = document.querySelector("#weeklyExportLabel");
 const weeklyExportList = document.querySelector("#weeklyExportList");
 const weeklySelectedCount = document.querySelector("#weeklySelectedCount");
 const weeklyPrintArea = document.querySelector("#weeklyPrintArea");
+const customerMessageDialog = document.querySelector("#customerMessageDialog");
+const customerMessageForm = document.querySelector("#customerMessageForm");
+const closeCustomerMessageButton = document.querySelector("#closeCustomerMessageButton");
+const customerMessageTitle = document.querySelector("#customerMessageTitle");
+const customerMessageSubtitle = document.querySelector("#customerMessageSubtitle");
+const customerMessageStatus = document.querySelector("#customerMessageStatus");
+const sendCustomerMessageButton = document.querySelector("#sendCustomerMessageButton");
 const searchInput = document.querySelector("#searchInput");
 const rangeLabel = document.querySelector("#rangeLabel");
 const statCards = document.querySelectorAll("[data-room-filter]");
@@ -313,6 +320,7 @@ function renderBookings() {
       </div>
       <div class="actions">
         <button class="arrived" type="button" data-action="arrived" data-id="${booking.id}">${booking.status === "arrivati" ? "ANNULLA ARRIVO" : "ARRIVATI"}</button>
+        ${booking.email ? `<button class="ghost" type="button" data-action="message" data-id="${booking.id}">Rispondi</button>` : ""}
         <button class="ghost" type="button" data-action="edit" data-id="${booking.id}">Modifica</button>
         <button class="delete" type="button" data-action="delete" data-id="${booking.id}">Elimina</button>
       </div>
@@ -403,6 +411,7 @@ function bookingMetaLine(booking) {
   const parts = [];
   if (created) parts.push(`Creata ${created}`);
   if (updated && (booking.updatedAt !== booking.createdAt || booking.updatedBy)) parts.push(`Modificata ${updated}`);
+  if (booking.customerMessageSentAt) parts.push(`Risposta inviata ${formatDateTime(booking.customerMessageSentAt)}${booking.customerMessageSentBy ? ` da ${booking.customerMessageSentBy}` : ""}`);
   return parts.length ? parts.map(escapeHtml).join(" · ") : "Storico non disponibile";
 }
 
@@ -644,6 +653,36 @@ function renderWeeklyPrintArea(selected) {
   `;
 }
 
+function defaultCustomerMessage(booking) {
+  return [
+    `Ciao ${booking.guestName},`,
+    "",
+    "ti scriviamo in merito alla tua richiesta di prenotazione.",
+    "",
+    "",
+    "A presto!",
+    `Lo Staff del Muretto`
+  ].join("\n");
+}
+
+function openCustomerMessageDialog(booking) {
+  customerMessageForm.reset();
+  customerMessageForm.elements.bookingId.value = booking.id;
+  customerMessageForm.elements.subject.value = `Risposta alla tua richiesta - Muretto`;
+  customerMessageForm.elements.message.value = defaultCustomerMessage(booking);
+  customerMessageTitle.textContent = `Messaggio per ${booking.guestName}`;
+  customerMessageSubtitle.textContent = `${booking.email} · ${formatDate(booking.date)} alle ${booking.time}`;
+  customerMessageStatus.textContent = "";
+  sendCustomerMessageButton.disabled = false;
+  if (typeof customerMessageDialog.showModal === "function") customerMessageDialog.showModal();
+  else customerMessageDialog.setAttribute("open", "");
+}
+
+function closeCustomerMessageDialog() {
+  if (typeof customerMessageDialog.close === "function") customerMessageDialog.close();
+  else customerMessageDialog.removeAttribute("open");
+}
+
 function escapeHtml(value) {
   return String(value || "").replace(/[&<>"']/g, (char) => ({
     "&": "&amp;",
@@ -736,12 +775,46 @@ bookingList.addEventListener("click", async (event) => {
     return;
   }
 
+  if (button.dataset.action === "message") {
+    if (!booking.email) return;
+    openCustomerMessageDialog(booking);
+    return;
+  }
+
   if (button.dataset.action === "delete") {
     const ok = confirm(`Eliminare la prenotazione di ${booking.guestName}?`);
     if (!ok) return;
     await api(`/api/bookings/${booking.id}`, { method: "DELETE" });
     await loadBookings();
     await loadDeleteLogs();
+  }
+});
+
+closeCustomerMessageButton.addEventListener("click", closeCustomerMessageDialog);
+
+customerMessageDialog.addEventListener("click", (event) => {
+  if (event.target === customerMessageDialog) closeCustomerMessageDialog();
+});
+
+customerMessageForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  customerMessageStatus.textContent = "Invio email in corso...";
+  sendCustomerMessageButton.disabled = true;
+  const payload = Object.fromEntries(new FormData(customerMessageForm).entries());
+  try {
+    await api(`/api/bookings/${payload.bookingId}/message`, {
+      method: "POST",
+      body: JSON.stringify({
+        subject: payload.subject,
+        message: payload.message
+      })
+    });
+    customerMessageStatus.textContent = "Email inviata.";
+    await loadBookings();
+    setTimeout(closeCustomerMessageDialog, 700);
+  } catch (error) {
+    customerMessageStatus.textContent = error.message;
+    sendCustomerMessageButton.disabled = false;
   }
 });
 
