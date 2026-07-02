@@ -961,12 +961,19 @@ customerMessageForm.addEventListener("submit", async (event) => {
   customerMessageStatus.textContent = "Invio email in corso...";
   sendCustomerMessageButton.disabled = true;
   const payload = Object.fromEntries(new FormData(customerMessageForm).entries());
+  const proposedTimes = customerMessageTemplate.value === "time-change" ? selectedTimeChangeSlots() : [];
+  if (customerMessageTemplate.value === "time-change" && proposedTimes.length === 0) {
+    customerMessageStatus.textContent = "Seleziona almeno un orario da proporre.";
+    sendCustomerMessageButton.disabled = false;
+    return;
+  }
   try {
     await api(`/api/bookings/${payload.bookingId}/message`, {
       method: "POST",
       body: JSON.stringify({
         subject: payload.subject,
-        message: payload.message
+        message: payload.message,
+        proposedTimes
       })
     });
     customerMessageStatus.textContent = "Email inviata.";

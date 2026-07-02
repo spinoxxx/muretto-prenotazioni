@@ -140,6 +140,37 @@ function normalizeDate(value) {
   return `${year}-${month}-${day}`;
 }
 
+function normalizeClockTime(value) {
+  const text = sanitizeText(value, 5);
+  const match = text.match(/^(\d{2}):(\d{2})$/);
+  if (!match) return "";
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours > 23 || minutes > 59) return "";
+  return text;
+}
+
+function clockTimeToMinutes(value) {
+  const time = normalizeClockTime(value);
+  if (!time) return null;
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+function sanitizeProposedTimes(value) {
+  const raw = Array.isArray(value) ? value : String(value || "").split(",");
+  return [...new Set(raw.map(normalizeClockTime).filter(Boolean))].slice(0, 16);
+}
+
+function sanitizeProposedTimesForBooking(value, booking) {
+  const requested = clockTimeToMinutes(booking.time);
+  if (requested === null) return [];
+  return sanitizeProposedTimes(value).filter((time) => {
+    const minutes = clockTimeToMinutes(time);
+    return minutes !== null && Math.abs(minutes - requested) <= 90 && minutes !== requested;
+  });
+}
+
 function pinIsValid(pin) {
   return /^\d{4,12}$/.test(String(pin || ""));
 }
@@ -932,6 +963,7 @@ function publicBookingNotificationText(booking) {
     "",
     `Cliente: ${booking.guestName}`,
     `Data prenotazione: ${booking.date}`,
+    details.previousTime ? `Ora precedente: ${details.previousTime}` : "",
     `Ora: ${booking.time}`,
     `Persone: ${booking.people}`,
     seat ? `Zona proposta: ${seat}` : "",
@@ -969,13 +1001,18 @@ async function markPublicBookingNotification(booking) {
   }
 }
 
-function customerActionNotificationText(booking, action) {
+function customerActionNotificationText(booking, action, details = {}) {
   const seat = emailSeatLine(booking, "it");
   const isConfirm = action === "confirm";
+  const isTimeChoice = action === "time";
+  const actionLine = isTimeChoice
+    ? `Il cliente ha scelto l'orario ${details.selectedTime} tramite il pulsante ricevuto via email.`
+    : `Il cliente ha ${isConfirm ? "confermato" : "annullato"} la prenotazione tramite il pulsante ricevuto via email.`;
+  const resultLine = isTimeChoice ? `ORARIO SCELTO: ${details.selectedTime}` : (isConfirm ? "CONFERMATA" : "ANNULLATA");
   return [
-    `Il cliente ha ${isConfirm ? "confermato" : "annullato"} la prenotazione tramite il pulsante ricevuto via email.`,
+    actionLine,
     "",
-    `Esito: ${isConfirm ? "CONFERMATA" : "ANNULLATA"}`,
+    `Esito: ${resultLine}`,
     `Cliente: ${booking.guestName}`,
     `Data prenotazione: ${booking.date}`,
     `Ora: ${booking.time}`,
@@ -989,13 +1026,13 @@ function customerActionNotificationText(booking, action) {
   ].filter(Boolean).join("\n");
 }
 
-async function markCustomerActionNotification(booking, action) {
+async function markCustomerActionNotification(booking, action, details = {}) {
   try {
-    const actionLabel = action === "confirm" ? "confermata" : "annullata";
+    const actionLabel = action === "confirm" ? "confermata" : action === "cancel" ? "annullata" : "orario scelto";
     const result = await sendPlainEmail({
       to: NOTIFICATION_EMAIL,
       subject: `Prenotazione ${actionLabel} dal cliente - ${BRAND_CONFIG.name}`,
-      text: customerActionNotificationText(booking, action)
+      text: customerActionNotificationText(booking, action, details)
     });
     if (!result.sent) return booking;
     return {
@@ -1013,11 +1050,15 @@ async function markCustomerActionNotification(booking, action) {
   }
 }
 
-function customerMessageEmailText(booking, message) {
+function customerMessageEmailText(booking, message, proposedTimes = []) {
   const seat = emailSeatLine(booking, normalizeLanguage(booking.language));
   const links = bookingActionLinks(booking);
+  const timeLinks = bookingTimeChoiceLinks(booking, proposedTimes);
   return [
     message,
+    timeLinks.length ? "" : "",
+    timeLinks.length ? "Scegli un orario usando uno di questi link:" : "",
+    ...timeLinks.map((item) => `${item.time}: ${item.url}`),
     "",
     "Puoi confermare o annullare anche fino a un'ora prima della prenotazione:",
     `Conferma: ${links.confirm}`,
@@ -1043,9 +1084,19 @@ function bookingActionLinks(booking) {
   };
 }
 
-function customerMessageEmailHtml(booking, message) {
+function bookingTimeChoiceLinks(booking, proposedTimes = []) {
+  const token = encodeURIComponent(booking.customerActionToken || "");
+  const id = encodeURIComponent(booking.id || "");
+  return proposedTimes.map((time) => ({
+    time,
+    url: `${PUBLIC_BASE_URL}/api/booking-action?action=time&id=${id}&token=${token}&time=${encodeURIComponent(time)}`
+  }));
+}
+
+function customerMessageEmailHtml(booking, message, proposedTimes = []) {
   const seat = emailSeatLine(booking, normalizeLanguage(booking.language));
   const links = bookingActionLinks(booking);
+  const timeLinks = bookingTimeChoiceLinks(booking, proposedTimes);
   const paragraphs = escapeHtml(message).split(/\n{2,}/).map((part) => `<p>${part.replace(/\n/g, "<br>")}</p>`).join("");
   return `<!doctype html>
 <html lang="it">
@@ -1053,6 +1104,11 @@ function customerMessageEmailHtml(booking, message) {
     <div style="max-width:640px;margin:0 auto;padding:24px;">
       <div style="background:#ffffff;border:1px solid #ded8ce;border-radius:8px;padding:22px;">
         ${paragraphs}
+        ${timeLinks.length ? `
+        <p style="margin:18px 0 10px;font-weight:700;">Scegli un orario</p>
+        <p style="margin:0 0 20px;">
+          ${timeLinks.map((item) => `<a href="${escapeHtml(item.url)}" style="display:inline-block;margin:0 8px 8px 0;padding:12px 16px;border-radius:6px;background:#1f4e42;color:#ffffff;text-decoration:none;font-weight:700;">${escapeHtml(item.time)}</a>`).join("")}
+        </p>` : ""}
         <p style="margin:18px 0 10px;font-weight:700;">Puoi confermare o annullare anche fino a un'ora prima della prenotazione.</p>
         <p style="margin:0 0 20px;">
           <a href="${escapeHtml(links.confirm)}" style="display:inline-block;margin:0 8px 8px 0;padding:12px 16px;border-radius:6px;background:#2f6f5e;color:#ffffff;text-decoration:none;font-weight:700;">Conferma prenotazione</a>
@@ -1231,7 +1287,7 @@ async function handleApi(req, res) {
     const id = sanitizeText(url.searchParams.get("id"), 80);
     const token = sanitizeText(url.searchParams.get("token"), 120);
     const action = sanitizeText(url.searchParams.get("action"), 20);
-    if (!id || !token || !["confirm", "cancel"].includes(action)) {
+    if (!id || !token || !["confirm", "cancel", "time"].includes(action)) {
       sendHtml(res, 400, "Link non valido", "Il link usato non è valido o è incompleto.");
       return;
     }
@@ -1242,6 +1298,34 @@ async function handleApi(req, res) {
       return;
     }
     const now = new Date().toISOString();
+    if (action === "time") {
+      const selectedTime = normalizeClockTime(url.searchParams.get("time"));
+      const proposedTimes = sanitizeProposedTimes(bookings[index].customerProposedTimes);
+      const previousTime = bookings[index].time;
+      if (!selectedTime || !proposedTimes.includes(selectedTime)) {
+        sendHtml(res, 400, "Orario non valido", "Questo orario non è più disponibile tra le opzioni proposte.");
+        return;
+      }
+      bookings[index] = {
+        ...bookings[index],
+        time: selectedTime,
+        status: "da verificare",
+        customerActionAt: now,
+        customerAction: "time",
+        customerSelectedTime: selectedTime,
+        updatedAt: now,
+        updatedBy: "cliente: scelta orario email"
+      };
+      bookings[index] = await markCustomerActionNotification(bookings[index], action, { selectedTime, previousTime });
+      await writeJson(bookingsFile, bookings);
+      sendHtml(
+        res,
+        200,
+        "Orario scelto",
+        `Grazie, abbiamo registrato la tua preferenza per le ${selectedTime}. Ti invieremo la conferma della prenotazione.`
+      );
+      return;
+    }
     const status = action === "confirm" ? "confermata" : "annullata";
     bookings[index] = {
       ...bookings[index],
@@ -1595,6 +1679,7 @@ async function handleApi(req, res) {
       sendJson(res, 400, { error: "Questa prenotazione non ha un indirizzo email" });
       return;
     }
+    const proposedTimes = sanitizeProposedTimesForBooking(body.proposedTimes, bookings[index]);
     const bookingForMessage = {
       ...bookings[index],
       customerActionToken: bookings[index].customerActionToken || randomToken(24)
@@ -1602,8 +1687,8 @@ async function handleApi(req, res) {
     const emailResult = await sendPlainEmail({
       to: bookingForMessage.email,
       subject,
-      text: customerMessageEmailText(bookingForMessage, message),
-      html: customerMessageEmailHtml(bookingForMessage, message)
+      text: customerMessageEmailText(bookingForMessage, message, proposedTimes),
+      html: customerMessageEmailHtml(bookingForMessage, message, proposedTimes)
     });
     if (!emailResult.sent) {
       sendJson(res, 400, { error: "Invio email non configurato" });
@@ -1614,6 +1699,7 @@ async function handleApi(req, res) {
       customerMessageSentAt: new Date().toISOString(),
       customerMessageSentBy: session.employeeName,
       customerMessageSubject: subject,
+      customerProposedTimes: proposedTimes,
       updatedAt: new Date().toISOString(),
       updatedBy: session.employeeName
     };
