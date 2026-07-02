@@ -33,6 +33,7 @@ const PRIVACY_CONTROLLER = "Bar Flora srl, Piazza Vecchia 13, 24129 Bergamo";
 const VENUE_ADDRESS = "Viale delle Mura 1, 24129 Bergamo";
 const VENUE_MAP_URL = "https://www.google.com/maps/search/?api=1&query=Viale%20delle%20Mura%201%2C%2024129%20Bergamo";
 const PUBLIC_BASE_URL = sanitizePublicText(process.env.MURETTO_PUBLIC_URL, "https://muretto-prenotazioni.onrender.com", 220).replace(/\/+$/, "");
+const PUBLIC_BOOKING_URL = `${PUBLIC_BASE_URL}/prenota.html`;
 
 const DEFAULT_EMPLOYEE_NAME = process.env.MURETTO_ADMIN_NAME || "Admin";
 const DEFAULT_EMPLOYEE_PIN = process.env.MURETTO_ADMIN_PIN || "123456";
@@ -314,7 +315,7 @@ function sendHtml(res, status, title, message) {
     <main>
       <h1>${escapeHtml(title)}</h1>
       <p>${escapeHtml(message)}</p>
-      <a href="${PUBLIC_BASE_URL}">Vai al sito</a>
+      <a href="${PUBLIC_BOOKING_URL}">Vai al modulo prenotazioni</a>
     </main>
   </body>
 </html>`);
