@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Muretto Prenotazioni</title>
-    <link rel="stylesheet" href="/styles.css?v=16">
+    <link rel="stylesheet" href="/styles.css?v=17">
   </head>
   <body>
     <main class="shell">
@@ -356,6 +356,13 @@
         </div>
         <input name="bookingId" type="hidden">
         <label>
+          Modello rapido
+          <select id="customerMessageTemplate">
+            <option value="custom">Messaggio libero</option>
+            <option value="alternative">Sala non disponibile: proponi alternativa</option>
+          </select>
+        </label>
+        <label>
           Oggetto
           <input name="subject" type="text" maxlength="140" required>
         </label>
@@ -370,6 +377,6 @@
       </form>
     </dialog>
     <section id="weeklyPrintArea" class="weekly-print-area" aria-hidden="true"></section>
-    <script src="/app.js?v=25" type="module"></script>
+    <script src="/app.js?v=26" type="module"></script>
   </body>
 </html>

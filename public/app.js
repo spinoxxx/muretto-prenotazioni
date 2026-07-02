@@ -27,6 +27,7 @@ const weeklySelectedCount = document.querySelector("#weeklySelectedCount");
 const weeklyPrintArea = document.querySelector("#weeklyPrintArea");
 const customerMessageDialog = document.querySelector("#customerMessageDialog");
 const customerMessageForm = document.querySelector("#customerMessageForm");
+const customerMessageTemplate = document.querySelector("#customerMessageTemplate");
 const closeCustomerMessageButton = document.querySelector("#closeCustomerMessageButton");
 const customerMessageTitle = document.querySelector("#customerMessageTitle");
 const customerMessageSubtitle = document.querySelector("#customerMessageSubtitle");
@@ -83,6 +84,7 @@ let csrfToken = "";
 let bookings = [];
 let zoneStatsSettings = null;
 let weeklyExportBookings = [];
+let activeCustomerMessageBooking = null;
 let currentEmployee = null;
 let activeRoomFilter = "";
 
@@ -665,11 +667,40 @@ function defaultCustomerMessage(booking) {
   ].join("\n");
 }
 
+function alternativeRoomMessage(booking) {
+  const proposedSeat = booking.room || booking.tableNumber ? seatLine(booking).replace(/&amp;/g, "&") : "una soluzione alternativa da concordare insieme";
+  return [
+    `Ciao ${booking.guestName},`,
+    "",
+    "ti scriviamo in merito alla tua richiesta di prenotazione.",
+    "",
+    "Purtroppo la sala richiesta non è disponibile per la data e l'orario indicati.",
+    `Possiamo però proporti questa alternativa: ${proposedSeat}.`,
+    "",
+    "Se per te va bene, rispondi pure a questa email e procederemo con la conferma.",
+    "",
+    "A presto!",
+    "Lo Staff del Muretto"
+  ].join("\n");
+}
+
+function applyCustomerMessageTemplate(template) {
+  if (!activeCustomerMessageBooking) return;
+  if (template === "alternative") {
+    customerMessageForm.elements.subject.value = "Alternativa per la tua richiesta - Muretto";
+    customerMessageForm.elements.message.value = alternativeRoomMessage(activeCustomerMessageBooking);
+    return;
+  }
+  customerMessageForm.elements.subject.value = "Risposta alla tua richiesta - Muretto";
+  customerMessageForm.elements.message.value = defaultCustomerMessage(activeCustomerMessageBooking);
+}
+
 function openCustomerMessageDialog(booking) {
+  activeCustomerMessageBooking = booking;
   customerMessageForm.reset();
   customerMessageForm.elements.bookingId.value = booking.id;
-  customerMessageForm.elements.subject.value = `Risposta alla tua richiesta - Muretto`;
-  customerMessageForm.elements.message.value = defaultCustomerMessage(booking);
+  customerMessageTemplate.value = "custom";
+  applyCustomerMessageTemplate("custom");
   customerMessageTitle.textContent = `Messaggio per ${booking.guestName}`;
   customerMessageSubtitle.textContent = `${booking.email} · ${formatDate(booking.date)} alle ${booking.time}`;
   customerMessageStatus.textContent = "";
@@ -679,6 +710,7 @@ function openCustomerMessageDialog(booking) {
 }
 
 function closeCustomerMessageDialog() {
+  activeCustomerMessageBooking = null;
   if (typeof customerMessageDialog.close === "function") customerMessageDialog.close();
   else customerMessageDialog.removeAttribute("open");
 }
@@ -791,6 +823,10 @@ bookingList.addEventListener("click", async (event) => {
 });
 
 closeCustomerMessageButton.addEventListener("click", closeCustomerMessageDialog);
+
+customerMessageTemplate.addEventListener("change", () => {
+  applyCustomerMessageTemplate(customerMessageTemplate.value);
+});
 
 customerMessageDialog.addEventListener("click", (event) => {
   if (event.target === customerMessageDialog) closeCustomerMessageDialog();
