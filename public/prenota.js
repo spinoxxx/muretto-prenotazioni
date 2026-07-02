@@ -142,7 +142,7 @@ bookingForm.addEventListener("submit", async (event) => {
       body: JSON.stringify(request)
     });
     const roomText = payload.booking.room === "Giardino" ? copy.gardenPending : `${copy.proposedRoom}: ${roomLabel(payload.booking.room)}`;
-    const emailText = request.email ? copy.emailNotice : "";
+    const emailText = copy.emailNotice;
     message.textContent = copy.success(formatDate(payload.booking.date), payload.booking.time, roomText, emailText);
     bookingForm.reset();
     bookingDate.value = today;

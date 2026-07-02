@@ -115,6 +115,23 @@ function sanitizeMessageText(value, max = 2000) {
     .slice(0, max);
 }
 
+function traceTimestamp(value = new Date()) {
+  return new Intl.DateTimeFormat("it-IT", {
+    timeZone: "Europe/Rome",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(value);
+}
+
+function appendBookingNote(booking, note) {
+  const current = sanitizeMessageText(booking.notes, 1600);
+  const line = `[${traceTimestamp()}] ${sanitizeMessageText(note, 360)}`;
+  return [current, line].filter(Boolean).join("\n");
+}
+
 function escapeHtml(value) {
   return String(value || "").replace(/[&<>"']/g, (char) => ({
     "&": "&amp;",
@@ -504,6 +521,7 @@ function validatePublicBooking(input) {
   if (!privacyAccepted) return language === "en" ? "You must read and accept the privacy notice." : "Devi leggere e accettare l'informativa privacy.";
   if (!allowedConsumptions.has(consumption)) return language === "en" ? "Choose lunch/dinner or aperitif." : "Scegli pranzo/cena o aperitivo.";
   if (gardenRequested && consumption !== "cena") return language === "en" ? "The garden can only be requested for lunch/dinner." : "Il giardino si puo richiedere solo per pranzo/cena.";
+  if (!sanitizeText(input.email, 120)) return language === "en" ? "Enter an email address to receive confirmation." : "Inserisci un indirizzo email per ricevere la conferma.";
 
   const room = consumption === "aperitivo" ? "Bar" : gardenRequested ? "Giardino" : RESTAURANT_ROOM;
   const notes = [
@@ -1310,6 +1328,7 @@ async function handleApi(req, res) {
         ...bookings[index],
         time: selectedTime,
         status: "da verificare",
+        notes: appendBookingNote(bookings[index], `Cambio orario scelto dal cliente tramite email: da ${previousTime} a ${selectedTime}. Stato impostato a da verificare.`),
         customerActionAt: now,
         customerAction: "time",
         customerSelectedTime: selectedTime,
@@ -1330,6 +1349,9 @@ async function handleApi(req, res) {
     bookings[index] = {
       ...bookings[index],
       status,
+      notes: appendBookingNote(bookings[index], action === "confirm"
+        ? "Prenotazione confermata dal cliente tramite pulsante email."
+        : "Prenotazione annullata dal cliente tramite pulsante email."),
       customerActionAt: now,
       customerAction: action,
       updatedAt: now,
@@ -1696,6 +1718,9 @@ async function handleApi(req, res) {
     }
     bookings[index] = {
       ...bookingForMessage,
+      notes: appendBookingNote(bookingForMessage, proposedTimes.length
+        ? `Proposta cambio orario inviata da ${session.employeeName}. Orari proposti: ${proposedTimes.join(", ")}.`
+        : `Messaggio inviato al cliente da ${session.employeeName}: ${subject}.`),
       customerMessageSentAt: new Date().toISOString(),
       customerMessageSentBy: session.employeeName,
       customerMessageSubject: subject,
