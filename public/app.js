@@ -414,6 +414,7 @@ function bookingMetaLine(booking) {
   if (created) parts.push(`Creata ${created}`);
   if (updated && (booking.updatedAt !== booking.createdAt || booking.updatedBy)) parts.push(`Modificata ${updated}`);
   if (booking.customerMessageSentAt) parts.push(`Risposta inviata ${formatDateTime(booking.customerMessageSentAt)}${booking.customerMessageSentBy ? ` da ${booking.customerMessageSentBy}` : ""}`);
+  if (booking.customerActionNotificationSentAt) parts.push(`Notifica staff ${formatDateTime(booking.customerActionNotificationSentAt)}`);
   return parts.length ? parts.map(escapeHtml).join(" · ") : "Storico non disponibile";
 }
 

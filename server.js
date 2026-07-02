@@ -968,6 +968,50 @@ async function markPublicBookingNotification(booking) {
   }
 }
 
+function customerActionNotificationText(booking, action) {
+  const seat = emailSeatLine(booking, "it");
+  const isConfirm = action === "confirm";
+  return [
+    `Il cliente ha ${isConfirm ? "confermato" : "annullato"} la prenotazione tramite il pulsante ricevuto via email.`,
+    "",
+    `Esito: ${isConfirm ? "CONFERMATA" : "ANNULLATA"}`,
+    `Cliente: ${booking.guestName}`,
+    `Data prenotazione: ${booking.date}`,
+    `Ora: ${booking.time}`,
+    `Persone: ${booking.people}`,
+    seat ? `Zona: ${seat}` : "",
+    booking.phone ? `Telefono: ${booking.phone}` : "",
+    booking.email ? `Email cliente: ${booking.email}` : "",
+    booking.notes ? `Note: ${booking.notes}` : "",
+    "",
+    `Azione registrata il: ${booking.customerActionAt || new Date().toISOString()}`
+  ].filter(Boolean).join("\n");
+}
+
+async function markCustomerActionNotification(booking, action) {
+  try {
+    const actionLabel = action === "confirm" ? "confermata" : "annullata";
+    const result = await sendPlainEmail({
+      to: NOTIFICATION_EMAIL,
+      subject: `Prenotazione ${actionLabel} dal cliente - ${BRAND_CONFIG.name}`,
+      text: customerActionNotificationText(booking, action)
+    });
+    if (!result.sent) return booking;
+    return {
+      ...booking,
+      customerActionNotificationSentAt: new Date().toISOString(),
+      customerActionNotificationTo: NOTIFICATION_EMAIL,
+      customerActionNotificationError: ""
+    };
+  } catch (error) {
+    console.error(error);
+    return {
+      ...booking,
+      customerActionNotificationError: "Invio notifica azione cliente non riuscito"
+    };
+  }
+}
+
 function customerMessageEmailText(booking, message) {
   const seat = emailSeatLine(booking, normalizeLanguage(booking.language));
   const links = bookingActionLinks(booking);
@@ -1206,6 +1250,7 @@ async function handleApi(req, res) {
       updatedAt: now,
       updatedBy: action === "confirm" ? "cliente: conferma email" : "cliente: annullo email"
     };
+    bookings[index] = await markCustomerActionNotification(bookings[index], action);
     await writeJson(bookingsFile, bookings);
     sendHtml(
       res,
