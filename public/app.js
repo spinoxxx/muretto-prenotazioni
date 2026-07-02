@@ -28,6 +28,8 @@ const weeklyPrintArea = document.querySelector("#weeklyPrintArea");
 const customerMessageDialog = document.querySelector("#customerMessageDialog");
 const customerMessageForm = document.querySelector("#customerMessageForm");
 const customerMessageTemplate = document.querySelector("#customerMessageTemplate");
+const timeChangeOptions = document.querySelector("#timeChangeOptions");
+const timeChangeSlots = document.querySelector("#timeChangeSlots");
 const closeCustomerMessageButton = document.querySelector("#closeCustomerMessageButton");
 const customerMessageTitle = document.querySelector("#customerMessageTitle");
 const customerMessageSubtitle = document.querySelector("#customerMessageSubtitle");
@@ -685,6 +687,74 @@ function alternativeRoomMessage(booking) {
   ].join("\n");
 }
 
+function timeToMinutes(time) {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(String(time || ""));
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours > 23 || minutes > 59) return null;
+  return hours * 60 + minutes;
+}
+
+function minutesToTime(totalMinutes) {
+  const normalized = Math.max(0, Math.min(23 * 60 + 45, totalMinutes));
+  const hours = String(Math.floor(normalized / 60)).padStart(2, "0");
+  const minutes = String(normalized % 60).padStart(2, "0");
+  return `${hours}:${minutes}`;
+}
+
+function timeChangeSlotValues(booking) {
+  const requested = timeToMinutes(booking.time);
+  if (requested === null) return [];
+  const start = Math.max(0, requested - 90);
+  const end = Math.min(23 * 60 + 45, requested + 90);
+  const first = Math.ceil(start / 15) * 15;
+  const slots = [];
+  for (let minutes = first; minutes <= end; minutes += 15) {
+    if (minutes !== requested) slots.push(minutesToTime(minutes));
+  }
+  return slots;
+}
+
+function selectedTimeChangeSlots() {
+  return Array.from(timeChangeSlots.querySelectorAll("input[type='checkbox']:checked")).map((input) => input.value);
+}
+
+function timeChangeMessage(booking, slots = []) {
+  const proposedTimes = slots.length ? slots.join(", ") : "[seleziona gli orari da proporre]";
+  return [
+    `Ciao ${booking.guestName},`,
+    "",
+    "ti scriviamo in merito alla tua richiesta di prenotazione.",
+    "",
+    `All'orario richiesto (${booking.time}) abbiamo molta affluenza; per garantirti un servizio migliore e un'attesa minore, possiamo proporti queste alternative: ${proposedTimes}.`,
+    "",
+    "Se una di queste fasce va bene, rispondi pure a questa email indicando l'orario scelto e procederemo con la conferma.",
+    "",
+    "A presto!",
+    "Lo Staff del Muretto"
+  ].join("\n");
+}
+
+function renderTimeChangeSlots(booking) {
+  const slots = timeChangeSlotValues(booking);
+  if (!slots.length) {
+    timeChangeSlots.innerHTML = `<p class="empty compact-empty">Orario non disponibile.</p>`;
+    return;
+  }
+  timeChangeSlots.innerHTML = slots.map((slot) => `
+    <label class="time-change-slot">
+      <input type="checkbox" value="${escapeHtml(slot)}">
+      <span>${escapeHtml(slot)}</span>
+    </label>
+  `).join("");
+}
+
+function updateTimeChangeMessage() {
+  if (!activeCustomerMessageBooking) return;
+  customerMessageForm.elements.message.value = timeChangeMessage(activeCustomerMessageBooking, selectedTimeChangeSlots());
+}
+
 function rainGuaranteedMessage(booking) {
   return [
     `Ciao ${booking.guestName},`,
@@ -719,9 +789,16 @@ function rainNotGuaranteedMessage(booking) {
 
 function applyCustomerMessageTemplate(template) {
   if (!activeCustomerMessageBooking) return;
+  timeChangeOptions.hidden = template !== "time-change";
   if (template === "alternative") {
     customerMessageForm.elements.subject.value = "Alternativa per la tua richiesta - Muretto";
     customerMessageForm.elements.message.value = alternativeRoomMessage(activeCustomerMessageBooking);
+    return;
+  }
+  if (template === "time-change") {
+    renderTimeChangeSlots(activeCustomerMessageBooking);
+    customerMessageForm.elements.subject.value = "Proposta cambio orario per la tua richiesta - Muretto";
+    updateTimeChangeMessage();
     return;
   }
   if (template === "rain-guaranteed") {
@@ -869,6 +946,10 @@ closeCustomerMessageButton.addEventListener("click", closeCustomerMessageDialog)
 
 customerMessageTemplate.addEventListener("change", () => {
   applyCustomerMessageTemplate(customerMessageTemplate.value);
+});
+
+timeChangeSlots.addEventListener("change", (event) => {
+  if (event.target.matches("input[type='checkbox']")) updateTimeChangeMessage();
 });
 
 customerMessageDialog.addEventListener("click", (event) => {

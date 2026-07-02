@@ -466,6 +466,61 @@ label {
   font-weight: 750;
 }
 
+.time-change-options {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--paper);
+}
+
+.time-change-options[hidden] {
+  display: none;
+}
+
+.time-change-options p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.time-change-slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.time-change-slot {
+  position: relative;
+}
+
+.time-change-slot input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+}
+
+.time-change-slot span {
+  display: block;
+  min-width: 58px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--surface);
+  color: var(--ink);
+  text-align: center;
+  font-size: 0.92rem;
+  font-weight: 850;
+}
+
+.time-change-slot input:checked + span {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
 .message-dialog-actions {
   display: grid;
   gap: 8px;

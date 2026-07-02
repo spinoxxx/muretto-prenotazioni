@@ -360,10 +360,15 @@
           <select id="customerMessageTemplate">
             <option value="custom">Messaggio libero</option>
             <option value="alternative">Sala non disponibile: proponi alternativa</option>
+            <option value="time-change">Proposta cambio orario</option>
             <option value="rain-guaranteed">Rischio pioggia: interno garantito</option>
             <option value="rain-not-guaranteed">Rischio pioggia: sala interna NON garantita</option>
           </select>
         </label>
+        <div id="timeChangeOptions" class="time-change-options" hidden>
+          <p>Seleziona le fasce orarie da proporre</p>
+          <div id="timeChangeSlots" class="time-change-slots"></div>
+        </div>
         <label>
           Oggetto
           <input name="subject" type="text" maxlength="140" required>
@@ -379,6 +384,6 @@
       </form>
     </dialog>
     <section id="weeklyPrintArea" class="weekly-print-area" aria-hidden="true"></section>
-    <script src="/app.js?v=27" type="module"></script>
+    <script src="/app.js?v=28" type="module"></script>
   </body>
 </html>
