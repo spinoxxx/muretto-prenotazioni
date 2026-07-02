@@ -32,6 +32,7 @@ const PRIVACY_VERSION = "2026-06-26";
 const PRIVACY_CONTROLLER = "Bar Flora srl, Piazza Vecchia 13, 24129 Bergamo";
 const VENUE_ADDRESS = "Viale delle Mura 1, 24129 Bergamo";
 const VENUE_MAP_URL = "https://www.google.com/maps/search/?api=1&query=Viale%20delle%20Mura%201%2C%2024129%20Bergamo";
+const PUBLIC_BASE_URL = sanitizePublicText(process.env.MURETTO_PUBLIC_URL, "https://muretto-prenotazioni.onrender.com", 220).replace(/\/+$/, "");
 
 const DEFAULT_EMPLOYEE_NAME = process.env.MURETTO_ADMIN_NAME || "Admin";
 const DEFAULT_EMPLOYEE_PIN = process.env.MURETTO_ADMIN_PIN || "123456";
@@ -111,6 +112,16 @@ function sanitizeMessageText(value, max = 2000) {
     .replace(/[ \t]+\n/g, "\n")
     .trim()
     .slice(0, max);
+}
+
+function escapeHtml(value) {
+  return String(value || "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;"
+  })[char]);
 }
 
 function sanitizeHexColor(value, fallback) {
@@ -278,6 +289,35 @@ async function createBackup(reason = "manuale", actor = "system") {
 function sendJson(res, status, payload) {
   res.writeHead(status, { ...jsonHeaders, ...securityHeaders });
   res.end(JSON.stringify(payload));
+}
+
+function sendHtml(res, status, title, message) {
+  res.writeHead(status, {
+    ...securityHeaders,
+    "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'",
+    "content-type": "text/html; charset=utf-8",
+    "cache-control": "no-store"
+  });
+  res.end(`<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>${escapeHtml(title)}</title>
+    <style>
+      body{margin:0;background:#f7f4ed;color:#1f2320;font-family:Arial,sans-serif;display:grid;min-height:100vh;place-items:center;padding:20px}
+      main{max-width:560px;border:1px solid #ded8ce;border-radius:8px;background:#fff;padding:28px;box-shadow:0 18px 40px rgb(31 35 32 / 12%)}
+      h1{margin:0 0 10px;font-size:1.7rem}p{margin:0 0 18px;line-height:1.5}a{color:#1f4e42;font-weight:700}
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>${escapeHtml(title)}</h1>
+      <p>${escapeHtml(message)}</p>
+      <a href="${PUBLIC_BASE_URL}">Vai al sito</a>
+    </main>
+  </body>
+</html>`);
 }
 
 function sendDownload(res, fileName, content) {
@@ -664,17 +704,31 @@ function smtpReady() {
   return Boolean(EMAIL_FROM && SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_PASS);
 }
 
-function emailMessage({ to, subject, text }) {
+function emailMessage({ to, subject, text, html }) {
+  const boundary = `muretto-${randomToken(12)}`;
+  const body = html ? [
+    `--${boundary}`,
+    "Content-Type: text/plain; charset=UTF-8",
+    "Content-Transfer-Encoding: 8bit",
+    "",
+    text,
+    `--${boundary}`,
+    "Content-Type: text/html; charset=UTF-8",
+    "Content-Transfer-Encoding: 8bit",
+    "",
+    html,
+    `--${boundary}--`
+  ].join("\r\n") : text;
   return [
     `From: ${EMAIL_FROM}`,
     `To: ${to}`,
     `Subject: ${encodeEmailHeader(subject)}`,
     `Date: ${new Date().toUTCString()}`,
     "MIME-Version: 1.0",
-    "Content-Type: text/plain; charset=UTF-8",
-    "Content-Transfer-Encoding: 8bit",
+    html ? `Content-Type: multipart/alternative; boundary="${boundary}"` : "Content-Type: text/plain; charset=UTF-8",
+    ...(html ? [] : ["Content-Transfer-Encoding: 8bit"]),
     "",
-    text
+    body
   ].join("\r\n").replace(/^\./gm, "..") + "\r\n";
 }
 
@@ -766,7 +820,7 @@ async function sendBookingConfirmationSmtp(booking) {
   }
 }
 
-async function sendPlainSmtpEmail({ to, subject, text }) {
+async function sendPlainSmtpEmail({ to, subject, text, html }) {
   const fromAddress = extractEmailAddress(EMAIL_FROM);
   const socket = tls.connect({
     host: SMTP_HOST,
@@ -788,7 +842,7 @@ async function sendPlainSmtpEmail({ to, subject, text }) {
     await smtpSendCommand(socket, `MAIL FROM:<${fromAddress}>`, [250], state);
     await smtpSendCommand(socket, `RCPT TO:<${to}>`, [250, 251], state);
     await smtpSendCommand(socket, "DATA", [354], state);
-    await smtpSendCommand(socket, `${emailMessage({ to, subject, text })}.`, [250], state);
+    await smtpSendCommand(socket, `${emailMessage({ to, subject, text, html })}.`, [250], state);
     await smtpSendCommand(socket, "QUIT", [221], state).catch(() => {});
     return { sent: true };
   } finally {
@@ -796,9 +850,9 @@ async function sendPlainSmtpEmail({ to, subject, text }) {
   }
 }
 
-async function sendPlainEmail({ to, subject, text }) {
+async function sendPlainEmail({ to, subject, text, html }) {
   if (!to || !EMAIL_FROM) return { sent: false, reason: "email_not_configured" };
-  if (smtpReady()) return sendPlainSmtpEmail({ to, subject, text });
+  if (smtpReady()) return sendPlainSmtpEmail({ to, subject, text, html });
   if (!RESEND_API_KEY) return { sent: false, reason: "email_not_configured" };
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -810,7 +864,8 @@ async function sendPlainEmail({ to, subject, text }) {
       from: EMAIL_FROM,
       to: [to],
       subject,
-      text
+      text,
+      ...(html ? { html } : {})
     })
   });
   if (!response.ok) {
@@ -915,8 +970,13 @@ async function markPublicBookingNotification(booking) {
 
 function customerMessageEmailText(booking, message) {
   const seat = emailSeatLine(booking, normalizeLanguage(booking.language));
+  const links = bookingActionLinks(booking);
   return [
     message,
+    "",
+    "Puoi confermare o annullare anche fino a un'ora prima della prenotazione:",
+    `Conferma: ${links.confirm}`,
+    `Annulla: ${links.cancel}`,
     "",
     "---",
     "Riepilogo richiesta:",
@@ -927,6 +987,46 @@ function customerMessageEmailText(booking, message) {
     seat ? `Zona: ${seat}` : "",
     booking.notes ? `Note: ${booking.notes}` : ""
   ].filter(Boolean).join("\n");
+}
+
+function bookingActionLinks(booking) {
+  const token = encodeURIComponent(booking.customerActionToken || "");
+  const id = encodeURIComponent(booking.id || "");
+  return {
+    confirm: `${PUBLIC_BASE_URL}/booking-action?action=confirm&id=${id}&token=${token}`,
+    cancel: `${PUBLIC_BASE_URL}/booking-action?action=cancel&id=${id}&token=${token}`
+  };
+}
+
+function customerMessageEmailHtml(booking, message) {
+  const seat = emailSeatLine(booking, normalizeLanguage(booking.language));
+  const links = bookingActionLinks(booking);
+  const paragraphs = escapeHtml(message).split(/\n{2,}/).map((part) => `<p>${part.replace(/\n/g, "<br>")}</p>`).join("");
+  return `<!doctype html>
+<html lang="it">
+  <body style="margin:0;padding:0;background:#f7f4ed;font-family:Arial,sans-serif;color:#1f2320;">
+    <div style="max-width:640px;margin:0 auto;padding:24px;">
+      <div style="background:#ffffff;border:1px solid #ded8ce;border-radius:8px;padding:22px;">
+        ${paragraphs}
+        <p style="margin:18px 0 10px;font-weight:700;">Puoi confermare o annullare anche fino a un'ora prima della prenotazione.</p>
+        <p style="margin:0 0 20px;">
+          <a href="${escapeHtml(links.confirm)}" style="display:inline-block;margin:0 8px 8px 0;padding:12px 16px;border-radius:6px;background:#2f6f5e;color:#ffffff;text-decoration:none;font-weight:700;">Conferma prenotazione</a>
+          <a href="${escapeHtml(links.cancel)}" style="display:inline-block;margin:0 0 8px 0;padding:12px 16px;border-radius:6px;background:#b25f3a;color:#ffffff;text-decoration:none;font-weight:700;">Annulla prenotazione</a>
+        </p>
+        <hr style="border:0;border-top:1px solid #ded8ce;margin:18px 0;">
+        <p style="margin:0 0 6px;font-weight:700;">Riepilogo richiesta</p>
+        <p style="margin:0;line-height:1.5;">
+          Cliente: ${escapeHtml(booking.guestName)}<br>
+          Data: ${escapeHtml(booking.date)}<br>
+          Ora: ${escapeHtml(booking.time)}<br>
+          Persone: ${escapeHtml(booking.people)}<br>
+          ${seat ? `Zona: ${escapeHtml(seat)}<br>` : ""}
+          ${booking.notes ? `Note: ${escapeHtml(booking.notes)}` : ""}
+        </p>
+      </div>
+    </div>
+  </body>
+</html>`;
 }
 
 function allowPublicBookingAttempt(req) {
@@ -1079,6 +1179,42 @@ async function handleApi(req, res) {
         status: booking.status
       }
     });
+    return;
+  }
+
+  if (url.pathname === "/booking-action" && req.method === "GET") {
+    const id = sanitizeText(url.searchParams.get("id"), 80);
+    const token = sanitizeText(url.searchParams.get("token"), 120);
+    const action = sanitizeText(url.searchParams.get("action"), 20);
+    if (!id || !token || !["confirm", "cancel"].includes(action)) {
+      sendHtml(res, 400, "Link non valido", "Il link usato non è valido o è incompleto.");
+      return;
+    }
+    const bookings = await readJson(bookingsFile, []);
+    const index = bookings.findIndex((item) => item.id === id && item.customerActionToken === token);
+    if (index === -1) {
+      sendHtml(res, 404, "Link non valido", "Non abbiamo trovato una prenotazione collegata a questo link.");
+      return;
+    }
+    const now = new Date().toISOString();
+    const status = action === "confirm" ? "confermata" : "annullata";
+    bookings[index] = {
+      ...bookings[index],
+      status,
+      customerActionAt: now,
+      customerAction: action,
+      updatedAt: now,
+      updatedBy: action === "confirm" ? "cliente: conferma email" : "cliente: annullo email"
+    };
+    await writeJson(bookingsFile, bookings);
+    sendHtml(
+      res,
+      200,
+      action === "confirm" ? "Prenotazione confermata" : "Prenotazione annullata",
+      action === "confirm"
+        ? "Grazie, abbiamo registrato la tua conferma. Ti aspettiamo."
+        : "Abbiamo registrato l'annullamento della prenotazione. Grazie per averci avvisato."
+    );
     return;
   }
 
@@ -1413,13 +1549,22 @@ async function handleApi(req, res) {
       sendJson(res, 400, { error: "Questa prenotazione non ha un indirizzo email" });
       return;
     }
-    await sendPlainEmail({
-      to: bookings[index].email,
-      subject,
-      text: customerMessageEmailText(bookings[index], message)
-    });
-    bookings[index] = {
+    const bookingForMessage = {
       ...bookings[index],
+      customerActionToken: bookings[index].customerActionToken || randomToken(24)
+    };
+    const emailResult = await sendPlainEmail({
+      to: bookingForMessage.email,
+      subject,
+      text: customerMessageEmailText(bookingForMessage, message),
+      html: customerMessageEmailHtml(bookingForMessage, message)
+    });
+    if (!emailResult.sent) {
+      sendJson(res, 400, { error: "Invio email non configurato" });
+      return;
+    }
+    bookings[index] = {
+      ...bookingForMessage,
       customerMessageSentAt: new Date().toISOString(),
       customerMessageSentBy: session.employeeName,
       customerMessageSubject: subject,

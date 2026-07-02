@@ -684,11 +684,53 @@ function alternativeRoomMessage(booking) {
   ].join("\n");
 }
 
+function rainGuaranteedMessage(booking) {
+  return [
+    `Ciao ${booking.guestName},`,
+    "",
+    "ti scriviamo in merito alla tua richiesta di prenotazione.",
+    "",
+    "Le previsioni meteo al momento non sono delle migliori.",
+    "Il tuo tavolo all'esterno è confermato e, per sicurezza, allestiremo anche un tavolo interno nel caso in cui inizi a piovere.",
+    "",
+    "Puoi confermare o annullare la prenotazione anche fino a un'ora prima usando i pulsanti presenti in questa email.",
+    "",
+    "A presto!",
+    "Lo Staff del Muretto"
+  ].join("\n");
+}
+
+function rainNotGuaranteedMessage(booking) {
+  return [
+    `Ciao ${booking.guestName},`,
+    "",
+    "ti scriviamo in merito alla tua richiesta di prenotazione.",
+    "",
+    "Le previsioni meteo al momento non sono delle migliori.",
+    "Il tuo tavolo all'esterno è confermato, ma non possiamo garantire lo spostamento in sala interna in caso di pioggia.",
+    "",
+    "Puoi confermare o annullare la prenotazione anche fino a un'ora prima usando i pulsanti presenti in questa email.",
+    "",
+    "A presto!",
+    "Lo Staff del Muretto"
+  ].join("\n");
+}
+
 function applyCustomerMessageTemplate(template) {
   if (!activeCustomerMessageBooking) return;
   if (template === "alternative") {
     customerMessageForm.elements.subject.value = "Alternativa per la tua richiesta - Muretto";
     customerMessageForm.elements.message.value = alternativeRoomMessage(activeCustomerMessageBooking);
+    return;
+  }
+  if (template === "rain-guaranteed") {
+    customerMessageForm.elements.subject.value = "Aggiornamento meteo per la tua prenotazione - Muretto";
+    customerMessageForm.elements.message.value = rainGuaranteedMessage(activeCustomerMessageBooking);
+    return;
+  }
+  if (template === "rain-not-guaranteed") {
+    customerMessageForm.elements.subject.value = "Aggiornamento meteo per la tua prenotazione - Muretto";
+    customerMessageForm.elements.message.value = rainNotGuaranteedMessage(activeCustomerMessageBooking);
     return;
   }
   customerMessageForm.elements.subject.value = "Risposta alla tua richiesta - Muretto";
