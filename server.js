@@ -993,8 +993,8 @@ function bookingActionLinks(booking) {
   const token = encodeURIComponent(booking.customerActionToken || "");
   const id = encodeURIComponent(booking.id || "");
   return {
-    confirm: `${PUBLIC_BASE_URL}/booking-action?action=confirm&id=${id}&token=${token}`,
-    cancel: `${PUBLIC_BASE_URL}/booking-action?action=cancel&id=${id}&token=${token}`
+    confirm: `${PUBLIC_BASE_URL}/api/booking-action?action=confirm&id=${id}&token=${token}`,
+    cancel: `${PUBLIC_BASE_URL}/api/booking-action?action=cancel&id=${id}&token=${token}`
   };
 }
 
@@ -1182,7 +1182,7 @@ async function handleApi(req, res) {
     return;
   }
 
-  if (url.pathname === "/booking-action" && req.method === "GET") {
+  if (url.pathname === "/api/booking-action" && req.method === "GET") {
     const id = sanitizeText(url.searchParams.get("id"), 80);
     const token = sanitizeText(url.searchParams.get("token"), 120);
     const action = sanitizeText(url.searchParams.get("action"), 20);
