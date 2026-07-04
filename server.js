@@ -486,13 +486,14 @@ function validateBooking(input) {
   };
 
   const statuses = new Set(["confermata", "in attesa", "da verificare", "arrivati", "annullata", "completata"]);
-  const rooms = new Set(["", RESTAURANT_ROOM, LEGACY_RESTAURANT_ROOM, "Bar", "Giardino", "Interno"]);
+  const rooms = new Set([RESTAURANT_ROOM, LEGACY_RESTAURANT_ROOM, "Bar", "Giardino", "Interno"]);
   if (booking.room === LEGACY_RESTAURANT_ROOM) booking.room = RESTAURANT_ROOM;
   if (!booking.guestName) return "Inserisci il nome del cliente.";
   if (!booking.phone && !booking.email) return "Serve almeno un recapito.";
   if (!/^\d{4}-\d{2}-\d{2}$/.test(booking.date)) return "Data non valida.";
   if (!/^\d{2}:\d{2}$/.test(booking.time)) return "Orario non valido.";
   if (!Number.isInteger(booking.people) || booking.people < 1 || booking.people > 40) return "Numero di persone non valido.";
+  if (!booking.room) return "Seleziona la sala.";
   if (!rooms.has(booking.room)) return "Sala non valida.";
   if (!statuses.has(booking.status)) return "Stato non valido.";
   return booking;
