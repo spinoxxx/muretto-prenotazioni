@@ -793,11 +793,11 @@ function aperitivoLateMessage(booking) {
     "",
     "ti scriviamo in merito alla tua richiesta di prenotazione.",
     "",
-    "Ti informiamo che l'aperitivo rinforzato con taglieri, frittini e pinse viene servito fino alle 20.30.",
+    "Ti informiamo che l'aperitivo rinforzato con taglieri, frittini e pinse viene servito fino alle 20.30 nella zona della pedana con servizio bar.",
     "A causa delle dimensioni della cucina, dopo quell'orario la cucina si occupa esclusivamente del servizio ristorante.",
     "Il bar continua a servire drink, ma non cibo per la zona aperitivo.",
     "",
-    "Se per te va bene, rispondi pure a questa email e procederemo con la conferma.",
+    "Se per te va bene, puoi confermare la prenotazione usando il pulsante presente in questa email. In alternativa puoi annullarla con l'altro pulsante.",
     "",
     "A presto!",
     "Lo Staff del Muretto"
