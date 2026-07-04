@@ -787,6 +787,23 @@ function rainNotGuaranteedMessage(booking) {
   ].join("\n");
 }
 
+function aperitivoLateMessage(booking) {
+  return [
+    `Ciao ${booking.guestName},`,
+    "",
+    "ti scriviamo in merito alla tua richiesta di prenotazione.",
+    "",
+    "Ti informiamo che l'aperitivo rinforzato con taglieri, frittini e pinse viene servito fino alle 20.30.",
+    "A causa delle dimensioni della cucina, dopo quell'orario la cucina si occupa esclusivamente del servizio ristorante.",
+    "Il bar continua a servire drink, ma non cibo per la zona aperitivo.",
+    "",
+    "Se per te va bene, rispondi pure a questa email e procederemo con la conferma.",
+    "",
+    "A presto!",
+    "Lo Staff del Muretto"
+  ].join("\n");
+}
+
 function applyCustomerMessageTemplate(template) {
   if (!activeCustomerMessageBooking) return;
   timeChangeOptions.hidden = template !== "time-change";
@@ -809,6 +826,11 @@ function applyCustomerMessageTemplate(template) {
   if (template === "rain-not-guaranteed") {
     customerMessageForm.elements.subject.value = "Aggiornamento meteo per la tua prenotazione - Muretto";
     customerMessageForm.elements.message.value = rainNotGuaranteedMessage(activeCustomerMessageBooking);
+    return;
+  }
+  if (template === "aperitivo-late") {
+    customerMessageForm.elements.subject.value = "Informazioni aperitivo per la tua richiesta - Muretto";
+    customerMessageForm.elements.message.value = aperitivoLateMessage(activeCustomerMessageBooking);
     return;
   }
   customerMessageForm.elements.subject.value = "Risposta alla tua richiesta - Muretto";
