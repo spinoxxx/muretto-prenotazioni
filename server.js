@@ -686,6 +686,57 @@ function bookingEmailSubject(booking) {
   return language === "en" ? `Booking confirmed - ${BRAND_CONFIG.name}` : `Prenotazione confermata - ${BRAND_CONFIG.name}`;
 }
 
+function bookingCancellationEmailSubject(booking) {
+  const language = normalizeLanguage(booking.language);
+  return language === "en" ? `Booking cancelled - ${BRAND_CONFIG.name}` : `Prenotazione annullata - ${BRAND_CONFIG.name}`;
+}
+
+function bookingDateTimeMs(booking) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(booking.date || "")) || !/^\d{2}:\d{2}$/.test(String(booking.time || ""))) return NaN;
+  return new Date(`${booking.date}T${booking.time}:00+02:00`).getTime();
+}
+
+function shouldSendCancellationEmail(booking, now = new Date()) {
+  const bookingTime = bookingDateTimeMs(booking);
+  if (!Number.isFinite(bookingTime)) return false;
+  return now.getTime() - bookingTime < 2 * 60 * 60 * 1000;
+}
+
+function bookingCancellationText(booking) {
+  const language = normalizeLanguage(booking.language);
+  const seat = emailSeatLine(booking, language);
+  if (language === "en") {
+    return [
+      `Hi ${booking.guestName},`,
+      "",
+      `Your booking at ${BRAND_CONFIG.name} has been cancelled.`,
+      "",
+      `Date: ${booking.date}`,
+      `Time: ${booking.time}`,
+      `Guests: ${booking.people}`,
+      seat ? `Area: ${seat}` : "",
+      "",
+      "For any questions or new requests, you can reply to this email.",
+      "",
+      `The ${BRAND_CONFIG.name} Team`
+    ].filter(Boolean).join("\n");
+  }
+  return [
+    `Ciao ${booking.guestName},`,
+    "",
+    `La tua prenotazione da ${BRAND_CONFIG.name} è stata annullata.`,
+    "",
+    `Data: ${booking.date}`,
+    `Ora: ${booking.time}`,
+    `Persone: ${booking.people}`,
+    seat ? `Zona: ${seat}` : "",
+    "",
+    "Per qualsiasi domanda o nuova richiesta puoi rispondere a questa email.",
+    "",
+    `Lo Staff del ${BRAND_CONFIG.name}`
+  ].filter(Boolean).join("\n");
+}
+
 function bookingConfirmationText(booking) {
   const language = normalizeLanguage(booking.language);
   const seat = emailSeatLine(booking, language);
@@ -973,6 +1024,43 @@ async function markConfirmationEmailIfNeeded(previousBooking, booking, actor) {
     return {
       ...booking,
       confirmationEmailError: "Invio conferma email non riuscito"
+    };
+  }
+}
+
+async function markCancellationEmailIfNeeded(previousBooking, booking, actor) {
+  const wasCancelled = previousBooking?.status === "annullata";
+  const isCancelled = booking.status === "annullata";
+  if (!isCancelled || wasCancelled || !booking.email || booking.cancellationEmailSentAt) return booking;
+
+  if (!shouldSendCancellationEmail(booking)) {
+    return {
+      ...booking,
+      notes: appendBookingNote(booking, "Prenotazione annullata: email al cliente non inviata perché sono passate più di 2 ore dall'orario della prenotazione."),
+      cancellationEmailSkippedAt: new Date().toISOString(),
+      cancellationEmailSkippedReason: "oltre 2 ore dall'orario della prenotazione"
+    };
+  }
+
+  try {
+    const result = await sendPlainEmail({
+      to: booking.email,
+      subject: bookingCancellationEmailSubject(booking),
+      text: bookingCancellationText(booking)
+    });
+    if (!result.sent) return booking;
+    return {
+      ...booking,
+      notes: appendBookingNote(booking, `Email di annullamento inviata al cliente da ${actor}.`),
+      cancellationEmailSentAt: new Date().toISOString(),
+      cancellationEmailSentBy: actor,
+      cancellationEmailError: ""
+    };
+  } catch (error) {
+    console.error(error);
+    return {
+      ...booking,
+      cancellationEmailError: "Invio annullamento email non riuscito"
     };
   }
 }
@@ -1751,12 +1839,13 @@ async function handleApi(req, res) {
       return;
     }
     const previousBooking = bookings[index];
-    bookings[index] = await markConfirmationEmailIfNeeded(previousBooking, {
+    const updatedBooking = await markConfirmationEmailIfNeeded(previousBooking, {
       ...previousBooking,
       ...result,
       updatedAt: new Date().toISOString(),
       updatedBy: session.employeeName
     }, session.employeeName);
+    bookings[index] = await markCancellationEmailIfNeeded(previousBooking, updatedBooking, session.employeeName);
     await writeJson(bookingsFile, bookings);
     sendJson(res, 200, { booking: bookings[index] });
     return;

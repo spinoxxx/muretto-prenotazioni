@@ -417,6 +417,8 @@ function bookingMetaLine(booking) {
   if (updated && (booking.updatedAt !== booking.createdAt || booking.updatedBy)) parts.push(`Modificata ${updated}`);
   if (booking.customerMessageSentAt) parts.push(`Risposta inviata ${formatDateTime(booking.customerMessageSentAt)}${booking.customerMessageSentBy ? ` da ${booking.customerMessageSentBy}` : ""}`);
   if (booking.customerActionNotificationSentAt) parts.push(`Notifica staff ${formatDateTime(booking.customerActionNotificationSentAt)}`);
+  if (booking.cancellationEmailSentAt) parts.push(`Annullamento inviato ${formatDateTime(booking.cancellationEmailSentAt)}`);
+  if (booking.cancellationEmailSkippedAt) parts.push(`Annullamento non inviato ${formatDateTime(booking.cancellationEmailSkippedAt)}`);
   return parts.length ? parts.map(escapeHtml).join(" · ") : "Storico non disponibile";
 }
 
