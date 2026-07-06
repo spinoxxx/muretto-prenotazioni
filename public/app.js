@@ -84,6 +84,11 @@ const employeeMessage = document.querySelector("#employeeMessage");
 
 let csrfToken = "";
 let bookings = [];
+let searchBookings = [];
+let searchBookingsFrom = "";
+let searchBookingsTo = "";
+let searchBookingsPromise = null;
+let renderedBookings = [];
 let zoneStatsSettings = null;
 let weeklyExportBookings = [];
 let activeCustomerMessageBooking = null;
@@ -213,6 +218,44 @@ function matchesRoomFilter(booking) {
   return roomStatKey(booking.room) === activeRoomFilter;
 }
 
+function bookingSortValue(booking) {
+  return `${booking.date || ""} ${booking.time || ""}`;
+}
+
+function mergeBookings(primary, secondary) {
+  const byId = new Map();
+  for (const booking of [...primary, ...secondary]) {
+    byId.set(booking.id, booking);
+  }
+  return [...byId.values()].sort((a, b) => bookingSortValue(a).localeCompare(bookingSortValue(b)));
+}
+
+function resetSearchBookings() {
+  searchBookings = [];
+  searchBookingsFrom = "";
+  searchBookingsTo = "";
+  searchBookingsPromise = null;
+}
+
+async function ensureFutureSearchBookings() {
+  if (!searchInput.value.trim()) return;
+  const from = selectedAgendaDate();
+  const to = addDays(from, 365);
+  if (searchBookingsFrom === from && searchBookingsTo === to) return;
+  if (searchBookingsPromise) {
+    await searchBookingsPromise;
+    if (searchBookingsFrom === from && searchBookingsTo === to) return;
+  }
+  searchBookingsPromise = api(`/api/bookings?from=${from}&to=${to}`).then((payload) => {
+    searchBookings = payload.bookings || [];
+    searchBookingsFrom = from;
+    searchBookingsTo = to;
+  }).finally(() => {
+    searchBookingsPromise = null;
+  });
+  await searchBookingsPromise;
+}
+
 function renderRoomStats() {
   const stats = {
     ristorante: createRoomStat(),
@@ -300,10 +343,13 @@ function renderLimitWarning(room, values) {
 
 function renderBookings() {
   const term = searchInput.value.trim();
-  const filtered = bookings.filter((booking) => matchesSearch(booking, term) && matchesRoomFilter(booking));
+  const sourceBookings = term ? mergeBookings(bookings, searchBookings) : bookings;
+  const filtered = sourceBookings.filter((booking) => matchesSearch(booking, term) && matchesRoomFilter(booking));
+  renderedBookings = filtered;
   const filterApiDate = toApiDate(filterDate.value);
   const roomLabel = activeRoomFilter ? ` · ${roomFilterLabel(activeRoomFilter)}` : "";
-  rangeLabel.textContent = filterApiDate ? `Data ${formatDate(filterApiDate)}${roomLabel}` : `Tutte le date${roomLabel}`;
+  const searchLabel = term ? " · ricerca anche su prenotazioni future" : "";
+  rangeLabel.textContent = filterApiDate ? `Data ${formatDate(filterApiDate)}${roomLabel}${searchLabel}` : `Tutte le date${roomLabel}${searchLabel}`;
   renderRoomStats();
   renderRoomFilterState();
 
@@ -313,9 +359,10 @@ function renderBookings() {
   }
 
   bookingList.innerHTML = filtered.map((booking) => `
-    <article class="booking-row ${booking.status === "arrivati" ? "is-arrived" : ""}">
+    <article class="booking-row ${booking.status === "arrivati" ? "is-arrived" : ""} ${booking.date !== filterApiDate ? "is-other-date" : ""}">
       <div class="time">${escapeHtml(booking.time)}</div>
       <div class="booking-main">
+        ${booking.date !== filterApiDate ? `<p class="other-date-alert">Attenzione: prenotazione del ${formatDate(booking.date)}</p>` : ""}
         <h3>${escapeHtml(booking.guestName)} · ${Number(booking.people)} persone</h3>
         <p class="booking-details">${formatDate(booking.date)} · ${seatLine(booking)} · ${contactLine(booking)}</p>
         ${booking.notes ? `<p class="booking-notes">${escapeHtml(booking.notes)}</p>` : ""}
@@ -882,6 +929,15 @@ async function loadBookings() {
   renderBookings();
 }
 
+async function handleSearchInput() {
+  try {
+    await ensureFutureSearchBookings();
+  } catch (error) {
+    formMessage.textContent = error.message;
+  }
+  renderBookings();
+}
+
 loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   loginError.textContent = "";
@@ -920,7 +976,9 @@ bookingForm.addEventListener("submit", async (event) => {
       formMessage.textContent = "Prenotazione salvata.";
     }
     resetForm();
+    resetSearchBookings();
     await loadBookings();
+    await handleSearchInput();
   } catch (error) {
     formMessage.textContent = error.message;
   }
@@ -929,7 +987,8 @@ bookingForm.addEventListener("submit", async (event) => {
 bookingList.addEventListener("click", async (event) => {
   const button = event.target.closest("button[data-action]");
   if (!button) return;
-  const booking = bookings.find((item) => item.id === button.dataset.id);
+  const booking = renderedBookings.find((item) => item.id === button.dataset.id)
+    || bookings.find((item) => item.id === button.dataset.id);
   if (!booking) return;
 
   if (button.dataset.action === "edit") {
@@ -947,7 +1006,9 @@ bookingList.addEventListener("click", async (event) => {
 
   if (button.dataset.action === "arrived") {
     await api(`/api/bookings/${booking.id}/arrived`, { method: "PATCH", body: JSON.stringify({}) });
+    resetSearchBookings();
     await loadBookings();
+    await handleSearchInput();
     return;
   }
 
@@ -961,7 +1022,9 @@ bookingList.addEventListener("click", async (event) => {
     const ok = confirm(`Eliminare la prenotazione di ${booking.guestName}?`);
     if (!ok) return;
     await api(`/api/bookings/${booking.id}`, { method: "DELETE" });
+    resetSearchBookings();
     await loadBookings();
+    await handleSearchInput();
     await loadDeleteLogs();
   }
 });
@@ -1001,7 +1064,9 @@ customerMessageForm.addEventListener("submit", async (event) => {
       })
     });
     customerMessageStatus.textContent = "Email inviata.";
+    resetSearchBookings();
     await loadBookings();
+    await handleSearchInput();
     setTimeout(closeCustomerMessageDialog, 700);
   } catch (error) {
     customerMessageStatus.textContent = error.message;
@@ -1013,6 +1078,8 @@ logoutButton.addEventListener("click", async () => {
   await api("/api/logout", { method: "POST" }).catch(() => {});
   csrfToken = "";
   bookings = [];
+  resetSearchBookings();
+  renderedBookings = [];
   currentEmployee = null;
   loginForm.reset();
   showLogin();
@@ -1022,7 +1089,9 @@ resetFormButton.addEventListener("click", resetForm);
 filterDate.addEventListener("change", async () => {
   updateDateDisplay(filterDate, filterDateDisplay);
   syncNewBookingDateWithAgenda();
+  resetSearchBookings();
   await loadBookings();
+  await handleSearchInput();
   await loadZoneSettings();
 });
 bookingForm.elements.date.addEventListener("change", () => {
@@ -1032,21 +1101,27 @@ prevDayButton.addEventListener("click", async () => {
   filterDate.value = addDays(filterDate.value, -1);
   updateDateDisplay(filterDate, filterDateDisplay);
   syncNewBookingDateWithAgenda();
+  resetSearchBookings();
   await loadBookings();
+  await handleSearchInput();
   await loadZoneSettings();
 });
 nextDayButton.addEventListener("click", async () => {
   filterDate.value = addDays(filterDate.value, 1);
   updateDateDisplay(filterDate, filterDateDisplay);
   syncNewBookingDateWithAgenda();
+  resetSearchBookings();
   await loadBookings();
+  await handleSearchInput();
   await loadZoneSettings();
 });
 todayButton.addEventListener("click", async () => {
   filterDate.value = today;
   updateDateDisplay(filterDate, filterDateDisplay);
   syncNewBookingDateWithAgenda();
+  resetSearchBookings();
   await loadBookings();
+  await handleSearchInput();
   await loadZoneSettings();
 });
 
@@ -1090,7 +1165,7 @@ printWeeklyButton.addEventListener("click", () => {
   setTimeout(() => document.body.classList.remove("is-printing-week"), 500);
 });
 
-searchInput.addEventListener("input", renderBookings);
+searchInput.addEventListener("input", handleSearchInput);
 
 statCards.forEach((card) => {
   const toggleRoomFilter = () => {

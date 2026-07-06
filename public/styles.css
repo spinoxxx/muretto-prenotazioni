@@ -865,6 +865,11 @@ label {
   background: #f3f5f2;
 }
 
+.booking-row.is-other-date {
+  border-left: 5px solid #d68a00;
+  background: #fff8e8;
+}
+
 .booking-row.is-arrived .booking-main h3,
 .booking-row.is-arrived .booking-details,
 .booking-row.is-arrived .booking-notes,
@@ -887,6 +892,18 @@ label {
 .booking-main p {
   margin: 5px 0 0;
   color: var(--muted);
+}
+
+.other-date-alert {
+  display: inline-flex;
+  width: fit-content;
+  margin: 0 0 8px;
+  padding: 5px 9px;
+  border-radius: 6px;
+  background: #d68a00;
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 850;
 }
 
 .booking-main .booking-meta {
