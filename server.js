@@ -1072,7 +1072,6 @@ function publicBookingNotificationText(booking) {
     "",
     `Cliente: ${booking.guestName}`,
     `Data prenotazione: ${booking.date}`,
-    details.previousTime ? `Ora precedente: ${details.previousTime}` : "",
     `Ora: ${booking.time}`,
     `Persone: ${booking.people}`,
     seat ? `Zona proposta: ${seat}` : "",
