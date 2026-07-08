@@ -28,6 +28,11 @@ const RESTAURANT_ROOM = "Ristorante Esterno";
 const LEGACY_RESTAURANT_ROOM = "Ristorante";
 const ZONE_ROOMS = [RESTAURANT_ROOM, "Bar", "Giardino"];
 const ZONE_PERIODS = ["day", "evening"];
+const DEFAULT_ZONE_LIMITS = {
+  [RESTAURANT_ROOM]: 40,
+  Bar: 40,
+  Giardino: 18
+};
 const PRIVACY_VERSION = "2026-06-26";
 const PRIVACY_CONTROLLER = "Bar Flora srl, Piazza Vecchia 13, 24129 Bergamo";
 const VENUE_ADDRESS = "Viale delle Mura 1, 24129 Bergamo";
@@ -553,21 +558,17 @@ function mealPeriod(time) {
   return Number.isFinite(hours) && hours >= 18 ? "evening" : "day";
 }
 
-function emptyZonePeriod() {
-  return { limit: 0, blocked: false };
-}
-
-function emptyZoneRoom() {
-  return {
-    day: emptyZonePeriod(),
-    evening: emptyZonePeriod()
-  };
+function emptyZonePeriod(room) {
+  return { limit: DEFAULT_ZONE_LIMITS[room] || 0, blocked: false };
 }
 
 function defaultZoneSettings(date) {
   return {
     date,
-    zones: Object.fromEntries(ZONE_ROOMS.map((room) => [room, emptyZoneRoom()]))
+    zones: Object.fromEntries(ZONE_ROOMS.map((room) => [
+      room,
+      Object.fromEntries(ZONE_PERIODS.map((period) => [period, emptyZonePeriod(room)]))
+    ]))
   };
 }
 
@@ -583,8 +584,9 @@ function normalizeZoneSettings(date, input = {}) {
   for (const room of ZONE_ROOMS) {
     for (const period of ZONE_PERIODS) {
       const source = zones?.[room]?.[period] || (room === RESTAURANT_ROOM ? zones?.[LEGACY_RESTAURANT_ROOM]?.[period] : {}) || {};
+      const hasLimit = Object.prototype.hasOwnProperty.call(source, "limit");
       settings.zones[room][period] = {
-        limit: normalizeLimit(source.limit),
+        limit: hasLimit ? normalizeLimit(source.limit) : settings.zones[room][period].limit,
         blocked: source.blocked === true || source.blocked === "true" || source.blocked === "on"
       };
     }
