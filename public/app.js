@@ -683,7 +683,7 @@ function renderWeeklyPrintArea(selected) {
   weeklyPrintArea.innerHTML = `
     <article class="weekly-print-sheet">
       <header>
-        <p>Il Muretto</p>
+        <p>Muretto</p>
         <h1>Prenotazioni settimana</h1>
         <span>${formatDate(from)} - ${formatDate(to)}</span>
       </header>

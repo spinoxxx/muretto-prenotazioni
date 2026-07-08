@@ -47,7 +47,7 @@ const SMTP_PORT = Number(process.env.MURETTO_SMTP_PORT || 465);
 const SMTP_USER = sanitizePublicText(process.env.MURETTO_SMTP_USER, "", 160);
 const SMTP_PASS = String(process.env.MURETTO_SMTP_PASS || "").replace(/\s+/g, "");
 const BRAND_CONFIG = {
-  name: sanitizePublicText(process.env.MURETTO_BRAND_NAME, "Il Muretto", 80),
+  name: sanitizePublicText(process.env.MURETTO_BRAND_NAME === "Il Muretto" ? "Muretto" : process.env.MURETTO_BRAND_NAME, "Muretto", 80),
   category: sanitizePublicText(process.env.MURETTO_BRAND_CATEGORY, "Bistrot", 40),
   monogram: sanitizePublicText(process.env.MURETTO_BRAND_MONOGRAM, "M", 4).toUpperCase(),
   appTitle: sanitizePublicText(process.env.MURETTO_APP_TITLE, "Muretto Prenotazioni", 80),

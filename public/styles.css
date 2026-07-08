@@ -206,6 +206,26 @@ label {
   line-height: 1;
 }
 
+.brand-logo-heading {
+  display: flex;
+  align-items: center;
+}
+
+.brand-logo {
+  display: block;
+  width: min(300px, 58vw);
+  height: auto;
+}
+
+.brand-panel .brand-logo,
+.public-booking-hero .brand-logo {
+  filter: invert(1) brightness(2.4);
+}
+
+.topbar .brand-logo {
+  width: min(230px, 48vw);
+}
+
 .brand-panel p {
   max-width: 420px;
   margin: 12px 0 0;
@@ -1069,6 +1089,10 @@ label {
   margin: 0;
   font-size: clamp(2rem, 7vw, 4.2rem);
   line-height: 1;
+}
+
+.public-booking-hero .brand-logo {
+  width: min(330px, 64vw);
 }
 
 .public-booking-hero p {
