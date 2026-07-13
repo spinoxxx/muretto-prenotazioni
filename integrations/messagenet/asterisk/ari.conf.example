@@ -1,0 +1,10 @@
+[general]
+enabled = yes
+pretty = yes
+allowed_origins = *
+
+[muretto_voice]
+type = user
+read_only = no
+password = {{ASTERISK_ARI_PASSWORD}}
+

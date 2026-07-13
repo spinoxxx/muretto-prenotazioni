@@ -98,5 +98,29 @@ Variabili usate in produzione:
 - `MURETTO_EMAIL_FROM`: mittente usato per inviare conferme via mail, es. `Il Muretto <murettobergamo@gmail.com>`.
 - `MURETTO_SMTP_HOST`, `MURETTO_SMTP_PORT`, `MURETTO_SMTP_USER`, `MURETTO_SMTP_PASS`: configurazione SMTP Gmail. `MURETTO_SMTP_PASS` deve essere una password per app Google, non la password normale.
 - `MURETTO_RESEND_API_KEY`: alternativa Resend per inviare le conferme email. Se SMTP e Resend non sono configurati, le conferme email non vengono inviate.
+- `MURETTO_VOICE_API_TOKEN`: token segreto usato da gateway telefonici/voce per creare prenotazioni tramite API protette.
 
 Nota importante: su Render i file fuori dal disco persistente non restano garantiti tra deploy e riavvii. Per questo `render.yaml` monta un persistent disk e l'app scrive i dati in `DATA_DIR`.
+
+## Segreteria telefonica / MessageNet
+
+MessageNet e adatto come fornitore di numero geografico italiano via VoIP/SIP. Non e pero un servizio webhook voice diretto: le chiamate arrivano a un client SIP registrato, quindi serve un gateway esterno, per esempio Asterisk su un piccolo VPS.
+
+La cartella `integrations/messagenet/` contiene:
+
+- configurazione Asterisk di esempio per registrarsi a MessageNet;
+- dialplan ingresso chiamate;
+- worker Node base per ricevere eventi ARI e creare richieste di richiamata nell'app;
+- indicazioni per collegare il gateway alle API voce gia esposte da Muretto.
+
+Le API Muretto gia disponibili per il gateway sono:
+
+- `POST /api/voice/availability`
+- `POST /api/voice/bookings`
+- `POST /api/voice/callbacks`
+
+Tutte richiedono:
+
+```http
+Authorization: Bearer <MURETTO_VOICE_API_TOKEN>
+```

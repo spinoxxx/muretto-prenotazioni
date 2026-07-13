@@ -1,0 +1,14 @@
+; Dialplan ingresso MessageNet.
+; MessageNet inoltra al client SIP registrato; qui l'estensione locale e 200.
+
+[messagenet-in]
+exten => 200,1,NoOp(Chiamata MessageNet in ingresso)
+ same => n,Set(CALLED=${PJSIP_HEADER(read,To)})
+ same => n,NoOp(Header To: ${CALLED})
+ same => n,Answer()
+ same => n,Stasis(muretto-voice,${CALLERID(num)},${CALLED})
+ same => n,Hangup()
+
+; Fallback se ARI/worker non risponde.
+exten => h,1,NoOp(Chiamata MessageNet terminata)
+
