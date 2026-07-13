@@ -12,6 +12,7 @@ const employeesFile = path.join(dataDir, "employees.json");
 const bookingsFile = path.join(dataDir, "bookings.json");
 const deletedBookingsFile = path.join(dataDir, "deleted-bookings.json");
 const zoneSettingsFile = path.join(dataDir, "zone-settings.json");
+const voiceCallbacksFile = path.join(dataDir, "voice-callbacks.json");
 const backupsDir = path.join(dataDir, "backups");
 const sessions = new Map();
 const publicBookingAttempts = new Map();
@@ -47,6 +48,7 @@ const privacyControllerEnv = process.env.MURETTO_PRIVACY_CONTROLLER;
 const EMAIL_FROM = sanitizePublicText(process.env.MURETTO_EMAIL_FROM, "", 160);
 const NOTIFICATION_EMAIL = sanitizePublicText(process.env.MURETTO_NOTIFICATION_EMAIL || extractEmailAddress(EMAIL_FROM), "", 160);
 const RESEND_API_KEY = process.env.MURETTO_RESEND_API_KEY || "";
+const VOICE_API_TOKEN = String(process.env.MURETTO_VOICE_API_TOKEN || "").trim();
 const SMTP_HOST = sanitizePublicText(process.env.MURETTO_SMTP_HOST, "", 120);
 const SMTP_PORT = Number(process.env.MURETTO_SMTP_PORT || 465);
 const SMTP_USER = sanitizePublicText(process.env.MURETTO_SMTP_USER, "", 160);
@@ -274,6 +276,12 @@ async function ensureDataFiles() {
   } catch {
     await writeJson(zoneSettingsFile, {});
   }
+
+  try {
+    await fs.access(voiceCallbacksFile);
+  } catch {
+    await writeJson(voiceCallbacksFile, []);
+  }
 }
 
 async function readJson(file, fallback) {
@@ -330,7 +338,8 @@ async function createBackup(reason = "manuale", actor = "system") {
       bookings: await readJson(bookingsFile, []),
       employees: await readJson(employeesFile, []),
       deletedBookings: await readJson(deletedBookingsFile, []),
-      zoneSettings: await readJson(zoneSettingsFile, {})
+      zoneSettings: await readJson(zoneSettingsFile, {}),
+      voiceCallbacks: await readJson(voiceCallbacksFile, [])
     }
   };
   const name = backupFileName(new Date(createdAt));
@@ -513,6 +522,87 @@ function validatePhoneBooking(input) {
   return {
     ...booking,
     notes: appendBookingNote(booking, "Prenotazione ricevuta telefonicamente. Informativa privacy comunicata e accettata al telefono.")
+  };
+}
+
+function voiceAuthToken(req) {
+  const header = String(req.headers.authorization || "");
+  const match = header.match(/^Bearer\s+(.+)$/i);
+  return match ? match[1].trim() : "";
+}
+
+function tokenMatches(actual, expected) {
+  if (!actual || !expected) return false;
+  const actualBuffer = Buffer.from(actual);
+  const expectedBuffer = Buffer.from(expected);
+  return actualBuffer.length === expectedBuffer.length && crypto.timingSafeEqual(actualBuffer, expectedBuffer);
+}
+
+function requireVoiceApi(req, res) {
+  if (!VOICE_API_TOKEN) {
+    sendJson(res, 503, { error: "Segreteria telefonica non configurata" });
+    return false;
+  }
+  if (!tokenMatches(voiceAuthToken(req), VOICE_API_TOKEN)) {
+    sendJson(res, 401, { error: "Token segreteria non valido" });
+    return false;
+  }
+  return true;
+}
+
+function voiceBookingDraft(input, status = "confermata") {
+  const consumption = sanitizeText(input.consumption, 20).toLowerCase();
+  const gardenRequested = input.gardenRequested === true || input.gardenRequested === "on" || input.gardenRequested === "true";
+  const privacyAccepted = input.privacyAccepted === true || input.privacyAccepted === "on" || input.privacyAccepted === "true";
+  const allowedConsumptions = new Set(["cena", "aperitivo"]);
+  if (!privacyAccepted) return "Serve il consenso privacy comunicato al telefono.";
+  if (!allowedConsumptions.has(consumption)) return "La segreteria deve indicare cena o aperitivo.";
+  if (gardenRequested && consumption !== "cena") return "Il giardino si puo richiedere solo per pranzo/cena.";
+
+  const room = consumption === "aperitivo" ? "Bar" : gardenRequested ? "Giardino" : RESTAURANT_ROOM;
+  const notes = [
+    "Prenotazione raccolta da segreteria telefonica automatica.",
+    `Consumazione prevista: ${consumption}.`,
+    gardenRequested ? "Richiesta giardino: accettata solo se confermata dal backend." : "",
+    sanitizeText(input.notes, 260)
+  ].filter(Boolean).join(" ");
+
+  const booking = validateBooking({
+    guestName: input.guestName,
+    phone: input.phone,
+    email: input.email,
+    date: input.date,
+    time: input.time,
+    people: input.people,
+    room,
+    tableNumber: "",
+    status,
+    language: normalizeLanguage(input.language),
+    notes
+  });
+  return typeof booking === "string" ? booking : booking;
+}
+
+async function voiceAvailability(input, bookings = null) {
+  const draft = voiceBookingDraft({ ...input, guestName: input.guestName || "Cliente telefono", phone: input.phone || "telefono" }, "da verificare");
+  if (typeof draft === "string") return { ok: false, reason: draft };
+  const allBookings = bookings || await readJson(bookingsFile, []);
+  const zoneError = await publicZoneError(draft, allBookings);
+  const settings = await getZoneSettings(draft.date);
+  const period = mealPeriod(draft.time);
+  const rule = settings.zones?.[draft.room]?.[period] || { limit: 0, blocked: false };
+  const occupied = ZONE_ROOMS.includes(draft.room) ? zoneOccupancy(allBookings, draft) : 0;
+  return {
+    ok: !zoneError,
+    reason: zoneError,
+    date: draft.date,
+    time: draft.time,
+    people: draft.people,
+    room: draft.room,
+    period,
+    occupied,
+    limit: Number(rule.limit || 0),
+    blocked: Boolean(rule.blocked)
   };
 }
 
@@ -1123,6 +1213,50 @@ async function markPublicBookingNotification(booking) {
   }
 }
 
+function voiceBookingNotificationText(booking) {
+  const seat = emailSeatLine(booking, "it");
+  return [
+    "Nuova prenotazione ricevuta dalla segreteria telefonica.",
+    "",
+    `Cliente: ${booking.guestName}`,
+    `Data prenotazione: ${booking.date}`,
+    `Ora: ${booking.time}`,
+    `Persone: ${booking.people}`,
+    seat ? `Zona: ${seat}` : "",
+    booking.phone ? `Telefono: ${booking.phone}` : "",
+    booking.email ? `Email cliente: ${booking.email}` : "",
+    booking.notes ? `Note: ${booking.notes}` : "",
+    "",
+    `Ricevuta il: ${booking.createdAt}`,
+    `Stato: ${booking.status}`,
+    "",
+    "Origine: segreteria telefonica automatica."
+  ].filter(Boolean).join("\n");
+}
+
+async function markVoiceBookingNotification(booking) {
+  try {
+    const result = await sendPlainEmail({
+      to: NOTIFICATION_EMAIL,
+      subject: `Prenotazione telefonica ricevuta - ${BRAND_CONFIG.name}`,
+      text: voiceBookingNotificationText(booking)
+    });
+    if (!result.sent) return booking;
+    return {
+      ...booking,
+      notificationEmailSentAt: new Date().toISOString(),
+      notificationEmailTo: NOTIFICATION_EMAIL,
+      notificationEmailError: ""
+    };
+  } catch (error) {
+    console.error(error);
+    return {
+      ...booking,
+      notificationEmailError: "Invio notifica segreteria non riuscito"
+    };
+  }
+}
+
 function customerActionNotificationText(booking, action, details = {}) {
   const seat = emailSeatLine(booking, "it");
   const isConfirm = action === "confirm";
@@ -1402,6 +1536,103 @@ async function handleApi(req, res) {
         status: booking.status
       }
     });
+    return;
+  }
+
+  if (url.pathname === "/api/voice/availability" && req.method === "POST") {
+    if (!requireVoiceApi(req, res)) return;
+    const body = await readBody(req);
+    const result = await voiceAvailability(body);
+    sendJson(res, result.ok ? 200 : 409, result);
+    return;
+  }
+
+  if (url.pathname === "/api/voice/bookings" && req.method === "POST") {
+    if (!requireVoiceApi(req, res)) return;
+    const body = await readBody(req);
+    const draft = voiceBookingDraft(body, "confermata");
+    if (typeof draft === "string") {
+      sendJson(res, 400, { ok: false, error: draft });
+      return;
+    }
+    const bookings = await readJson(bookingsFile, []);
+    const availability = await voiceAvailability(body, bookings);
+    if (!availability.ok) {
+      sendJson(res, 409, { ok: false, error: availability.reason, availability });
+      return;
+    }
+    const now = new Date().toISOString();
+    let booking = {
+      id: crypto.randomUUID(),
+      ...draft,
+      bookingChannel: "segreteria telefonica",
+      voiceRequestId: sanitizeText(body.requestId, 80),
+      phonePrivacyAcceptedAt: now,
+      phonePrivacyAcceptedBy: "segreteria telefonica",
+      privacyAcceptedAt: now,
+      privacyVersion: PRIVACY_VERSION,
+      createdBy: "segreteria telefonica",
+      createdAt: now,
+      updatedAt: now,
+      updatedBy: "segreteria telefonica"
+    };
+    bookings.push(booking);
+    await writeJson(bookingsFile, bookings);
+    booking = await markConfirmationEmailIfNeeded(null, booking, "segreteria telefonica");
+    booking = await markVoiceBookingNotification(booking);
+    bookings[bookings.length - 1] = booking;
+    await writeJson(bookingsFile, bookings);
+    sendJson(res, 201, {
+      ok: true,
+      booking: {
+        id: booking.id,
+        date: booking.date,
+        time: booking.time,
+        people: booking.people,
+        room: booking.room,
+        status: booking.status,
+        confirmationEmailSentAt: booking.confirmationEmailSentAt || ""
+      }
+    });
+    return;
+  }
+
+  if (url.pathname === "/api/voice/callbacks" && req.method === "POST") {
+    if (!requireVoiceApi(req, res)) return;
+    const body = await readBody(req);
+    const callbacks = await readJson(voiceCallbacksFile, []);
+    const now = new Date().toISOString();
+    const callback = {
+      id: crypto.randomUUID(),
+      requestId: sanitizeText(body.requestId, 80),
+      guestName: sanitizeText(body.guestName, 80),
+      phone: sanitizeText(body.phone, 40),
+      email: sanitizeText(body.email, 120),
+      reason: sanitizeMessageText(body.reason || "Richiesta da richiamare dalla segreteria telefonica.", 500),
+      preferredCallbackWindow: sanitizeText(body.preferredCallbackWindow, 80),
+      notes: sanitizeMessageText(body.notes, 800),
+      createdAt: now,
+      createdBy: "segreteria telefonica"
+    };
+    callbacks.push(callback);
+    await writeJson(voiceCallbacksFile, callbacks);
+    await sendPlainEmail({
+      to: NOTIFICATION_EMAIL,
+      subject: `Richiesta richiamata segreteria - ${BRAND_CONFIG.name}`,
+      text: [
+        "La segreteria telefonica ha creato una richiesta di richiamata.",
+        "",
+        callback.guestName ? `Cliente: ${callback.guestName}` : "",
+        callback.phone ? `Telefono: ${callback.phone}` : "",
+        callback.email ? `Email: ${callback.email}` : "",
+        `Motivo: ${callback.reason}`,
+        callback.preferredCallbackWindow ? `Fascia richiamata: ${callback.preferredCallbackWindow}` : "",
+        callback.notes ? `Note: ${callback.notes}` : "",
+        "",
+        `Ricevuta il: ${callback.createdAt}`
+      ].filter(Boolean).join("\n")
+    }).catch((error) => console.error(error));
+    sendJson(res, 201, { ok: true, callback: { id: callback.id, createdAt: callback.createdAt } });
     return;
   }
 
