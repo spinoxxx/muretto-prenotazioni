@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Muretto Prenotazioni</title>
-    <link rel="stylesheet" href="/styles.css?v=19">
+    <link rel="stylesheet" href="/styles.css?v=20">
   </head>
   <body>
     <main class="shell">
@@ -197,6 +197,82 @@
               </details>
             </section>
 
+            <section id="phoneBookingPanel" class="staff-panel phone-booking-panel" hidden>
+              <details class="collapsible-admin-section">
+                <summary>
+                  <span>Prenotazione telefonica</span>
+                  <small>Solo admin. Inserimento diretto in agenda senza file Excel.</small>
+                </summary>
+                <form id="phoneBookingForm" class="phone-booking-form" autocomplete="off">
+                  <label>
+                    Cliente
+                    <input name="guestName" type="text" maxlength="80" required>
+                  </label>
+                  <div class="grid-2">
+                    <label>
+                      Telefono
+                      <input name="phone" type="tel" maxlength="40" required>
+                    </label>
+                    <label>
+                      Email
+                      <input name="email" type="email" maxlength="120">
+                    </label>
+                  </div>
+                  <div class="grid-3">
+                    <label>
+                      Data
+                      <span class="date-field">
+                        <input name="date" type="date" required aria-label="Data prenotazione telefonica">
+                        <span id="phoneBookingDateDisplay" class="date-display" aria-hidden="true"></span>
+                      </span>
+                    </label>
+                    <label>
+                      Ora
+                      <input name="time" type="time" required>
+                    </label>
+                    <label>
+                      Persone
+                      <input name="people" type="number" min="1" max="40" value="2" required>
+                    </label>
+                  </div>
+                  <div class="grid-2">
+                    <label>
+                      Sala
+                      <select name="room" required>
+                        <option value="" disabled selected>Seleziona sala</option>
+                        <option>Ristorante Esterno</option>
+                        <option>Bar</option>
+                        <option>Giardino</option>
+                        <option>Interno</option>
+                      </select>
+                    </label>
+                    <label>
+                      Tavolo
+                      <input name="tableNumber" type="text" maxlength="30" placeholder="Es. 12">
+                    </label>
+                  </div>
+                  <label>
+                    Stato
+                    <select name="status">
+                      <option>confermata</option>
+                      <option>da verificare</option>
+                      <option>in attesa</option>
+                    </select>
+                  </label>
+                  <label>
+                    Note chiamata
+                    <textarea name="notes" maxlength="300" rows="4" placeholder="Richieste, dubbi, preferenze, promemoria richiamata"></textarea>
+                  </label>
+                  <label class="check-row privacy-check">
+                    <input name="phonePrivacyAccepted" type="checkbox" required>
+                    <span>Ho comunicato l'informativa privacy e il cliente ha accettato l'uso dei dati per gestire la prenotazione.</span>
+                  </label>
+                  <button type="submit">Salva prenotazione telefonica</button>
+                  <p id="phoneBookingMessage" class="message" role="status"></p>
+                </form>
+              </details>
+            </section>
+
             <section id="staffPanel" class="staff-panel" hidden>
               <details class="collapsible-admin-section">
                 <summary>Staff</summary>
@@ -385,6 +461,6 @@
       </form>
     </dialog>
     <section id="weeklyPrintArea" class="weekly-print-area" aria-hidden="true"></section>
-    <script src="/app.js?v=35" type="module"></script>
+    <script src="/app.js?v=36" type="module"></script>
   </body>
 </html>

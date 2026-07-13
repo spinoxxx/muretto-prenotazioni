@@ -504,6 +504,18 @@ function validateBooking(input) {
   return booking;
 }
 
+function validatePhoneBooking(input) {
+  if (input.phonePrivacyAccepted !== true && input.phonePrivacyAccepted !== "true" && input.phonePrivacyAccepted !== "on") {
+    return "Conferma di aver comunicato l'informativa privacy al telefono.";
+  }
+  const booking = validateBooking(input);
+  if (typeof booking === "string") return booking;
+  return {
+    ...booking,
+    notes: appendBookingNote(booking, "Prenotazione ricevuta telefonicamente. Informativa privacy comunicata e accettata al telefono.")
+  };
+}
+
 function publicValidationError(error, language) {
   if (language !== "en") return error;
   const translations = new Map([
@@ -1684,6 +1696,33 @@ async function handleApi(req, res) {
       .filter((item) => !to || item.date <= to)
       .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
     sendJson(res, 200, { bookings: visible, zoneSettings });
+    return;
+  }
+
+  if (url.pathname === "/api/phone-bookings" && req.method === "POST") {
+    if (!requireAdmin(session, res)) return;
+    const body = await readBody(req);
+    const result = validatePhoneBooking(body);
+    if (typeof result === "string") {
+      sendJson(res, 400, { error: result });
+      return;
+    }
+    const bookings = await readJson(bookingsFile, []);
+    const now = new Date().toISOString();
+    const booking = {
+      id: crypto.randomUUID(),
+      ...result,
+      bookingChannel: "telefono",
+      phonePrivacyAcceptedAt: now,
+      phonePrivacyAcceptedBy: session.employeeName,
+      createdBy: `telefono: ${session.employeeName}`,
+      createdAt: now,
+      updatedAt: now,
+      updatedBy: `telefono: ${session.employeeName}`
+    };
+    bookings.push(booking);
+    await writeJson(bookingsFile, bookings);
+    sendJson(res, 201, { booking });
     return;
   }
 

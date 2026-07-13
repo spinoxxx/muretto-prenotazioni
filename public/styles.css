@@ -726,7 +726,8 @@ label {
   display: none;
 }
 
-.employee-form {
+.employee-form,
+.phone-booking-form {
   display: grid;
   gap: 12px;
 }
