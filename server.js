@@ -49,6 +49,10 @@ const EMAIL_FROM = sanitizePublicText(process.env.MURETTO_EMAIL_FROM, "", 160);
 const NOTIFICATION_EMAIL = sanitizePublicText(process.env.MURETTO_NOTIFICATION_EMAIL || extractEmailAddress(EMAIL_FROM), "", 160);
 const RESEND_API_KEY = process.env.MURETTO_RESEND_API_KEY || "";
 const VOICE_API_TOKEN = String(process.env.MURETTO_VOICE_API_TOKEN || "").trim();
+const DEFAULT_TELNYX_RELAY_URL = `${PUBLIC_BASE_URL.replace(/^http/, "ws")}/telnyx/conversation${VOICE_API_TOKEN ? `?token=${encodeURIComponent(VOICE_API_TOKEN)}` : ""}`;
+const TELNYX_RELAY_URL = sanitizePublicText(process.env.MURETTO_TELNYX_RELAY_URL, DEFAULT_TELNYX_RELAY_URL, 320);
+const TELNYX_RELAY_VOICE = sanitizePublicText(process.env.MURETTO_TELNYX_RELAY_VOICE, "Telnyx.Natural.abbie", 80);
+const TELNYX_RELAY_LANGUAGE = sanitizePublicText(process.env.MURETTO_TELNYX_RELAY_LANGUAGE, "it-IT", 20);
 const SMTP_HOST = sanitizePublicText(process.env.MURETTO_SMTP_HOST, "", 120);
 const SMTP_PORT = Number(process.env.MURETTO_SMTP_PORT || 465);
 const SMTP_USER = sanitizePublicText(process.env.MURETTO_SMTP_USER, "", 160);
@@ -383,6 +387,15 @@ function sendHtml(res, status, title, message) {
 </html>`);
 }
 
+function sendXml(res, status, xml) {
+  res.writeHead(status, {
+    ...securityHeaders,
+    "content-type": "application/xml; charset=utf-8",
+    "cache-control": "no-store"
+  });
+  res.end(xml);
+}
+
 function sendDownload(res, fileName, content) {
   res.writeHead(200, {
     ...securityHeaders,
@@ -604,6 +617,362 @@ async function voiceAvailability(input, bookings = null) {
     limit: Number(rule.limit || 0),
     blocked: Boolean(rule.blocked)
   };
+}
+
+async function createVoiceBooking(input) {
+  const draft = voiceBookingDraft(input, "confermata");
+  if (typeof draft === "string") return { ok: false, status: 400, error: draft };
+  const bookings = await readJson(bookingsFile, []);
+  const availability = await voiceAvailability(input, bookings);
+  if (!availability.ok) return { ok: false, status: 409, error: availability.reason, availability };
+  const now = new Date().toISOString();
+  let booking = {
+    id: crypto.randomUUID(),
+    ...draft,
+    bookingChannel: "segreteria telefonica",
+    voiceRequestId: sanitizeText(input.requestId, 80),
+    phonePrivacyAcceptedAt: now,
+    phonePrivacyAcceptedBy: "segreteria telefonica",
+    privacyAcceptedAt: now,
+    privacyVersion: PRIVACY_VERSION,
+    createdBy: "segreteria telefonica",
+    createdAt: now,
+    updatedAt: now,
+    updatedBy: "segreteria telefonica"
+  };
+  bookings.push(booking);
+  await writeJson(bookingsFile, bookings);
+  booking = await markConfirmationEmailIfNeeded(null, booking, "segreteria telefonica");
+  booking = await markVoiceBookingNotification(booking);
+  bookings[bookings.length - 1] = booking;
+  await writeJson(bookingsFile, bookings);
+  return {
+    ok: true,
+    status: 201,
+    booking: {
+      id: booking.id,
+      date: booking.date,
+      time: booking.time,
+      people: booking.people,
+      room: booking.room,
+      status: booking.status,
+      confirmationEmailSentAt: booking.confirmationEmailSentAt || ""
+    }
+  };
+}
+
+async function createVoiceCallback(input) {
+  const callbacks = await readJson(voiceCallbacksFile, []);
+  const now = new Date().toISOString();
+  const callback = {
+    id: crypto.randomUUID(),
+    requestId: sanitizeText(input.requestId, 80),
+    guestName: sanitizeText(input.guestName, 80),
+    phone: sanitizeText(input.phone, 40),
+    email: sanitizeText(input.email, 120),
+    reason: sanitizeMessageText(input.reason || "Richiesta da richiamare dalla segreteria telefonica.", 500),
+    preferredCallbackWindow: sanitizeText(input.preferredCallbackWindow, 80),
+    notes: sanitizeMessageText(input.notes, 800),
+    createdAt: now,
+    createdBy: "segreteria telefonica"
+  };
+  callbacks.push(callback);
+  await writeJson(voiceCallbacksFile, callbacks);
+  await sendPlainEmail({
+    to: NOTIFICATION_EMAIL,
+    subject: `Richiesta richiamata segreteria - ${BRAND_CONFIG.name}`,
+    text: [
+      "La segreteria telefonica ha creato una richiesta di richiamata.",
+      "",
+      callback.guestName ? `Cliente: ${callback.guestName}` : "",
+      callback.phone ? `Telefono: ${callback.phone}` : "",
+      callback.email ? `Email: ${callback.email}` : "",
+      `Motivo: ${callback.reason}`,
+      callback.preferredCallbackWindow ? `Fascia richiamata: ${callback.preferredCallbackWindow}` : "",
+      callback.notes ? `Note: ${callback.notes}` : "",
+      "",
+      `Ricevuta il: ${callback.createdAt}`
+    ].filter(Boolean).join("\n")
+  }).catch((error) => console.error(error));
+  return { ok: true, callback: { id: callback.id, createdAt: callback.createdAt } };
+}
+
+function normalizeSpeech(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function parseItalianDate(text) {
+  const value = normalizeSpeech(text);
+  const iso = value.match(/\b(20\d{2})-(\d{2})-(\d{2})\b/);
+  if (iso) return iso[0];
+  const numeric = value.match(/\b(\d{1,2})[\/\-. ](\d{1,2})(?:[\/\-. ](20\d{2}))?\b/);
+  if (numeric) {
+    const year = numeric[3] || new Date().getFullYear();
+    return `${year}-${String(numeric[2]).padStart(2, "0")}-${String(numeric[1]).padStart(2, "0")}`;
+  }
+  const weekdays = {
+    oggi: 0,
+    domani: 1
+  };
+  if (Object.prototype.hasOwnProperty.call(weekdays, value)) return addDaysIso(new Date(), weekdays[value]);
+  return "";
+}
+
+function addDaysIso(date, days) {
+  const copy = new Date(date);
+  copy.setDate(copy.getDate() + days);
+  return copy.toISOString().slice(0, 10);
+}
+
+function parseItalianTime(text) {
+  const value = normalizeSpeech(text).replace(/[,.]/g, ":");
+  const match = value.match(/\b(\d{1,2})(?::|\s+e\s+|\s*)(\d{2})?\b/);
+  if (!match) return "";
+  let hours = Number(match[1]);
+  const minutes = Number(match[2] || 0);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes) || minutes > 59) return "";
+  if (hours < 12 && /\b(sera|cena|serale)\b/.test(value)) hours += 12;
+  if (hours > 23) return "";
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
+
+function parsePeople(text) {
+  const value = normalizeSpeech(text);
+  const words = {
+    uno: 1,
+    una: 1,
+    due: 2,
+    tre: 3,
+    quattro: 4,
+    cinque: 5,
+    sei: 6,
+    sette: 7,
+    otto: 8,
+    nove: 9,
+    dieci: 10,
+    undici: 11,
+    dodici: 12
+  };
+  const numeric = value.match(/\b(\d{1,2})\b/);
+  if (numeric) return Number(numeric[1]);
+  for (const [word, number] of Object.entries(words)) {
+    if (value.includes(word)) return number;
+  }
+  return 0;
+}
+
+function yesNo(text) {
+  const value = normalizeSpeech(text);
+  if (/\b(si|sì|confermo|esatto|va bene|ok)\b/.test(value)) return true;
+  if (/\b(no|annulla|sbagliato|non va bene)\b/.test(value)) return false;
+  return null;
+}
+
+function voiceSummary(data) {
+  return `${data.guestName}, ${data.people} persone, ${data.date} alle ${data.time}, ${data.consumption === "aperitivo" ? "aperitivo in zona bar" : data.gardenRequested ? "cena con richiesta giardino" : "pranzo o cena in zona ristorante esterno"}.`;
+}
+
+function nextVoicePrompt(state) {
+  const data = state.data;
+  if (!data.guestName) return { field: "guestName", text: "Perfetto. Mi dici nome e cognome per la prenotazione?" };
+  if (!data.phone) return { field: "phone", text: "Mi lasci un numero di telefono per ricontattarti se necessario?" };
+  if (!data.date) return { field: "date", text: "Per quale giorno vuoi prenotare? Puoi dire ad esempio domani oppure 20 luglio." };
+  if (!data.time) return { field: "time", text: "A che ora vuoi arrivare?" };
+  if (!data.people) return { field: "people", text: "Per quante persone?" };
+  if (!data.consumption) return { field: "consumption", text: "Si tratta di pranzo o cena, oppure aperitivo?" };
+  if (data.consumption === "cena" && data.gardenRequested === null) return { field: "gardenRequested", text: "Vuoi richiedere il giardino, sapendo che va confermato in base alla disponibilità?" };
+  return { field: "confirm", text: `Riepilogo: ${voiceSummary(data)} Confermi la prenotazione?` };
+}
+
+function applyVoiceAnswer(state, text) {
+  const field = state.awaiting;
+  const data = state.data;
+  const raw = sanitizeMessageText(text, 500);
+  if (!raw) return;
+  if (field === "guestName") data.guestName = sanitizeText(raw.replace(/^mi chiamo\s+/i, ""), 80);
+  else if (field === "phone") data.phone = sanitizeText(raw.replace(/\D+/g, ""), 40) || sanitizeText(raw, 40);
+  else if (field === "date") data.date = parseItalianDate(raw);
+  else if (field === "time") data.time = parseItalianTime(raw);
+  else if (field === "people") data.people = parsePeople(raw);
+  else if (field === "consumption") {
+    const value = normalizeSpeech(raw);
+    data.consumption = value.includes("aper") ? "aperitivo" : "cena";
+  } else if (field === "gardenRequested") {
+    data.gardenRequested = yesNo(raw) === true;
+  } else if (field === "confirm") {
+    state.confirmed = yesNo(raw);
+  }
+  if (field !== "confirm" && !state.notes.includes(raw)) state.notes.push(raw);
+}
+
+function websocketAcceptKey(key) {
+  return crypto
+    .createHash("sha1")
+    .update(`${key}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`)
+    .digest("base64");
+}
+
+function websocketFrame(text) {
+  const payload = Buffer.from(text);
+  const header = payload.length < 126
+    ? Buffer.from([0x81, payload.length])
+    : Buffer.from([0x81, 126, payload.length >> 8, payload.length & 0xff]);
+  return Buffer.concat([header, payload]);
+}
+
+function websocketCloseFrame() {
+  return Buffer.from([0x88, 0x00]);
+}
+
+function parseWebsocketFrames(state, chunk) {
+  state.buffer = Buffer.concat([state.buffer, chunk]);
+  const messages = [];
+  while (state.buffer.length >= 2) {
+    const first = state.buffer[0];
+    const second = state.buffer[1];
+    const opcode = first & 0x0f;
+    const masked = (second & 0x80) === 0x80;
+    let length = second & 0x7f;
+    let offset = 2;
+    if (length === 126) {
+      if (state.buffer.length < 4) break;
+      length = state.buffer.readUInt16BE(2);
+      offset = 4;
+    } else if (length === 127) {
+      if (state.buffer.length < 10) break;
+      length = Number(state.buffer.readBigUInt64BE(2));
+      offset = 10;
+    }
+    const maskOffset = offset;
+    if (masked) offset += 4;
+    if (state.buffer.length < offset + length) break;
+    const payload = Buffer.from(state.buffer.slice(offset, offset + length));
+    if (masked) {
+      const mask = state.buffer.slice(maskOffset, maskOffset + 4);
+      for (let index = 0; index < payload.length; index += 1) payload[index] ^= mask[index % 4];
+    }
+    state.buffer = state.buffer.slice(offset + length);
+    if (opcode === 0x8) messages.push({ type: "close" });
+    else if (opcode === 0x1) messages.push({ type: "text", text: payload.toString("utf8") });
+  }
+  return messages;
+}
+
+function telnyxSendText(socket, text) {
+  socket.write(websocketFrame(JSON.stringify({ type: "text", token: text, last: true })));
+}
+
+function telnyxEnd(socket, reason = "done") {
+  socket.write(websocketFrame(JSON.stringify({ type: "end", handoffData: JSON.stringify({ reason }) })));
+}
+
+async function handleTelnyxFrame(socket, state, frame) {
+  if (frame.type === "setup") {
+    state.sessionId = sanitizeText(frame.sessionId, 80);
+    const prompt = nextVoicePrompt(state);
+    state.awaiting = prompt.field;
+    telnyxSendText(socket, prompt.text);
+    return;
+  }
+  if (frame.type !== "prompt" || frame.last === false) return;
+  applyVoiceAnswer(state, frame.voicePrompt || frame.transcript || frame.text || "");
+  if (state.awaiting === "confirm" && state.confirmed === false) {
+    await createVoiceCallback({
+      requestId: state.sessionId,
+      ...state.data,
+      reason: "Cliente non ha confermato il riepilogo della segreteria telefonica.",
+      notes: state.notes.join(" | ")
+    });
+    telnyxSendText(socket, "Va bene, non confermo la prenotazione. Lascerò una richiesta allo staff per richiamarti. A presto.");
+    telnyxEnd(socket, "callback_requested");
+    return;
+  }
+  if (state.awaiting === "confirm" && state.confirmed === true) {
+    const result = await createVoiceBooking({
+      requestId: state.sessionId,
+      ...state.data,
+      privacyAccepted: true,
+      notes: state.notes.join(" | ")
+    });
+    if (result.ok) {
+      telnyxSendText(socket, `Perfetto, la prenotazione è confermata per ${state.data.people} persone il ${state.data.date} alle ${state.data.time}. A presto.`);
+      telnyxEnd(socket, "booking_confirmed");
+    } else {
+      await createVoiceCallback({
+        requestId: state.sessionId,
+        ...state.data,
+        reason: result.error || "Prenotazione non confermabile dalla segreteria.",
+        notes: state.notes.join(" | ")
+      });
+      telnyxSendText(socket, "Mi dispiace, non riesco a confermare automaticamente questa prenotazione. Ho lasciato una richiesta allo staff per richiamarti.");
+      telnyxEnd(socket, "callback_requested");
+    }
+    return;
+  }
+  const prompt = nextVoicePrompt(state);
+  state.awaiting = prompt.field;
+  telnyxSendText(socket, prompt.text);
+}
+
+function handleTelnyxConversation(req, socket) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  if (!tokenMatches(url.searchParams.get("token"), VOICE_API_TOKEN)) {
+    socket.write("HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n");
+    socket.destroy();
+    return;
+  }
+  const key = req.headers["sec-websocket-key"];
+  if (!key) {
+    socket.write("HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n");
+    socket.destroy();
+    return;
+  }
+  socket.write([
+    "HTTP/1.1 101 Switching Protocols",
+    "Upgrade: websocket",
+    "Connection: Upgrade",
+    `Sec-WebSocket-Accept: ${websocketAcceptKey(key)}`,
+    "\r\n"
+  ].join("\r\n"));
+
+  const state = {
+    buffer: Buffer.alloc(0),
+    sessionId: "",
+    awaiting: "",
+    confirmed: null,
+    notes: [],
+    data: {
+      guestName: "",
+      phone: "",
+      email: "",
+      date: "",
+      time: "",
+      people: 0,
+      consumption: "",
+      gardenRequested: null,
+      privacyAccepted: true
+    }
+  };
+
+  socket.on("data", (chunk) => {
+    for (const message of parseWebsocketFrames(state, chunk)) {
+      if (message.type === "close") {
+        socket.write(websocketCloseFrame());
+        socket.end();
+        return;
+      }
+      try {
+        const frame = JSON.parse(message.text);
+        handleTelnyxFrame(socket, state, frame).catch((error) => {
+          console.error(error);
+          telnyxSendText(socket, "Si è verificato un problema. Chiederò allo staff di richiamarti.");
+          telnyxEnd(socket, "error");
+        });
+      } catch (error) {
+        console.error(error);
+      }
+    }
+  });
 }
 
 function publicValidationError(error, language) {
@@ -1488,6 +1857,30 @@ async function handleApi(req, res) {
     return;
   }
 
+  if (url.pathname === "/telnyx/voice" && req.method === "POST") {
+    if (!tokenMatches(url.searchParams.get("token"), VOICE_API_TOKEN)) {
+      sendXml(res, 401, `<?xml version="1.0" encoding="UTF-8"?><Response><Reject /></Response>`);
+      return;
+    }
+    sendXml(res, 200, `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Connect>
+    <ConversationRelay
+      url="${escapeHtml(TELNYX_RELAY_URL)}"
+      welcomeGreeting="Ciao, hai chiamato Muretto. Sono l'assistente automatico per le prenotazioni. Ti informo che useremo i dati che mi comunichi solo per gestire la prenotazione. Dimmi pure nome, giorno, ora e numero di persone."
+      voice="${escapeHtml(TELNYX_RELAY_VOICE)}"
+      language="${escapeHtml(TELNYX_RELAY_LANGUAGE)}"
+      transcriptionProvider="telnyx"
+      dtmfDetection="true"
+      interruptible="speech"
+      welcomeGreetingInterruptible="speech" />
+  </Connect>
+  <Say>Grazie, a presto.</Say>
+  <Hangup />
+</Response>`);
+    return;
+  }
+
   if (url.pathname === "/api/public-bookings" && req.method === "POST") {
     if (!allowPublicBookingAttempt(req)) {
       sendJson(res, 429, { error: "Troppe richieste. Riprova tra qualche minuto." });
@@ -1550,89 +1943,16 @@ async function handleApi(req, res) {
   if (url.pathname === "/api/voice/bookings" && req.method === "POST") {
     if (!requireVoiceApi(req, res)) return;
     const body = await readBody(req);
-    const draft = voiceBookingDraft(body, "confermata");
-    if (typeof draft === "string") {
-      sendJson(res, 400, { ok: false, error: draft });
-      return;
-    }
-    const bookings = await readJson(bookingsFile, []);
-    const availability = await voiceAvailability(body, bookings);
-    if (!availability.ok) {
-      sendJson(res, 409, { ok: false, error: availability.reason, availability });
-      return;
-    }
-    const now = new Date().toISOString();
-    let booking = {
-      id: crypto.randomUUID(),
-      ...draft,
-      bookingChannel: "segreteria telefonica",
-      voiceRequestId: sanitizeText(body.requestId, 80),
-      phonePrivacyAcceptedAt: now,
-      phonePrivacyAcceptedBy: "segreteria telefonica",
-      privacyAcceptedAt: now,
-      privacyVersion: PRIVACY_VERSION,
-      createdBy: "segreteria telefonica",
-      createdAt: now,
-      updatedAt: now,
-      updatedBy: "segreteria telefonica"
-    };
-    bookings.push(booking);
-    await writeJson(bookingsFile, bookings);
-    booking = await markConfirmationEmailIfNeeded(null, booking, "segreteria telefonica");
-    booking = await markVoiceBookingNotification(booking);
-    bookings[bookings.length - 1] = booking;
-    await writeJson(bookingsFile, bookings);
-    sendJson(res, 201, {
-      ok: true,
-      booking: {
-        id: booking.id,
-        date: booking.date,
-        time: booking.time,
-        people: booking.people,
-        room: booking.room,
-        status: booking.status,
-        confirmationEmailSentAt: booking.confirmationEmailSentAt || ""
-      }
-    });
+    const result = await createVoiceBooking(body);
+    sendJson(res, result.status, result.ok ? { ok: true, booking: result.booking } : { ok: false, error: result.error, availability: result.availability });
     return;
   }
 
   if (url.pathname === "/api/voice/callbacks" && req.method === "POST") {
     if (!requireVoiceApi(req, res)) return;
     const body = await readBody(req);
-    const callbacks = await readJson(voiceCallbacksFile, []);
-    const now = new Date().toISOString();
-    const callback = {
-      id: crypto.randomUUID(),
-      requestId: sanitizeText(body.requestId, 80),
-      guestName: sanitizeText(body.guestName, 80),
-      phone: sanitizeText(body.phone, 40),
-      email: sanitizeText(body.email, 120),
-      reason: sanitizeMessageText(body.reason || "Richiesta da richiamare dalla segreteria telefonica.", 500),
-      preferredCallbackWindow: sanitizeText(body.preferredCallbackWindow, 80),
-      notes: sanitizeMessageText(body.notes, 800),
-      createdAt: now,
-      createdBy: "segreteria telefonica"
-    };
-    callbacks.push(callback);
-    await writeJson(voiceCallbacksFile, callbacks);
-    await sendPlainEmail({
-      to: NOTIFICATION_EMAIL,
-      subject: `Richiesta richiamata segreteria - ${BRAND_CONFIG.name}`,
-      text: [
-        "La segreteria telefonica ha creato una richiesta di richiamata.",
-        "",
-        callback.guestName ? `Cliente: ${callback.guestName}` : "",
-        callback.phone ? `Telefono: ${callback.phone}` : "",
-        callback.email ? `Email: ${callback.email}` : "",
-        `Motivo: ${callback.reason}`,
-        callback.preferredCallbackWindow ? `Fascia richiamata: ${callback.preferredCallbackWindow}` : "",
-        callback.notes ? `Note: ${callback.notes}` : "",
-        "",
-        `Ricevuta il: ${callback.createdAt}`
-      ].filter(Boolean).join("\n")
-    }).catch((error) => console.error(error));
-    sendJson(res, 201, { ok: true, callback: { id: callback.id, createdAt: callback.createdAt } });
+    const result = await createVoiceCallback(body);
+    sendJson(res, 201, result);
     return;
   }
 
@@ -2181,7 +2501,7 @@ if (BACKUP_INTERVAL_MS > 0) {
 
 const server = http.createServer(async (req, res) => {
   try {
-    if (req.url.startsWith("/api/")) {
+    if (req.url.startsWith("/api/") || req.url.startsWith("/telnyx/voice")) {
       await handleApi(req, res);
       return;
     }
@@ -2190,6 +2510,16 @@ const server = http.createServer(async (req, res) => {
     const status = error.status || (error instanceof SyntaxError ? 400 : 500);
     sendJson(res, status, { error: status === 500 ? "Errore interno" : error.message });
   }
+});
+
+server.on("upgrade", (req, socket) => {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  if (url.pathname === "/telnyx/conversation") {
+    handleTelnyxConversation(req, socket);
+    return;
+  }
+  socket.write("HTTP/1.1 404 Not Found\r\nConnection: close\r\n\r\n");
+  socket.destroy();
 });
 
 server.listen(PORT, HOST, () => {
