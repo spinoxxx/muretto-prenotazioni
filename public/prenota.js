@@ -3,6 +3,7 @@ const bookingDate = document.querySelector("#publicBookingDate");
 const bookingDateDisplay = document.querySelector("#publicBookingDateDisplay");
 const message = document.querySelector("#publicBookingMessage");
 const gardenRequest = document.querySelector("#gardenRequest");
+const zonePreviewCards = document.querySelectorAll("[data-zone-preview]");
 const pageLanguage = document.documentElement.lang === "en" ? "en" : "it";
 const copy = {
   it: {
@@ -94,6 +95,16 @@ function syncGardenRequest() {
   if (!isDinner) bookingForm.elements.gardenRequested.checked = false;
   if (isDinner && !bookingForm.elements.time.value) bookingForm.elements.time.value = "20:00";
   if (!isDinner && bookingForm.elements.time.value === "20:00") bookingForm.elements.time.value = "18:30";
+  syncZonePreview();
+}
+
+function syncZonePreview() {
+  const selectedZone = bookingForm.elements.gardenRequested.checked && activeConsumption() === "cena" ? "garden" : "";
+  zonePreviewCards.forEach((card) => {
+    const selected = card.dataset.zonePreview === selectedZone;
+    card.classList.toggle("is-selected", selected);
+    card.setAttribute("aria-current", selected ? "true" : "false");
+  });
 }
 
 function formatDisplayDate(value) {
@@ -129,6 +140,8 @@ bookingDate.addEventListener("change", () => {
 bookingForm.querySelectorAll("input[name='consumption']").forEach((input) => {
   input.addEventListener("change", syncGardenRequest);
 });
+
+bookingForm.elements.gardenRequested.addEventListener("change", syncZonePreview);
 
 bookingForm.addEventListener("submit", async (event) => {
   event.preventDefault();

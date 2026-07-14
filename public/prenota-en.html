@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Book a Table</title>
-    <link rel="stylesheet" href="/styles.css?v=11">
+    <link rel="stylesheet" href="/styles.css?v=12">
   </head>
   <body>
     <main class="shell public-shell">
@@ -71,6 +71,7 @@
             <legend>Type of visit</legend>
             <label class="choice-card">
               <input name="consumption" type="radio" value="cena" checked>
+              <img src="/zone-ristorante-esterno.jpg" alt="Outdoor restaurant tables" loading="lazy">
               <span>
                 <strong>Lunch/Dinner</strong>
                 <small>Outdoor restaurant area</small>
@@ -78,6 +79,7 @@
             </label>
             <label class="choice-card">
               <input name="consumption" type="radio" value="aperitivo">
+              <img src="/zone-bar-aperitivi.jpg" alt="Bar aperitif area tables" loading="lazy">
               <span>
                 <strong>Aperitif</strong>
                 <small>Bar area</small>
@@ -89,6 +91,14 @@
             <input name="gardenRequested" type="checkbox">
             <span>I would like the garden, if available. Lunch/dinner only and subject to confirmation.</span>
           </label>
+
+          <article class="zone-photo-card" data-zone-preview="garden">
+            <img src="/zone-giardino.jpg" alt="Garden area tables" loading="lazy">
+            <div>
+              <strong>Garden</strong>
+              <small>Available on request for lunch/dinner, always subject to confirmation.</small>
+            </div>
+          </article>
 
           <label>
             Notes
@@ -123,6 +133,6 @@
         </section>
       </section>
     </main>
-    <script src="/prenota.js?v=6" type="module"></script>
+    <script src="/prenota.js?v=7" type="module"></script>
   </body>
 </html>
