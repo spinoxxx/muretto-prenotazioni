@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Prenota</title>
-    <link rel="stylesheet" href="/styles.css?v=12">
+    <link rel="stylesheet" href="/styles.css?v=13">
   </head>
   <body>
     <main class="shell public-shell">
@@ -70,20 +70,24 @@
           <fieldset class="choice-group">
             <legend>Tipo di consumazione</legend>
             <label class="choice-card">
-              <input name="consumption" type="radio" value="cena" checked>
-              <img src="/zone-ristorante-esterno.jpg" alt="Tavoli della zona Ristorante Esterno" loading="lazy">
-              <span>
-                <strong>Pranzo/Cena</strong>
-                <small>Zona ristorante esterno</small>
+              <span class="choice-card-head">
+                <input name="consumption" type="radio" value="cena" checked>
+                <span>
+                  <strong>Pranzo/Cena</strong>
+                  <small>Zona ristorante esterno</small>
+                </span>
               </span>
+              <img src="/zone-ristorante-esterno.jpg" alt="Tavoli della zona Ristorante Esterno" loading="lazy">
             </label>
             <label class="choice-card">
-              <input name="consumption" type="radio" value="aperitivo">
-              <img src="/zone-bar-aperitivi.jpg" alt="Tavoli della zona Bar aperitivi" loading="lazy">
-              <span>
-                <strong>Aperitivo</strong>
-                <small>Zona bar</small>
+              <span class="choice-card-head">
+                <input name="consumption" type="radio" value="aperitivo">
+                <span>
+                  <strong>Aperitivo</strong>
+                  <small>Zona bar</small>
+                </span>
               </span>
+              <img src="/zone-bar-aperitivi.jpg" alt="Tavoli della zona Bar aperitivi" loading="lazy">
             </label>
           </fieldset>
 

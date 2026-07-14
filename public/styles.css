@@ -1193,10 +1193,8 @@ label {
 
 .choice-card {
   display: grid;
-  grid-template-columns: auto minmax(86px, 0.8fr) 1fr;
-  align-items: stretch;
-  gap: 12px;
-  min-height: 128px;
+  grid-template-rows: auto minmax(170px, 1fr);
+  gap: 10px;
   padding: 10px;
   cursor: pointer;
 }
@@ -1212,17 +1210,20 @@ label {
   display: block;
 }
 
+.choice-card-head {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 10px;
+}
+
 .choice-card img,
 .zone-photo-card img {
   width: 100%;
   height: 100%;
-  min-height: 104px;
+  min-height: 170px;
   border-radius: 6px;
   object-fit: cover;
-}
-
-.choice-card span {
-  align-self: center;
 }
 
 .choice-card small,
