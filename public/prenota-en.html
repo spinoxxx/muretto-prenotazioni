@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Book a Table</title>
-    <link rel="stylesheet" href="/styles.css?v=13">
+    <link rel="stylesheet" href="/styles.css?v=14">
   </head>
   <body>
     <main class="shell public-shell">
@@ -91,18 +91,16 @@
             </label>
           </fieldset>
 
-          <label id="gardenRequest" class="check-row">
-            <input name="gardenRequested" type="checkbox">
-            <span>I would like the garden, if available. Lunch/dinner only and subject to confirmation.</span>
-          </label>
-
-          <article class="zone-photo-card" data-zone-preview="garden">
+          <label id="gardenRequest" class="zone-photo-card" data-zone-preview="garden">
+            <span class="zone-photo-head">
+              <input name="gardenRequested" type="checkbox">
+              <span>
+                <strong>Garden</strong>
+                <small>I would like the garden, if available. Lunch/dinner only and subject to confirmation.</small>
+              </span>
+            </span>
             <img src="/zone-giardino.jpg" alt="Garden area tables" loading="lazy">
-            <div>
-              <strong>Garden</strong>
-              <small>Available on request for lunch/dinner, always subject to confirmation.</small>
-            </div>
-          </article>
+          </label>
 
           <label>
             Notes

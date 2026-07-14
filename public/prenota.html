@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Prenota</title>
-    <link rel="stylesheet" href="/styles.css?v=13">
+    <link rel="stylesheet" href="/styles.css?v=14">
   </head>
   <body>
     <main class="shell public-shell">
@@ -91,18 +91,16 @@
             </label>
           </fieldset>
 
-          <label id="gardenRequest" class="check-row">
-            <input name="gardenRequested" type="checkbox">
-            <span>Vorrei il giardino, se disponibile. Solo per pranzo/cena e da confermare.</span>
-          </label>
-
-          <article class="zone-photo-card" data-zone-preview="garden">
+          <label id="gardenRequest" class="zone-photo-card" data-zone-preview="garden">
+            <span class="zone-photo-head">
+              <input name="gardenRequested" type="checkbox">
+              <span>
+                <strong>Giardino</strong>
+                <small>Vorrei il giardino, se disponibile. Solo per pranzo/cena e da confermare.</small>
+              </span>
+            </span>
             <img src="/zone-giardino.jpg" alt="Tavoli della zona Giardino" loading="lazy">
-            <div>
-              <strong>Giardino</strong>
-              <small>Disponibile su richiesta per pranzo/cena, sempre da confermare.</small>
-            </div>
-          </article>
+          </label>
 
           <label>
             Note
