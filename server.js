@@ -38,6 +38,11 @@ const PRIVACY_VERSION = "2026-06-26";
 const PRIVACY_CONTROLLER = "Bar Flora srl, Piazza Vecchia 13, 24129 Bergamo";
 const VENUE_ADDRESS = "Viale delle Mura 1, 24129 Bergamo";
 const VENUE_MAP_URL = "https://www.google.com/maps/search/?api=1&query=Viale%20delle%20Mura%201%2C%2024129%20Bergamo";
+const SPECIAL_EVENT_DATE = "2026-07-22";
+const SPECIAL_EVENT_NAME = "Notte al Muretto";
+const SPECIAL_EVENT_TIME = "20:00";
+const SPECIAL_EVENT_PRICE = "45€ a persona, bevande escluse";
+const SPECIAL_EVENT_MENU = "Antipasto: scampo flambato al Grand Marnier con purè di patate e olio all'erba cipollina. Primo: linguine alle vongole e bottarga. Dolce: cheese cake.";
 const PUBLIC_BASE_URL = sanitizePublicText(process.env.MURETTO_PUBLIC_URL, "https://muretto-prenotazioni.onrender.com", 220).replace(/\/+$/, "");
 const PUBLIC_BOOKING_URL = `${PUBLIC_BASE_URL}/prenota.html`;
 
@@ -1008,6 +1013,7 @@ function validatePublicBooking(input) {
     "Richiesta dal modulo online.",
     `Consumazione prevista: ${consumption}.`,
     gardenRequested ? "Richiesta giardino: da confermare." : "",
+    input.date === SPECIAL_EVENT_DATE ? `Data evento ${SPECIAL_EVENT_NAME}: Cena & Jazz ore ${SPECIAL_EVENT_TIME}, ${SPECIAL_EVENT_PRICE}.` : "",
     sanitizeText(input.notes, 220)
   ].filter(Boolean).join(" ");
 
@@ -1216,6 +1222,7 @@ function bookingCancellationText(booking) {
 function bookingConfirmationText(booking) {
   const language = normalizeLanguage(booking.language);
   const seat = emailSeatLine(booking, language);
+  const eventLines = specialEventEmailLines(booking, language);
   const gardenRequested = String(booking.notes || "").toLowerCase().includes("richiesta giardino");
   const confirmedAwayFromGarden = gardenRequested && String(booking.room || "").trim().toLowerCase() !== "giardino";
   const gardenChangeLine = confirmedAwayFromGarden
@@ -1236,6 +1243,7 @@ function bookingConfirmationText(booking) {
       seat ? `Area: ${seat}` : "",
       `Address: ${VENUE_ADDRESS}`,
       `Map: ${VENUE_MAP_URL}`,
+      ...eventLines,
       "",
       "Important note:",
       "- Due to the imbalance between indoor and outdoor seating, in case of rain we cannot guarantee that the booking can be moved to a sheltered area.",
@@ -1259,6 +1267,7 @@ function bookingConfirmationText(booking) {
     seat ? `Zona: ${seat}` : "",
     `Indirizzo: ${VENUE_ADDRESS}`,
     `Mappa: ${VENUE_MAP_URL}`,
+    ...eventLines,
     "",
     "Nota importante:",
     "- Visto lo squilibrio tra le sedute interne ed esterne, in caso di pioggia non garantiamo di poter spostare la prenotazione in area protetta.",
@@ -1269,6 +1278,26 @@ function bookingConfirmationText(booking) {
     "A presto!",
     `Lo Staff del ${BRAND_CONFIG.name}`
   ].filter(Boolean).join("\n");
+}
+
+function specialEventEmailLines(booking, language) {
+  if (booking.date !== SPECIAL_EVENT_DATE) return [];
+  if (language === "en") {
+    return [
+      "",
+      `Special event: ${SPECIAL_EVENT_NAME}`,
+      `Dinner & Jazz on 22 July from ${SPECIAL_EVENT_TIME}. Event menu at ${SPECIAL_EVENT_PRICE.replace("a persona", "per person").replace("bevande escluse", "drinks excluded")}.`,
+      "Menu: Grand Marnier flambéed prawn with potato purée and chive oil; linguine with clams and bottarga; cheese cake.",
+      "Booking required."
+    ];
+  }
+  return [
+    "",
+    `Evento speciale: ${SPECIAL_EVENT_NAME}`,
+    `Cena & Jazz il 22 luglio dalle ${SPECIAL_EVENT_TIME}. Menu evento a ${SPECIAL_EVENT_PRICE}.`,
+    `Menu: ${SPECIAL_EVENT_MENU}`,
+    "Prenotazione obbligatoria."
+  ];
 }
 
 function extractEmailAddress(value) {
@@ -1543,6 +1572,7 @@ async function markCancellationEmailIfNeeded(previousBooking, booking, actor) {
 
 function publicBookingNotificationText(booking) {
   const seat = emailSeatLine(booking, "it");
+  const eventLines = specialEventEmailLines(booking, "it");
   return [
     "Nuova prenotazione ricevuta dal modulo online.",
     "",
@@ -1554,6 +1584,7 @@ function publicBookingNotificationText(booking) {
     booking.phone ? `Telefono: ${booking.phone}` : "",
     booking.email ? `Email cliente: ${booking.email}` : "",
     booking.notes ? `Note: ${booking.notes}` : "",
+    ...eventLines,
     "",
     `Ricevuta il: ${booking.createdAt}`,
     "Stato iniziale: da verificare",

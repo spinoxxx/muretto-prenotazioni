@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Prenota</title>
-    <link rel="stylesheet" href="/styles.css?v=14">
+    <link rel="stylesheet" href="/styles.css?v=15">
   </head>
   <body>
     <main class="shell public-shell">
@@ -22,6 +22,16 @@
             <p>Richiedi una prenotazione. Riceverai conferma via mail appena possibile.</p>
           </div>
         </header>
+
+        <section id="publicEventCard" class="public-event-card" aria-label="Evento speciale">
+          <img src="/notte-al-muretto-2026-07-22.jpg" alt="Notte al Muretto, cena e jazz, 22 luglio ore 20">
+          <div>
+            <p class="eyebrow">Evento speciale</p>
+            <h2>Notte al Muretto</h2>
+            <p>Cena & Jazz, mercoledì 22 luglio alle 20:00. Menu evento a 45€ a persona, bevande escluse.</p>
+            <p class="event-menu">Scampo flambato al Grand Marnier, linguine alle vongole e bottarga, cheese cake.</p>
+          </div>
+        </section>
 
         <form id="publicBookingForm" class="public-booking-form" autocomplete="on">
           <input name="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
@@ -66,6 +76,11 @@
               <input name="people" type="number" min="1" max="40" value="2" required>
             </label>
           </div>
+
+          <section id="eventBookingNotice" class="event-booking-notice" hidden aria-live="polite">
+            <strong>Stai prenotando per Notte al Muretto.</strong>
+            <span>Il 22 luglio la serata è Cena & Jazz dalle 20:00, con menu evento a 45€ a persona, bevande escluse. Prenotazione obbligatoria.</span>
+          </section>
 
           <fieldset class="choice-group">
             <legend>Tipo di consumazione</legend>
@@ -135,6 +150,6 @@
         </section>
       </section>
     </main>
-    <script src="/prenota.js?v=7" type="module"></script>
+    <script src="/prenota.js?v=8" type="module"></script>
   </body>
 </html>

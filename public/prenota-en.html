@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Book a Table</title>
-    <link rel="stylesheet" href="/styles.css?v=14">
+    <link rel="stylesheet" href="/styles.css?v=15">
   </head>
   <body>
     <main class="shell public-shell">
@@ -22,6 +22,16 @@
             <p>Request a booking. You will receive confirmation by email as soon as possible.</p>
           </div>
         </header>
+
+        <section id="publicEventCard" class="public-event-card" aria-label="Special event">
+          <img src="/notte-al-muretto-2026-07-22.jpg" alt="Notte al Muretto, dinner and jazz, 22 July at 8 pm">
+          <div>
+            <p class="eyebrow">Special event</p>
+            <h2>Notte al Muretto</h2>
+            <p>Dinner & Jazz, Wednesday 22 July at 8:00 pm. Event menu at 45€ per person, drinks excluded.</p>
+            <p class="event-menu">Grand Marnier flambéed prawn, linguine with clams and bottarga, cheese cake.</p>
+          </div>
+        </section>
 
         <form id="publicBookingForm" class="public-booking-form" autocomplete="on">
           <input name="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
@@ -66,6 +76,11 @@
               <input name="people" type="number" min="1" max="40" value="2" required>
             </label>
           </div>
+
+          <section id="eventBookingNotice" class="event-booking-notice" hidden aria-live="polite">
+            <strong>You are booking for Notte al Muretto.</strong>
+            <span>On 22 July the evening is Dinner & Jazz from 8:00 pm, with a 45€ per person event menu, drinks excluded. Booking required.</span>
+          </section>
 
           <fieldset class="choice-group">
             <legend>Type of visit</legend>
@@ -135,6 +150,6 @@
         </section>
       </section>
     </main>
-    <script src="/prenota.js?v=7" type="module"></script>
+    <script src="/prenota.js?v=8" type="module"></script>
   </body>
 </html>

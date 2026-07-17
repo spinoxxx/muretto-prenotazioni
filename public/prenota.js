@@ -3,7 +3,10 @@ const bookingDate = document.querySelector("#publicBookingDate");
 const bookingDateDisplay = document.querySelector("#publicBookingDateDisplay");
 const message = document.querySelector("#publicBookingMessage");
 const gardenRequest = document.querySelector("#gardenRequest");
+const eventBookingNotice = document.querySelector("#eventBookingNotice");
+const publicEventCard = document.querySelector("#publicEventCard");
 const zonePreviewCards = document.querySelectorAll("[data-zone-preview]");
+const SPECIAL_EVENT_DATE = "2026-07-22";
 const pageLanguage = document.documentElement.lang === "en" ? "en" : "it";
 const copy = {
   it: {
@@ -35,6 +38,8 @@ bookingDate.min = today;
 bookingDate.value = today;
 bookingForm.elements.time.value = "20:00";
 updateDateDisplay(bookingDate, bookingDateDisplay);
+syncSpecialEventNotice();
+syncPublicEventCard();
 
 async function api(path, options = {}) {
   const response = await fetch(path, {
@@ -125,6 +130,16 @@ function updateDateDisplay(input, display) {
   display.textContent = formatDisplayDate(input.value);
 }
 
+function syncSpecialEventNotice() {
+  if (!eventBookingNotice) return;
+  eventBookingNotice.hidden = bookingDate.value !== SPECIAL_EVENT_DATE;
+}
+
+function syncPublicEventCard() {
+  if (!publicEventCard) return;
+  publicEventCard.hidden = today > SPECIAL_EVENT_DATE;
+}
+
 function roomLabel(room) {
   if (pageLanguage !== "en") return room;
   if (room === "Ristorante Esterno" || room === "Ristorante") return "Outdoor Restaurant";
@@ -135,6 +150,7 @@ function roomLabel(room) {
 
 bookingDate.addEventListener("change", () => {
   updateDateDisplay(bookingDate, bookingDateDisplay);
+  syncSpecialEventNotice();
 });
 
 bookingForm.querySelectorAll("input[name='consumption']").forEach((input) => {
@@ -163,6 +179,7 @@ bookingForm.addEventListener("submit", async (event) => {
     bookingForm.elements.people.value = 2;
     updateDateDisplay(bookingDate, bookingDateDisplay);
     syncGardenRequest();
+    syncSpecialEventNotice();
   } catch (error) {
     message.textContent = error.message;
   } finally {
