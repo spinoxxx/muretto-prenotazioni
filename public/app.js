@@ -245,7 +245,9 @@ function matchesSearch(booking, term) {
 
 function matchesRoomFilter(booking) {
   if (!activeRoomFilter) return true;
-  return roomStatKey(booking.room) === activeRoomFilter;
+  const room = roomStatKey(booking.room);
+  if (activeRoomFilter === "esterni") return room === "ristorante" || room === "giardino";
+  return room === activeRoomFilter;
 }
 
 function bookingSortValue(booking) {
@@ -389,7 +391,7 @@ function renderBookings() {
   }
 
   bookingList.innerHTML = filtered.map((booking) => `
-    <article class="booking-row ${booking.status === "arrivati" ? "is-arrived" : ""} ${booking.date !== filterApiDate ? "is-other-date" : ""}">
+    <article class="booking-row ${bookingRowClasses(booking, filterApiDate)}">
       <div class="time">${escapeHtml(booking.time)}</div>
       <div class="booking-main">
         ${booking.date !== filterApiDate ? `<p class="other-date-alert">Attenzione: prenotazione del ${formatDate(booking.date)}</p>` : ""}
@@ -413,9 +415,19 @@ function roomFilterLabel(room) {
   const labels = {
     ristorante: "Ristorante Esterno",
     bar: "Bar",
-    giardino: "Giardino"
+    giardino: "Giardino",
+    esterni: "Ristorante Esterno + Giardino"
   };
   return labels[room] || room;
+}
+
+function bookingRowClasses(booking, filterApiDate) {
+  return [
+    booking.status === "arrivati" ? "is-arrived" : "",
+    booking.status === "annullata" ? "is-cancelled" : "",
+    roomStatKey(booking.room) === "bar" ? "is-bar-room" : "",
+    booking.date !== filterApiDate ? "is-other-date" : ""
+  ].filter(Boolean).join(" ");
 }
 
 function roomDisplayName(room) {

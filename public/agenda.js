@@ -118,7 +118,7 @@ function renderAgenda(bookings, date) {
   }
 
   agendaList.innerHTML = filtered.map((booking) => `
-    <article class="booking-row agenda-row ${booking.status === "arrivati" ? "is-arrived" : ""}">
+    <article class="booking-row agenda-row ${bookingRowClasses(booking)}">
       <div class="time">${escapeHtml(booking.time)}</div>
       <div class="booking-main">
         <h3>${escapeHtml(booking.guestName)} · ${Number(booking.people)} persone</h3>
@@ -153,7 +153,9 @@ function statusClass(status) {
 
 function matchesRoomFilter(booking) {
   if (!activeRoomFilter) return true;
-  return roomStatKey(booking.room) === activeRoomFilter;
+  const room = roomStatKey(booking.room);
+  if (activeRoomFilter === "esterni") return room === "ristorante" || room === "giardino";
+  return room === activeRoomFilter;
 }
 
 function renderRoomStats(bookings) {
@@ -244,9 +246,18 @@ function roomFilterLabel(room) {
   const labels = {
     ristorante: "Ristorante Esterno",
     bar: "Bar",
-    giardino: "Giardino"
+    giardino: "Giardino",
+    esterni: "Ristorante Esterno + Giardino"
   };
   return labels[room] || room;
+}
+
+function bookingRowClasses(booking) {
+  return [
+    booking.status === "arrivati" ? "is-arrived" : "",
+    booking.status === "annullata" ? "is-cancelled" : "",
+    roomStatKey(booking.room) === "bar" ? "is-bar-room" : ""
+  ].filter(Boolean).join(" ");
 }
 
 function roomDisplayName(room) {

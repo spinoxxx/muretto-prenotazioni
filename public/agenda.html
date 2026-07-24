@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Agenda Muretto</title>
-    <link rel="stylesheet" href="/styles.css?v=9">
+    <link rel="stylesheet" href="/styles.css?v=10">
   </head>
   <body>
     <main class="shell">
@@ -93,11 +93,16 @@
               </div>
               <small id="agendaGardenLimitWarning" class="limit-warning" hidden></small>
             </article>
+            <article class="stat-card stat-card-filter-only" data-agenda-room-filter="esterni" role="button" tabindex="0" aria-pressed="false">
+              <span>+</span>
+              <p>Esterni</p>
+              <small>Ristorante Esterno + Giardino</small>
+            </article>
           </section>
           <div id="agendaList" class="booking-list" aria-live="polite"></div>
         </section>
       </section>
     </main>
-    <script src="/agenda.js?v=14" type="module"></script>
+    <script src="/agenda.js?v=15" type="module"></script>
   </body>
 </html>
