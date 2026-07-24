@@ -256,6 +256,7 @@ function bookingRowClasses(booking) {
   return [
     booking.status === "arrivati" ? "is-arrived" : "",
     booking.status === "annullata" ? "is-cancelled" : "",
+    booking.status === "in attesa" ? "is-waiting" : "",
     roomStatKey(booking.room) === "bar" ? "is-bar-room" : ""
   ].filter(Boolean).join(" ");
 }
