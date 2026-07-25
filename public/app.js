@@ -12,6 +12,7 @@ const resetFormButton = document.querySelector("#resetFormButton");
 const formTitle = document.querySelector("#formTitle");
 const filterDate = document.querySelector("#filterDate");
 const filterDateDisplay = document.querySelector("#filterDateDisplay");
+const statusFilter = document.querySelector("#statusFilter");
 const bookingDateDisplay = document.querySelector("#bookingDateDisplay");
 const phoneBookingDateDisplay = document.querySelector("#phoneBookingDateDisplay");
 const prevDayButton = document.querySelector("#prevDayButton");
@@ -98,6 +99,7 @@ let weeklyExportBookings = [];
 let activeCustomerMessageBooking = null;
 let currentEmployee = null;
 let activeRoomFilter = "";
+let activeStatusFilter = "";
 
 const today = new Date().toISOString().slice(0, 10);
 filterDate.value = today;
@@ -250,6 +252,11 @@ function matchesRoomFilter(booking) {
   return room === activeRoomFilter;
 }
 
+function matchesStatusFilter(booking) {
+  if (!activeStatusFilter) return true;
+  return booking.status === activeStatusFilter;
+}
+
 function bookingSortValue(booking) {
   return `${booking.date || ""} ${booking.time || ""}`;
 }
@@ -376,12 +383,13 @@ function renderLimitWarning(room, values) {
 function renderBookings() {
   const term = searchInput.value.trim();
   const sourceBookings = term ? mergeBookings(bookings, searchBookings) : bookings;
-  const filtered = sourceBookings.filter((booking) => matchesSearch(booking, term) && matchesRoomFilter(booking));
+  const filtered = sourceBookings.filter((booking) => matchesSearch(booking, term) && matchesRoomFilter(booking) && matchesStatusFilter(booking));
   renderedBookings = filtered;
   const filterApiDate = toApiDate(filterDate.value);
   const roomLabel = activeRoomFilter ? ` · ${roomFilterLabel(activeRoomFilter)}` : "";
+  const statusLabel = activeStatusFilter ? ` · Stato ${activeStatusFilter}` : "";
   const searchLabel = term ? " · ricerca anche su prenotazioni future" : "";
-  rangeLabel.textContent = filterApiDate ? `Data ${formatDate(filterApiDate)}${roomLabel}${searchLabel}` : `Tutte le date${roomLabel}${searchLabel}`;
+  rangeLabel.textContent = filterApiDate ? `Data ${formatDate(filterApiDate)}${roomLabel}${statusLabel}${searchLabel}` : `Tutte le date${roomLabel}${statusLabel}${searchLabel}`;
   renderRoomStats();
   renderRoomFilterState();
 
@@ -1145,6 +1153,10 @@ logoutButton.addEventListener("click", async () => {
 });
 
 resetFormButton.addEventListener("click", resetForm);
+statusFilter.addEventListener("change", () => {
+  activeStatusFilter = statusFilter.value;
+  renderBookings();
+});
 filterDate.addEventListener("change", async () => {
   updateDateDisplay(filterDate, filterDateDisplay);
   syncNewBookingDateWithAgenda();

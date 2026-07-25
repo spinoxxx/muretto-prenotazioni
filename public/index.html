@@ -59,6 +59,18 @@
               <input id="filterDate" type="date" aria-label="Filtra per data">
               <span id="filterDateDisplay" class="date-display" aria-hidden="true"></span>
             </span>
+            <label class="status-filter">
+              Stato
+              <select id="statusFilter" aria-label="Filtra per stato">
+                <option value="">Tutti gli stati</option>
+                <option value="confermata">Confermata</option>
+                <option value="in attesa">In attesa</option>
+                <option value="da verificare">Da verificare</option>
+                <option value="arrivati">Arrivati</option>
+                <option value="annullata">Annullata</option>
+                <option value="completata">Completata</option>
+              </select>
+            </label>
             <button id="nextDayButton" class="ghost icon-button" type="button" aria-label="Giorno successivo">›</button>
             <button id="todayButton" class="ghost today-button" type="button">Oggi</button>
             <button id="exportWeekButton" class="ghost today-button" type="button">Esporta settimana</button>
@@ -466,6 +478,6 @@
       </form>
     </dialog>
     <section id="weeklyPrintArea" class="weekly-print-area" aria-hidden="true"></section>
-    <script src="/app.js?v=38" type="module"></script>
+    <script src="/app.js?v=39" type="module"></script>
   </body>
 </html>

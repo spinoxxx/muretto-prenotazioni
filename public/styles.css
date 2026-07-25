@@ -312,6 +312,24 @@ label {
   font-weight: 850;
 }
 
+.status-filter {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.status-filter select {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 12px;
+  color: var(--ink);
+  background: #fff;
+  font-weight: 800;
+}
+
 .stats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

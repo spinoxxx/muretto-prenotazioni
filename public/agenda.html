@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Agenda Muretto</title>
-    <link rel="stylesheet" href="/styles.css?v=10">
+    <link rel="stylesheet" href="/styles.css?v=11">
   </head>
   <body>
     <main class="shell">
@@ -58,6 +58,18 @@
                 <input id="agendaDate" type="date" aria-label="Data agenda">
                 <span id="agendaDateDisplay" class="date-display" aria-hidden="true"></span>
               </span>
+              <label class="status-filter">
+                Stato
+                <select id="agendaStatusFilter" aria-label="Filtra per stato">
+                  <option value="">Tutti gli stati</option>
+                  <option value="confermata">Confermata</option>
+                  <option value="in attesa">In attesa</option>
+                  <option value="da verificare">Da verificare</option>
+                  <option value="arrivati">Arrivati</option>
+                  <option value="annullata">Annullata</option>
+                  <option value="completata">Completata</option>
+                </select>
+              </label>
               <button id="agendaNextDay" class="ghost icon-button" type="button" aria-label="Giorno successivo">›</button>
               <button id="agendaToday" class="ghost today-button" type="button">Oggi</button>
             </div>
@@ -103,6 +115,6 @@
         </section>
       </section>
     </main>
-    <script src="/agenda.js?v=16" type="module"></script>
+    <script src="/agenda.js?v=17" type="module"></script>
   </body>
 </html>

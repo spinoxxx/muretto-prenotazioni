@@ -6,6 +6,7 @@ const employeeName = document.querySelector("#agendaEmployeeName");
 const logoutButton = document.querySelector("#agendaLogoutButton");
 const agendaDate = document.querySelector("#agendaDate");
 const agendaDateDisplay = document.querySelector("#agendaDateDisplay");
+const agendaStatusFilter = document.querySelector("#agendaStatusFilter");
 const agendaPrevDay = document.querySelector("#agendaPrevDay");
 const agendaNextDay = document.querySelector("#agendaNextDay");
 const agendaToday = document.querySelector("#agendaToday");
@@ -43,6 +44,7 @@ let csrfToken = "";
 let agendaBookings = [];
 let agendaZoneSettings = null;
 let activeRoomFilter = "";
+let activeStatusFilter = "";
 
 const today = new Date().toISOString().slice(0, 10);
 agendaDate.value = today;
@@ -106,9 +108,10 @@ function showAgenda(employee) {
 }
 
 function renderAgenda(bookings, date) {
-  const filtered = bookings.filter(matchesRoomFilter);
+  const filtered = bookings.filter((booking) => matchesRoomFilter(booking) && matchesStatusFilter(booking));
   const roomLabel = activeRoomFilter ? ` · ${roomFilterLabel(activeRoomFilter)}` : "";
-  agendaRangeLabel.textContent = `${formatDate(date)}${roomLabel}`;
+  const statusLabel = activeStatusFilter ? ` · Stato ${activeStatusFilter}` : "";
+  agendaRangeLabel.textContent = `${formatDate(date)}${roomLabel}${statusLabel}`;
   renderRoomStats(bookings);
   renderRoomFilterState();
 
@@ -156,6 +159,11 @@ function matchesRoomFilter(booking) {
   const room = roomStatKey(booking.room);
   if (activeRoomFilter === "esterni") return room === "ristorante" || room === "giardino";
   return room === activeRoomFilter;
+}
+
+function matchesStatusFilter(booking) {
+  if (!activeStatusFilter) return true;
+  return booking.status === activeStatusFilter;
 }
 
 function renderRoomStats(bookings) {
@@ -349,6 +357,11 @@ logoutButton.addEventListener("click", async () => {
 agendaDate.addEventListener("change", async () => {
   updateDateDisplay(agendaDate, agendaDateDisplay);
   await loadAgenda();
+});
+agendaStatusFilter.addEventListener("change", () => {
+  activeStatusFilter = agendaStatusFilter.value;
+  const selectedDate = toApiDate(agendaDate.value) || today;
+  renderAgenda(agendaBookings, selectedDate);
 });
 agendaPrevDay.addEventListener("click", async () => {
   agendaDate.value = addDays(agendaDate.value, -1);
