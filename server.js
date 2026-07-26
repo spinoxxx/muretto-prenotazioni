@@ -1720,6 +1720,7 @@ function publicBookingNotificationText(booking) {
   const seat = emailSeatLine(booking, "it");
   const eventLines = specialEventEmailLines(booking, "it");
   const needsAttention = booking.status !== "confermata";
+  const adminLinks = adminBookingActionLinks(booking);
   return [
     needsAttention ? "ATTENZIONE: prenotazione ricevuta dal modulo online da gestire." : "Nuova prenotazione ricevuta dal modulo online.",
     "",
@@ -1735,22 +1736,72 @@ function publicBookingNotificationText(booking) {
     "",
     `Ricevuta il: ${booking.createdAt}`,
     `Stato iniziale: ${booking.status}`,
+    needsAttention && adminLinks.approve ? "" : "",
+    needsAttention && adminLinks.approve ? `Approva prenotazione: ${adminLinks.approve}` : "",
     "",
     needsAttention ? "Apri il pannello admin per verificare, rispondere o confermare la prenotazione." : "Prenotazione confermata automaticamente. Controlla il pannello admin se servono modifiche."
   ].filter(Boolean).join("\n");
 }
 
+function adminBookingActionLinks(booking) {
+  const token = encodeURIComponent(booking.adminActionToken || "");
+  const id = encodeURIComponent(booking.id || "");
+  return {
+    approve: token && id ? `${PUBLIC_BASE_URL}/api/admin-booking-action?action=approve&id=${id}&token=${token}` : ""
+  };
+}
+
+function publicBookingNotificationHtml(booking) {
+  const seat = emailSeatLine(booking, "it");
+  const eventLines = specialEventEmailLines(booking, "it");
+  const needsAttention = booking.status !== "confermata";
+  const adminLinks = adminBookingActionLinks(booking);
+  return `<!doctype html>
+<html lang="it">
+  <body style="margin:0;padding:0;background:#f7f4ed;font-family:Arial,sans-serif;color:#1f2320;">
+    <div style="max-width:640px;margin:0 auto;padding:24px;">
+      <div style="background:#ffffff;border:1px solid #ded8ce;border-radius:8px;padding:22px;">
+        <p style="margin:0 0 14px;font-weight:700;">${escapeHtml(needsAttention ? "ATTENZIONE: prenotazione ricevuta dal modulo online da gestire." : "Nuova prenotazione ricevuta dal modulo online.")}</p>
+        <p style="margin:0;line-height:1.5;">
+          Cliente: ${escapeHtml(booking.guestName)}<br>
+          Data prenotazione: ${escapeHtml(booking.date)}<br>
+          Ora: ${escapeHtml(booking.time)}<br>
+          Persone: ${escapeHtml(booking.people)}<br>
+          ${seat ? `Zona proposta: ${escapeHtml(seat)}<br>` : ""}
+          ${booking.phone ? `Telefono: ${escapeHtml(booking.phone)}<br>` : ""}
+          ${booking.email ? `Email cliente: ${escapeHtml(booking.email)}<br>` : ""}
+          ${booking.notes ? `Note: ${escapeHtml(booking.notes)}<br>` : ""}
+          ${eventLines.length ? `${eventLines.map(escapeHtml).join("<br>")}<br>` : ""}
+          Ricevuta il: ${escapeHtml(booking.createdAt)}<br>
+          Stato iniziale: ${escapeHtml(booking.status)}
+        </p>
+        ${needsAttention && adminLinks.approve ? `
+        <p style="margin:20px 0 0;">
+          <a href="${escapeHtml(adminLinks.approve)}" style="display:inline-block;padding:12px 16px;border-radius:6px;background:#2f6f5e;color:#ffffff;text-decoration:none;font-weight:700;">Approva prenotazione</a>
+        </p>
+        <p style="margin:10px 0 0;color:#6d756f;font-size:13px;line-height:1.4;">Il pulsante conferma la prenotazione e invia la mail di conferma al cliente.</p>` : `
+        <p style="margin:18px 0 0;color:#6d756f;font-size:13px;line-height:1.4;">Prenotazione confermata automaticamente. Controlla il pannello admin se servono modifiche.</p>`}
+      </div>
+    </div>
+  </body>
+</html>`;
+}
+
 async function markPublicBookingNotification(booking) {
   try {
     const needsAttention = booking.status !== "confermata";
+    const bookingForNotification = needsAttention && !booking.adminActionToken
+      ? { ...booking, adminActionToken: randomToken(24) }
+      : booking;
     const result = await sendPlainEmail({
       to: NOTIFICATION_EMAIL,
       subject: needsAttention ? `ATTENZIONE: Prenotazione da gestire - ${BRAND_CONFIG.name}` : `Nuova prenotazione confermata automaticamente - ${BRAND_CONFIG.name}`,
-      text: publicBookingNotificationText(booking)
+      text: publicBookingNotificationText(bookingForNotification),
+      html: publicBookingNotificationHtml(bookingForNotification)
     });
-    if (!result.sent) return booking;
+    if (!result.sent) return bookingForNotification;
     return {
-      ...booking,
+      ...bookingForNotification,
       notificationEmailSentAt: new Date().toISOString(),
       notificationEmailTo: NOTIFICATION_EMAIL,
       notificationEmailError: ""
@@ -2229,6 +2280,52 @@ async function handleApi(req, res) {
       action === "confirm"
         ? "Grazie, abbiamo registrato la tua conferma. Ti aspettiamo."
         : "Abbiamo registrato l'annullamento della prenotazione. Grazie per averci avvisato."
+    );
+    return;
+  }
+
+  if (url.pathname === "/api/admin-booking-action" && req.method === "GET") {
+    const id = sanitizeText(url.searchParams.get("id"), 80);
+    const token = sanitizeText(url.searchParams.get("token"), 120);
+    const action = sanitizeText(url.searchParams.get("action"), 20);
+    if (!id || !token || action !== "approve") {
+      sendHtml(res, 400, "Link non valido", "Il link usato non è valido o è incompleto.");
+      return;
+    }
+    const bookings = await readJson(bookingsFile, []);
+    const index = bookings.findIndex((item) => item.id === id && item.adminActionToken === token);
+    if (index === -1) {
+      sendHtml(res, 404, "Link non valido", "Non abbiamo trovato una prenotazione collegata a questo link.");
+      return;
+    }
+    if (bookings[index].status === "annullata") {
+      sendHtml(res, 409, "Prenotazione annullata", "Questa prenotazione risulta annullata e non può essere approvata da questo link.");
+      return;
+    }
+    if (bookings[index].status === "confermata") {
+      sendHtml(res, 200, "Prenotazione già confermata", "Questa prenotazione era già confermata. Non sono state fatte altre modifiche.");
+      return;
+    }
+    const previousBooking = { ...bookings[index] };
+    const now = new Date().toISOString();
+    bookings[index] = {
+      ...bookings[index],
+      status: "confermata",
+      notes: appendBookingNote(bookings[index], "Prenotazione approvata dallo staff tramite pulsante email."),
+      adminActionAt: now,
+      adminAction: "approve",
+      updatedAt: now,
+      updatedBy: "staff: approvazione email"
+    };
+    bookings[index] = await markConfirmationEmailIfNeeded(previousBooking, bookings[index], "staff: approvazione email");
+    await writeJson(bookingsFile, bookings);
+    sendHtml(
+      res,
+      200,
+      "Prenotazione approvata",
+      bookings[index].confirmationEmailSentAt
+        ? "Prenotazione confermata. La mail di conferma è stata inviata al cliente."
+        : "Prenotazione confermata. Attenzione: la mail di conferma al cliente non risulta inviata, controlla il pannello admin."
     );
     return;
   }
