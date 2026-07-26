@@ -1060,6 +1060,69 @@ function validatePublicBooking(input) {
   return typeof booking === "string" ? publicValidationError(booking, language) : booking;
 }
 
+function validateEmployeeReferralBooking(input) {
+  const consumption = sanitizeText(input.consumption, 20).toLowerCase();
+  const gardenRequested = input.gardenRequested === true || input.gardenRequested === "on" || input.gardenRequested === "true";
+  const privacyAccepted = input.employeePrivacyAccepted === true || input.employeePrivacyAccepted === "on" || input.employeePrivacyAccepted === "true";
+  const allowedConsumptions = new Set(["cena", "aperitivo"]);
+  if (!privacyAccepted) return "Conferma di aver informato il cliente sulla privacy.";
+  if (!allowedConsumptions.has(consumption)) return "Scegli pranzo/cena o aperitivo.";
+  if (gardenRequested && consumption !== "cena") return "Il giardino si puo richiedere solo per pranzo/cena.";
+  if (!sanitizeText(input.phone, 40) && !sanitizeText(input.email, 120)) return "Inserisci almeno telefono o email del cliente.";
+
+  const room = consumption === "aperitivo" ? "Bar" : gardenRequested ? "Giardino" : RESTAURANT_ROOM;
+  const notes = [
+    "Prenotazione amico inserita da dipendente.",
+    `Consumazione prevista: ${consumption}.`,
+    gardenRequested ? "Richiesta giardino." : "",
+    sanitizeText(input.notes, 220)
+  ].filter(Boolean).join(" ");
+
+  return validateBooking({
+    guestName: input.guestName,
+    phone: input.phone,
+    email: input.email,
+    date: input.date,
+    time: input.time,
+    people: input.people,
+    room,
+    tableNumber: "",
+    status: "confermata",
+    language: "it",
+    notes
+  });
+}
+
+function employeeRewards(bookings, month) {
+  const rows = new Map();
+  for (const booking of bookings) {
+    if (!booking.referredByEmployeeId || booking.status !== "arrivati") continue;
+    if (!String(booking.date || "").startsWith(`${month}-`)) continue;
+    const key = booking.referredByEmployeeId;
+    if (!rows.has(key)) {
+      rows.set(key, {
+        employeeId: key,
+        employeeName: booking.referredByEmployeeName || "Dipendente",
+        bookings: 0,
+        people: 0,
+        items: []
+      });
+    }
+    const row = rows.get(key);
+    row.bookings += 1;
+    row.people += Number(booking.people || 0);
+    row.items.push({
+      id: booking.id,
+      guestName: booking.guestName,
+      date: booking.date,
+      time: booking.time,
+      people: booking.people,
+      room: booking.room || ""
+    });
+  }
+  return [...rows.values()].sort((a, b) => b.bookings - a.bookings || b.people - a.people || a.employeeName.localeCompare(b.employeeName));
+}
+
 function mealPeriod(time) {
   const [hours] = String(time || "").split(":").map(Number);
   return Number.isFinite(hours) && hours >= 18 ? "evening" : "day";
@@ -2350,7 +2413,8 @@ async function handleApi(req, res) {
         room: item.room || "",
         tableNumber: item.tableNumber || "",
         status: item.status,
-        notes: item.notes || ""
+        notes: item.notes || "",
+        referredByEmployeeName: item.referredByEmployeeName || ""
       }));
     sendJson(res, 200, { date, bookings: visible, zoneSettings });
     return;
@@ -2375,12 +2439,22 @@ async function handleApi(req, res) {
         tableNumber: item.tableNumber || "",
         status: item.status,
         notes: item.notes || "",
+        referredByEmployeeName: item.referredByEmployeeName || "",
         language: normalizeLanguage(item.language),
         createdAt: item.createdAt,
         notificationEmailSentAt: item.notificationEmailSentAt || "",
         notificationEmailError: item.notificationEmailError || ""
       }));
     sendJson(res, 200, { bookings: received });
+    return;
+  }
+
+  if (url.pathname === "/api/employee-rewards" && req.method === "GET") {
+    if (!requireAdmin(session, res)) return;
+    const rawMonth = sanitizeText(url.searchParams.get("month"), 7);
+    const month = /^\d{4}-\d{2}$/.test(rawMonth) ? rawMonth : new Date().toISOString().slice(0, 7);
+    const bookings = await readJson(bookingsFile, []);
+    sendJson(res, 200, { month, rewards: employeeRewards(bookings, month) });
     return;
   }
 
@@ -2577,6 +2651,49 @@ async function handleApi(req, res) {
       updatedBy: `telefono: ${session.employeeName}`
     };
     bookings.push(booking);
+    await writeJson(bookingsFile, bookings);
+    sendJson(res, 201, { booking });
+    return;
+  }
+
+  if (url.pathname === "/api/employee-referral-bookings" && req.method === "POST") {
+    const body = await readBody(req);
+    const result = validateEmployeeReferralBooking(body);
+    if (typeof result === "string") {
+      sendJson(res, 400, { error: result });
+      return;
+    }
+    const bookings = await readJson(bookingsFile, []);
+    const slotError = publicSlotError(result, bookings);
+    if (slotError) {
+      sendJson(res, 409, { error: slotError });
+      return;
+    }
+    const zoneError = await publicZoneError(result, bookings);
+    if (zoneError) {
+      sendJson(res, 409, { error: zoneError });
+      return;
+    }
+    const now = new Date().toISOString();
+    let booking = {
+      id: crypto.randomUUID(),
+      ...result,
+      bookingChannel: "dipendente",
+      referredByEmployeeId: session.employeeId,
+      referredByEmployeeName: session.employeeName,
+      referredAt: now,
+      referredByOperator: session.employeeName,
+      employeePrivacyAcceptedAt: now,
+      employeePrivacyAcceptedBy: session.employeeName,
+      createdBy: `dipendente: ${session.employeeName}`,
+      createdAt: now,
+      updatedAt: now,
+      updatedBy: `dipendente: ${session.employeeName}`
+    };
+    bookings.push(booking);
+    await writeJson(bookingsFile, bookings);
+    booking = await markConfirmationEmailIfNeeded(null, booking, `dipendente: ${session.employeeName}`);
+    bookings[bookings.length - 1] = booking;
     await writeJson(bookingsFile, bookings);
     sendJson(res, 201, { booking });
     return;

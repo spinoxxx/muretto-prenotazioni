@@ -126,6 +126,7 @@ function renderAgenda(bookings, date) {
       <div class="booking-main">
         <h3>${escapeHtml(booking.guestName)} · ${Number(booking.people)} persone</h3>
         <p>${seatLine(booking)}</p>
+        ${booking.referredByEmployeeName ? `<p class="booking-referral">Portata da: ${escapeHtml(booking.referredByEmployeeName)}</p>` : ""}
         ${booking.notes ? `<p class="agenda-notes"><strong>Note</strong> ${escapeHtml(booking.notes)}</p>` : ""}
         <p><span class="status ${statusClass(booking.status)}">${escapeHtml(booking.status)}</span></p>
         <form class="table-assignment" data-booking-id="${booking.id}">

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Muretto Prenotazioni</title>
-    <link rel="stylesheet" href="/styles.css?v=21">
+    <link rel="stylesheet" href="/styles.css?v=22">
   </head>
   <body>
     <main class="shell">
@@ -43,6 +43,7 @@
           <div class="session">
             <span id="employeeName"></span>
             <a class="ghost-link" href="/prenota.html">Modulo clienti</a>
+            <a class="ghost-link" href="/dipendenti.html">Modulo dipendenti</a>
             <a class="ghost-link" href="/agenda.html">Agenda</a>
             <button id="logoutButton" class="ghost" type="button">Esci</button>
           </div>
@@ -211,6 +212,20 @@
               <details class="collapsible-admin-section">
                 <summary>Prenotazioni ricevute</summary>
                 <div id="receivedBookingsList" class="received-bookings-list" aria-live="polite"></div>
+              </details>
+            </section>
+
+            <section id="employeeRewardsPanel" class="staff-panel received-bookings-panel" hidden>
+              <details class="collapsible-admin-section">
+                <summary>
+                  <span>Premi dipendenti</span>
+                  <small>Conteggio mensile sulle prenotazioni arrivate.</small>
+                </summary>
+                <label>
+                  Mese
+                  <input id="employeeRewardsMonth" type="month">
+                </label>
+                <div id="employeeRewardsList" class="received-bookings-list" aria-live="polite"></div>
               </details>
             </section>
 
@@ -478,6 +493,6 @@
       </form>
     </dialog>
     <section id="weeklyPrintArea" class="weekly-print-area" aria-hidden="true"></section>
-    <script src="/app.js?v=39" type="module"></script>
+    <script src="/app.js?v=40" type="module"></script>
   </body>
 </html>

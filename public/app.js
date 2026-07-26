@@ -75,6 +75,9 @@ const zoneSettingsMessage = document.querySelector("#zoneSettingsMessage");
 const backupPanel = document.querySelector("#backupPanel");
 const deleteLogPanel = document.querySelector("#deleteLogPanel");
 const receivedBookingsPanel = document.querySelector("#receivedBookingsPanel");
+const employeeRewardsPanel = document.querySelector("#employeeRewardsPanel");
+const employeeRewardsMonth = document.querySelector("#employeeRewardsMonth");
+const employeeRewardsList = document.querySelector("#employeeRewardsList");
 const phoneBookingPanel = document.querySelector("#phoneBookingPanel");
 const createBackupButton = document.querySelector("#createBackupButton");
 const backupMessage = document.querySelector("#backupMessage");
@@ -102,6 +105,7 @@ let activeRoomFilter = "";
 let activeStatusFilter = "";
 
 const today = new Date().toISOString().slice(0, 10);
+employeeRewardsMonth.value = today.slice(0, 7);
 filterDate.value = today;
 bookingForm.elements.date.value = today;
 bookingForm.elements.time.value = "20:00";
@@ -163,6 +167,7 @@ function showLogin() {
   staffPanel.hidden = true;
   zoneSettingsPanel.hidden = true;
   receivedBookingsPanel.hidden = true;
+  employeeRewardsPanel.hidden = true;
   phoneBookingPanel.hidden = true;
   backupPanel.hidden = true;
   deleteLogPanel.hidden = true;
@@ -175,6 +180,7 @@ function showApp(employee) {
   staffPanel.hidden = employee.role !== "admin";
   zoneSettingsPanel.hidden = employee.role !== "admin";
   receivedBookingsPanel.hidden = employee.role !== "admin";
+  employeeRewardsPanel.hidden = employee.role !== "admin";
   phoneBookingPanel.hidden = employee.role !== "admin";
   backupPanel.hidden = employee.role !== "admin";
   deleteLogPanel.hidden = employee.role !== "admin";
@@ -405,6 +411,7 @@ function renderBookings() {
         ${booking.date !== filterApiDate ? `<p class="other-date-alert">Attenzione: prenotazione del ${formatDate(booking.date)}</p>` : ""}
         <h3>${escapeHtml(booking.guestName)} · ${Number(booking.people)} persone</h3>
         <p class="booking-details">${formatDate(booking.date)} · ${seatLine(booking)} · ${contactLine(booking)}</p>
+        ${referralLine(booking) ? `<p class="booking-referral">${referralLine(booking)}</p>` : ""}
         ${booking.notes ? `<p class="booking-notes">${escapeHtml(booking.notes)}</p>` : ""}
         <p><span class="status ${statusClass(booking.status)}">${escapeHtml(booking.status)}</span></p>
         <p class="booking-meta">${bookingMetaLine(booking)}</p>
@@ -502,6 +509,13 @@ async function loadReceivedBookings() {
   renderReceivedBookings(payload.bookings);
 }
 
+async function loadEmployeeRewards() {
+  if (currentEmployee?.role !== "admin") return;
+  const month = employeeRewardsMonth.value || today.slice(0, 7);
+  const payload = await api(`/api/employee-rewards?month=${encodeURIComponent(month)}`);
+  renderEmployeeRewards(payload.rewards);
+}
+
 function contactLine(booking) {
   const parts = [booking.phone, booking.email].filter(Boolean).map(escapeHtml);
   return parts.length ? parts.join(" · ") : "nessun recapito";
@@ -518,6 +532,10 @@ function bookingMetaLine(booking) {
   if (booking.cancellationEmailSentAt) parts.push(`Annullamento inviato ${formatDateTime(booking.cancellationEmailSentAt)}`);
   if (booking.cancellationEmailSkippedAt) parts.push(`Annullamento non inviato ${formatDateTime(booking.cancellationEmailSkippedAt)}`);
   return parts.length ? parts.map(escapeHtml).join(" · ") : "Storico non disponibile";
+}
+
+function referralLine(booking) {
+  return booking.referredByEmployeeName ? `Portata da: ${escapeHtml(booking.referredByEmployeeName)}` : "";
 }
 
 function seatLine(booking) {
@@ -680,6 +698,25 @@ function renderReceivedBookings(receivedBookings) {
       </div>
     `;
   }).join("");
+}
+
+function renderEmployeeRewards(rewards) {
+  if (!rewards.length) {
+    employeeRewardsList.innerHTML = `<p class="empty compact-empty">Nessun premio maturato in questo mese.</p>`;
+    return;
+  }
+
+  employeeRewardsList.innerHTML = rewards.map((reward) => `
+    <div class="received-booking-row reward-row">
+      <div>
+        <strong>${escapeHtml(reward.employeeName)}</strong>
+        <span>${Number(reward.bookings || 0)} prenotazioni arrivate · ${Number(reward.people || 0)} coperti</span>
+        ${reward.items.map((item) => `
+          <span>${formatDate(item.date)} · ${escapeHtml(item.time || "")} · ${escapeHtml(item.guestName || "")} · ${Number(item.people || 0)} persone · Sala ${escapeHtml(roomDisplayName(item.room))}</span>
+        `).join("")}
+      </div>
+    </div>
+  `).join("");
 }
 
 async function openWeeklyExport() {
@@ -1003,6 +1040,7 @@ loginForm.addEventListener("submit", async (event) => {
     showApp(payload.employee);
     await loadBookings();
     await loadReceivedBookings();
+    await loadEmployeeRewards();
     await loadEmployees();
     await loadZoneSettings();
     await loadBackups();
@@ -1030,6 +1068,7 @@ bookingForm.addEventListener("submit", async (event) => {
     resetSearchBookings();
     await loadBookings();
     await handleSearchInput();
+    await loadEmployeeRewards();
   } catch (error) {
     formMessage.textContent = error.message;
   }
@@ -1076,6 +1115,7 @@ bookingList.addEventListener("click", async (event) => {
     resetSearchBookings();
     await loadBookings();
     await handleSearchInput();
+    await loadEmployeeRewards();
     return;
   }
 
@@ -1093,6 +1133,7 @@ bookingList.addEventListener("click", async (event) => {
     await loadBookings();
     await handleSearchInput();
     await loadDeleteLogs();
+    await loadEmployeeRewards();
   }
 });
 
@@ -1156,6 +1197,11 @@ resetFormButton.addEventListener("click", resetForm);
 statusFilter.addEventListener("change", () => {
   activeStatusFilter = statusFilter.value;
   renderBookings();
+});
+employeeRewardsMonth.addEventListener("change", () => {
+  loadEmployeeRewards().catch((error) => {
+    formMessage.textContent = error.message;
+  });
 });
 filterDate.addEventListener("change", async () => {
   updateDateDisplay(filterDate, filterDateDisplay);

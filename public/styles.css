@@ -1398,6 +1398,24 @@ label {
   align-items: center;
 }
 
+.public-referral-topbar {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 18px;
+  background: rgb(255 255 255 / 92%);
+  box-shadow: var(--shadow);
+}
+
+.booking-referral {
+  color: var(--accent-dark);
+  font-size: 0.86rem;
+  font-weight: 850;
+}
+
+.reward-row span {
+  display: block;
+}
+
 .check-row {
   display: flex;
   align-items: center;
