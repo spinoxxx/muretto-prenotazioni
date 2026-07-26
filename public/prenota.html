@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Prenota</title>
-    <link rel="stylesheet" href="/styles.css?v=16">
+    <link rel="stylesheet" href="/styles.css?v=17">
   </head>
   <body>
     <main class="shell public-shell">
@@ -59,18 +59,13 @@
             </label>
           </div>
 
-          <div class="grid-3">
+          <div class="grid-2">
             <label>
               Data
               <span class="date-field">
                 <input id="publicBookingDate" name="date" type="date" required aria-label="Data prenotazione">
                 <span id="publicBookingDateDisplay" class="date-display" aria-hidden="true"></span>
               </span>
-            </label>
-            <label>
-              Ora
-              <input name="time" type="hidden" required>
-              <span id="publicTimeSlots" class="public-time-slots" aria-live="polite"></span>
             </label>
             <label>
               Persone
@@ -118,6 +113,15 @@
             <img src="/zone-giardino.jpg" alt="Tavoli della zona Giardino" loading="lazy">
           </label>
 
+          <section class="public-time-section" aria-labelledby="publicTimeSlotsTitle">
+            <div>
+              <h3 id="publicTimeSlotsTitle">Scegli orario</h3>
+              <p>Le fasce disponibili cambiano in base a data, persone e zona.</p>
+            </div>
+            <input name="time" type="hidden" required>
+            <div id="publicTimeSlots" class="public-time-slots" aria-live="polite"></div>
+          </section>
+
           <label>
             Note
             <textarea name="notes" maxlength="220" rows="4" placeholder="Es. passeggino, compleanno, intolleranze, preferenze"></textarea>
@@ -151,6 +155,6 @@
         </section>
       </section>
     </main>
-    <script src="/prenota.js?v=10" type="module"></script>
+    <script src="/prenota.js?v=11" type="module"></script>
   </body>
 </html>

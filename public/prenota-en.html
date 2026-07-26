@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Book a Table</title>
-    <link rel="stylesheet" href="/styles.css?v=16">
+    <link rel="stylesheet" href="/styles.css?v=17">
   </head>
   <body>
     <main class="shell public-shell">
@@ -59,18 +59,13 @@
             </label>
           </div>
 
-          <div class="grid-3">
+          <div class="grid-2">
             <label>
               Date
               <span class="date-field">
                 <input id="publicBookingDate" name="date" type="date" required aria-label="Booking date">
                 <span id="publicBookingDateDisplay" class="date-display" aria-hidden="true"></span>
               </span>
-            </label>
-            <label>
-              Time
-              <input name="time" type="hidden" required>
-              <span id="publicTimeSlots" class="public-time-slots" aria-live="polite"></span>
             </label>
             <label>
               Guests
@@ -118,6 +113,15 @@
             <img src="/zone-giardino.jpg" alt="Garden area tables" loading="lazy">
           </label>
 
+          <section class="public-time-section" aria-labelledby="publicTimeSlotsTitle">
+            <div>
+              <h3 id="publicTimeSlotsTitle">Choose a time</h3>
+              <p>Available slots change based on date, guests and area.</p>
+            </div>
+            <input name="time" type="hidden" required>
+            <div id="publicTimeSlots" class="public-time-slots" aria-live="polite"></div>
+          </section>
+
           <label>
             Notes
             <textarea name="notes" maxlength="220" rows="4" placeholder="E.g. stroller, birthday, allergies, preferences"></textarea>
@@ -151,6 +155,6 @@
         </section>
       </section>
     </main>
-    <script src="/prenota.js?v=10" type="module"></script>
+    <script src="/prenota.js?v=11" type="module"></script>
   </body>
 </html>
