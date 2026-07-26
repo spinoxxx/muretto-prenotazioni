@@ -44,6 +44,13 @@ const SPECIAL_EVENT_TIME = "20:00";
 const SPECIAL_EVENT_PRICE = "45€ a persona, bevande escluse";
 const SPECIAL_EVENT_MENU = "Antipasto: scampo flambato al Grand Marnier con purè di patate e olio all'erba cipollina. Primo: linguine alle vongole e bottarga. Dolce: cheese cake.";
 const PUBLIC_AUTO_CONFIRM_LIMIT_RATIO = 0.85;
+const PUBLIC_SLOT_INTERVAL_MINUTES = 15;
+const PUBLIC_SLOT_MAX_BOOKINGS = 3;
+const PUBLIC_SLOT_WINDOWS = {
+  lunch: { start: "12:00", end: "14:30" },
+  aperitivo: { start: "18:00", end: "20:30" },
+  dinner: { start: "19:00", end: "22:00" }
+};
 const PUBLIC_BASE_URL = sanitizePublicText(process.env.MURETTO_PUBLIC_URL, "https://muretto-prenotazioni.onrender.com", 220).replace(/\/+$/, "");
 const PUBLIC_BOOKING_URL = `${PUBLIC_BASE_URL}/prenota.html`;
 
@@ -141,6 +148,22 @@ function traceTimestamp(value = new Date()) {
     hour: "2-digit",
     minute: "2-digit"
   }).format(value);
+}
+
+function romeNowParts() {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Rome",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  }).formatToParts(new Date()).map((part) => [part.type, part.value]));
+  return {
+    date: `${parts.year}-${parts.month}-${parts.day}`,
+    minutes: Number(parts.hour) * 60 + Number(parts.minute)
+  };
 }
 
 function appendBookingNote(booking, note) {
@@ -1042,6 +1065,27 @@ function mealPeriod(time) {
   return Number.isFinite(hours) && hours >= 18 ? "evening" : "day";
 }
 
+function minutesToClockTime(minutes) {
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
+}
+
+function publicSlotTimes(consumption) {
+  const windows = sanitizeText(consumption, 20).toLowerCase() === "aperitivo"
+    ? [PUBLIC_SLOT_WINDOWS.aperitivo]
+    : [PUBLIC_SLOT_WINDOWS.lunch, PUBLIC_SLOT_WINDOWS.dinner];
+  return windows.flatMap((window) => {
+    const start = clockTimeToMinutes(window.start);
+    const end = clockTimeToMinutes(window.end);
+    const slots = [];
+    for (let minutes = start; minutes <= end; minutes += PUBLIC_SLOT_INTERVAL_MINUTES) {
+      slots.push(minutesToClockTime(minutes));
+    }
+    return slots;
+  });
+}
+
 function emptyZonePeriod(room) {
   return { limit: DEFAULT_ZONE_LIMITS[room] || 0, blocked: false };
 }
@@ -1115,6 +1159,32 @@ function zoneOccupancy(bookings, booking) {
     .reduce((total, item) => total + Number(item.people || 0), 0);
 }
 
+function publicSlotBookingCount(bookings, booking) {
+  return bookings
+    .filter((item) => item.date === booking.date)
+    .filter((item) => item.status !== "annullata")
+    .filter((item) => item.time === booking.time)
+    .length;
+}
+
+function publicSlotError(booking, bookings) {
+  const language = normalizeLanguage(booking.language);
+  const now = romeNowParts();
+  const bookingMinutes = clockTimeToMinutes(booking.time);
+  if (booking.date < now.date || (booking.date === now.date && bookingMinutes !== null && bookingMinutes <= now.minutes)) {
+    return language === "en" ? "Choose a future time slot." : "Scegli una fascia oraria futura.";
+  }
+  const consumption = booking.room === "Bar" ? "aperitivo" : "cena";
+  const allowedTimes = new Set(publicSlotTimes(consumption));
+  if (!allowedTimes.has(booking.time)) {
+    return language === "en" ? "Choose one of the available time slots." : "Scegli una delle fasce orarie disponibili.";
+  }
+  if (publicSlotBookingCount(bookings, booking) >= PUBLIC_SLOT_MAX_BOOKINGS) {
+    return language === "en" ? "This time slot is no longer available. Choose another time." : "Questa fascia oraria non e piu disponibile. Scegli un altro orario.";
+  }
+  return "";
+}
+
 async function publicZoneError(booking, bookings) {
   if (!ZONE_ROOMS.includes(booking.room)) return "";
   const language = normalizeLanguage(booking.language);
@@ -1129,6 +1199,31 @@ async function publicZoneError(booking, bookings) {
     return language === "en" ? `${roomName} does not have enough availability for the ${periodLabel} service.` : `${booking.room} non ha abbastanza disponibilita nella fascia ${periodLabel}.`;
   }
   return "";
+}
+
+async function publicBookingSlots(input, bookings) {
+  const language = normalizeLanguage(input.language);
+  const date = normalizeDate(input.date);
+  const people = Number(input.people || 0);
+  const consumption = sanitizeText(input.consumption, 20).toLowerCase();
+  const gardenRequested = input.gardenRequested === true || input.gardenRequested === "on" || input.gardenRequested === "true";
+  const allowedConsumptions = new Set(["cena", "aperitivo"]);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !allowedConsumptions.has(consumption) || !Number.isInteger(people) || people < 1 || people > 40) {
+    return { ok: false, error: language === "en" ? "Enter date, type of visit and number of guests." : "Inserisci data, tipo di consumazione e numero di persone." };
+  }
+  if (gardenRequested && consumption !== "cena") {
+    return { ok: false, error: language === "en" ? "The garden can only be requested for lunch/dinner." : "Il giardino si puo richiedere solo per pranzo/cena." };
+  }
+
+  const room = consumption === "aperitivo" ? "Bar" : gardenRequested ? "Giardino" : RESTAURANT_ROOM;
+  const slots = [];
+  for (const time of publicSlotTimes(consumption)) {
+    const draft = { date, time, people, room, language };
+    const zoneError = await publicZoneError(draft, bookings);
+    const slotError = publicSlotError(draft, bookings);
+    if (!zoneError && !slotError) slots.push({ time });
+  }
+  return { ok: true, date, room, slots };
 }
 
 async function publicBookingAutomation(booking, bookings) {
@@ -1166,7 +1261,7 @@ async function publicBookingAutomation(booking, bookings) {
   if (limit > 0 && projected > Math.floor(limit * PUBLIC_AUTO_CONFIRM_LIMIT_RATIO)) {
     return {
       ...booking,
-      status: "in attesa",
+      status: "da verificare",
       notes: appendBookingNote(booking, `Automazione: soglia 85% quasi raggiunta (${projected}/${limit} coperti), conferma manuale richiesta.`)
     };
   }
@@ -1968,6 +2063,23 @@ async function handleApi(req, res) {
     return;
   }
 
+  if (url.pathname === "/api/public-booking-slots" && req.method === "GET") {
+    const bookings = await readJson(bookingsFile, []);
+    const result = await publicBookingSlots({
+      date: url.searchParams.get("date"),
+      consumption: url.searchParams.get("consumption"),
+      gardenRequested: url.searchParams.get("gardenRequested"),
+      people: url.searchParams.get("people"),
+      language: url.searchParams.get("language")
+    }, bookings);
+    if (!result.ok) {
+      sendJson(res, 400, { error: result.error });
+      return;
+    }
+    sendJson(res, 200, result);
+    return;
+  }
+
   if (url.pathname === "/api/public-bookings" && req.method === "POST") {
     if (!allowPublicBookingAttempt(req)) {
       sendJson(res, 429, { error: "Troppe richieste. Riprova tra qualche minuto." });
@@ -1984,6 +2096,11 @@ async function handleApi(req, res) {
       return;
     }
     const bookings = await readJson(bookingsFile, []);
+    const slotError = publicSlotError(result, bookings);
+    if (slotError) {
+      sendJson(res, 409, { error: slotError });
+      return;
+    }
     const zoneError = await publicZoneError(result, bookings);
     if (zoneError) {
       sendJson(res, 409, { error: zoneError });

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Prenota</title>
-    <link rel="stylesheet" href="/styles.css?v=15">
+    <link rel="stylesheet" href="/styles.css?v=16">
   </head>
   <body>
     <main class="shell public-shell">
@@ -69,7 +69,8 @@
             </label>
             <label>
               Ora
-              <input name="time" type="time" required>
+              <input name="time" type="hidden" required>
+              <span id="publicTimeSlots" class="public-time-slots" aria-live="polite"></span>
             </label>
             <label>
               Persone
@@ -150,6 +151,6 @@
         </section>
       </section>
     </main>
-    <script src="/prenota.js?v=9" type="module"></script>
+    <script src="/prenota.js?v=10" type="module"></script>
   </body>
 </html>

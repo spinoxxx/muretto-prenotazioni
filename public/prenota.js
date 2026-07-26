@@ -5,14 +5,19 @@ const message = document.querySelector("#publicBookingMessage");
 const gardenRequest = document.querySelector("#gardenRequest");
 const eventBookingNotice = document.querySelector("#eventBookingNotice");
 const publicEventCard = document.querySelector("#publicEventCard");
+const publicTimeSlots = document.querySelector("#publicTimeSlots");
 const zonePreviewCards = document.querySelectorAll("[data-zone-preview]");
 const SPECIAL_EVENT_DATE = "2026-07-22";
 const pageLanguage = document.documentElement.lang === "en" ? "en" : "it";
+let timeSlotRequestId = 0;
 const copy = {
   it: {
     apiError: "Operazione non riuscita",
     sending: "Invio richiesta in corso...",
     selectDate: "Seleziona data",
+    loadingSlots: "Carico fasce disponibili...",
+    noSlots: "Nessuna fascia disponibile per questa scelta.",
+    chooseSlot: "Scegli una fascia oraria.",
     gardenPending: "Giardino richiesto, da confermare",
     proposedRoom: "Zona proposta",
     emailNotice: " Riceverai conferma via mail appena verificata.",
@@ -27,6 +32,9 @@ const copy = {
     apiError: "Something went wrong",
     sending: "Sending request...",
     selectDate: "Select date",
+    loadingSlots: "Loading available time slots...",
+    noSlots: "No time slots available for this selection.",
+    chooseSlot: "Choose a time slot.",
     gardenPending: "Garden requested, to be confirmed",
     proposedRoom: "Suggested area",
     emailNotice: " You will receive confirmation by email once verified.",
@@ -42,7 +50,7 @@ const copy = {
 const today = new Date().toISOString().slice(0, 10);
 bookingDate.min = today;
 bookingDate.value = today;
-bookingForm.elements.time.value = "20:00";
+bookingForm.elements.time.value = "";
 updateDateDisplay(bookingDate, bookingDateDisplay);
 syncSpecialEventNotice();
 syncPublicEventCard();
@@ -96,6 +104,17 @@ function toPayload() {
   return data;
 }
 
+function slotParams() {
+  const params = new URLSearchParams({
+    date: bookingDate.value,
+    consumption: activeConsumption(),
+    gardenRequested: bookingForm.elements.gardenRequested.checked ? "true" : "false",
+    people: bookingForm.elements.people.value || "2",
+    language: pageLanguage
+  });
+  return params.toString();
+}
+
 function activeConsumption() {
   return bookingForm.elements.consumption.value;
 }
@@ -104,9 +123,8 @@ function syncGardenRequest() {
   const isDinner = activeConsumption() === "cena";
   gardenRequest.hidden = !isDinner;
   if (!isDinner) bookingForm.elements.gardenRequested.checked = false;
-  if (isDinner && !bookingForm.elements.time.value) bookingForm.elements.time.value = "20:00";
-  if (!isDinner && bookingForm.elements.time.value === "20:00") bookingForm.elements.time.value = "18:30";
   syncZonePreview();
+  loadTimeSlots();
 }
 
 function syncZonePreview() {
@@ -154,19 +172,66 @@ function roomLabel(room) {
   return room;
 }
 
+function selectTimeSlot(time) {
+  bookingForm.elements.time.value = time;
+  publicTimeSlots.querySelectorAll("button").forEach((button) => {
+    const selected = button.dataset.time === time;
+    button.classList.toggle("is-selected", selected);
+    button.setAttribute("aria-pressed", selected ? "true" : "false");
+  });
+}
+
+async function loadTimeSlots() {
+  const requestId = ++timeSlotRequestId;
+  bookingForm.elements.time.value = "";
+  publicTimeSlots.textContent = copy.loadingSlots;
+  publicTimeSlots.classList.add("is-loading");
+  try {
+    const payload = await api(`/api/public-booking-slots?${slotParams()}`);
+    if (requestId !== timeSlotRequestId) return;
+    publicTimeSlots.classList.remove("is-loading");
+    publicTimeSlots.textContent = "";
+    if (!payload.slots.length) {
+      publicTimeSlots.textContent = copy.noSlots;
+      return;
+    }
+    payload.slots.forEach((slot) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.time = slot.time;
+      button.textContent = slot.time;
+      button.setAttribute("aria-pressed", "false");
+      button.addEventListener("click", () => selectTimeSlot(slot.time));
+      publicTimeSlots.append(button);
+    });
+  } catch (error) {
+    if (requestId !== timeSlotRequestId) return;
+    publicTimeSlots.classList.remove("is-loading");
+    publicTimeSlots.textContent = error.message;
+  }
+}
+
 bookingDate.addEventListener("change", () => {
   updateDateDisplay(bookingDate, bookingDateDisplay);
   syncSpecialEventNotice();
+  loadTimeSlots();
 });
+
+bookingForm.elements.people.addEventListener("input", loadTimeSlots);
 
 bookingForm.querySelectorAll("input[name='consumption']").forEach((input) => {
   input.addEventListener("change", syncGardenRequest);
 });
 
 bookingForm.elements.gardenRequested.addEventListener("change", syncZonePreview);
+bookingForm.elements.gardenRequested.addEventListener("change", loadTimeSlots);
 
 bookingForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (!bookingForm.elements.time.value) {
+    message.textContent = copy.chooseSlot;
+    return;
+  }
   message.textContent = copy.sending;
   const submitButton = bookingForm.querySelector("button[type='submit']");
   submitButton.disabled = true;
@@ -186,7 +251,7 @@ bookingForm.addEventListener("submit", async (event) => {
       : copy.success(formatDate(payload.booking.date), payload.booking.time, roomText, emailText);
     bookingForm.reset();
     bookingDate.value = today;
-    bookingForm.elements.time.value = "20:00";
+    bookingForm.elements.time.value = "";
     bookingForm.elements.people.value = 2;
     updateDateDisplay(bookingDate, bookingDateDisplay);
     syncGardenRequest();
