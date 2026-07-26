@@ -2,7 +2,6 @@ const loginView = document.querySelector("#loginView");
 const appView = document.querySelector("#appView");
 const loginForm = document.querySelector("#loginForm");
 const bookingForm = document.querySelector("#bookingForm");
-const phoneBookingForm = document.querySelector("#phoneBookingForm");
 const bookingList = document.querySelector("#bookingList");
 const loginError = document.querySelector("#loginError");
 const formMessage = document.querySelector("#formMessage");
@@ -14,7 +13,6 @@ const filterDate = document.querySelector("#filterDate");
 const filterDateDisplay = document.querySelector("#filterDateDisplay");
 const statusFilter = document.querySelector("#statusFilter");
 const bookingDateDisplay = document.querySelector("#bookingDateDisplay");
-const phoneBookingDateDisplay = document.querySelector("#phoneBookingDateDisplay");
 const prevDayButton = document.querySelector("#prevDayButton");
 const nextDayButton = document.querySelector("#nextDayButton");
 const todayButton = document.querySelector("#todayButton");
@@ -78,7 +76,6 @@ const receivedBookingsPanel = document.querySelector("#receivedBookingsPanel");
 const employeeRewardsPanel = document.querySelector("#employeeRewardsPanel");
 const employeeRewardsMonth = document.querySelector("#employeeRewardsMonth");
 const employeeRewardsList = document.querySelector("#employeeRewardsList");
-const phoneBookingPanel = document.querySelector("#phoneBookingPanel");
 const createBackupButton = document.querySelector("#createBackupButton");
 const backupMessage = document.querySelector("#backupMessage");
 const backupDownloadLink = document.querySelector("#backupDownloadLink");
@@ -88,7 +85,6 @@ const receivedBookingsList = document.querySelector("#receivedBookingsList");
 const employeeForm = document.querySelector("#employeeForm");
 const employeeList = document.querySelector("#employeeList");
 const employeeMessage = document.querySelector("#employeeMessage");
-const phoneBookingMessage = document.querySelector("#phoneBookingMessage");
 
 let csrfToken = "";
 let bookings = [];
@@ -109,11 +105,8 @@ employeeRewardsMonth.value = today.slice(0, 7);
 filterDate.value = today;
 bookingForm.elements.date.value = today;
 bookingForm.elements.time.value = "20:00";
-phoneBookingForm.elements.date.value = today;
-phoneBookingForm.elements.time.value = "20:00";
 updateDateDisplay(filterDate, filterDateDisplay);
 updateDateDisplay(bookingForm.elements.date, bookingDateDisplay);
-updateDateDisplay(phoneBookingForm.elements.date, phoneBookingDateDisplay);
 
 async function api(path, options = {}) {
   const response = await fetch(path, {
@@ -168,7 +161,6 @@ function showLogin() {
   zoneSettingsPanel.hidden = true;
   receivedBookingsPanel.hidden = true;
   employeeRewardsPanel.hidden = true;
-  phoneBookingPanel.hidden = true;
   backupPanel.hidden = true;
   deleteLogPanel.hidden = true;
 }
@@ -181,7 +173,6 @@ function showApp(employee) {
   zoneSettingsPanel.hidden = employee.role !== "admin";
   receivedBookingsPanel.hidden = employee.role !== "admin";
   employeeRewardsPanel.hidden = employee.role !== "admin";
-  phoneBookingPanel.hidden = employee.role !== "admin";
   backupPanel.hidden = employee.role !== "admin";
   deleteLogPanel.hidden = employee.role !== "admin";
   loginView.hidden = true;
@@ -194,14 +185,6 @@ function bookingPayload() {
   const data = new FormData(bookingForm);
   const payload = Object.fromEntries(data.entries());
   payload.date = toApiDate(payload.date);
-  return payload;
-}
-
-function phoneBookingPayload() {
-  const data = new FormData(phoneBookingForm);
-  const payload = Object.fromEntries(data.entries());
-  payload.date = toApiDate(payload.date);
-  payload.phonePrivacyAccepted = phoneBookingForm.elements.phonePrivacyAccepted.checked;
   return payload;
 }
 
@@ -218,17 +201,6 @@ function resetForm() {
   updateDateDisplay(bookingForm.elements.date, bookingDateDisplay);
 }
 
-function resetPhoneBookingForm() {
-  const currentDate = selectedAgendaDate();
-  phoneBookingForm.reset();
-  phoneBookingForm.elements.date.value = currentDate;
-  phoneBookingForm.elements.time.value = "20:00";
-  phoneBookingForm.elements.people.value = 2;
-  phoneBookingForm.elements.status.value = "confermata";
-  phoneBookingMessage.textContent = "";
-  updateDateDisplay(phoneBookingForm.elements.date, phoneBookingDateDisplay);
-}
-
 function selectedAgendaDate() {
   return toApiDate(filterDate.value) || today;
 }
@@ -237,8 +209,6 @@ function syncNewBookingDateWithAgenda() {
   if (bookingForm.elements.id.value) return;
   bookingForm.elements.date.value = selectedAgendaDate();
   updateDateDisplay(bookingForm.elements.date, bookingDateDisplay);
-  phoneBookingForm.elements.date.value = selectedAgendaDate();
-  updateDateDisplay(phoneBookingForm.elements.date, phoneBookingDateDisplay);
 }
 
 function statusClass(status) {
@@ -1074,22 +1044,6 @@ bookingForm.addEventListener("submit", async (event) => {
   }
 });
 
-phoneBookingForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  phoneBookingMessage.textContent = "";
-  const payload = phoneBookingPayload();
-  try {
-    await api("/api/phone-bookings", { method: "POST", body: JSON.stringify(payload) });
-    phoneBookingMessage.textContent = "Prenotazione telefonica salvata in agenda.";
-    resetPhoneBookingForm();
-    resetSearchBookings();
-    await loadBookings();
-    await handleSearchInput();
-  } catch (error) {
-    phoneBookingMessage.textContent = error.message;
-  }
-});
-
 bookingList.addEventListener("click", async (event) => {
   const button = event.target.closest("button[data-action]");
   if (!button) return;
@@ -1213,9 +1167,6 @@ filterDate.addEventListener("change", async () => {
 });
 bookingForm.elements.date.addEventListener("change", () => {
   updateDateDisplay(bookingForm.elements.date, bookingDateDisplay);
-});
-phoneBookingForm.elements.date.addEventListener("change", () => {
-  updateDateDisplay(phoneBookingForm.elements.date, phoneBookingDateDisplay);
 });
 prevDayButton.addEventListener("click", async () => {
   filterDate.value = addDays(filterDate.value, -1);
