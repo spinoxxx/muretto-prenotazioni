@@ -18,6 +18,9 @@ const copy = {
     emailNotice: " Riceverai conferma via mail appena verificata.",
     success(date, time, roomText, emailText) {
       return `Richiesta ricevuta per ${date} alle ${time}. ${roomText}.${emailText}`;
+    },
+    confirmed(date, time, roomText) {
+      return `Prenotazione confermata per ${date} alle ${time}. ${roomText}. Riceverai la conferma via mail.`;
     }
   },
   en: {
@@ -29,6 +32,9 @@ const copy = {
     emailNotice: " You will receive confirmation by email once verified.",
     success(date, time, roomText, emailText) {
       return `Request received for ${date} at ${time}. ${roomText}.${emailText}`;
+    },
+    confirmed(date, time, roomText) {
+      return `Booking confirmed for ${date} at ${time}. ${roomText}. You will receive confirmation by email.`;
     }
   }
 }[pageLanguage];
@@ -170,9 +176,14 @@ bookingForm.addEventListener("submit", async (event) => {
       method: "POST",
       body: JSON.stringify(request)
     });
-    const roomText = payload.booking.room === "Giardino" ? copy.gardenPending : `${copy.proposedRoom}: ${roomLabel(payload.booking.room)}`;
+    const isConfirmed = payload.booking.status === "confermata";
+    const roomText = payload.booking.room === "Giardino" && !isConfirmed
+      ? copy.gardenPending
+      : `${copy.proposedRoom}: ${roomLabel(payload.booking.room)}`;
     const emailText = copy.emailNotice;
-    message.textContent = copy.success(formatDate(payload.booking.date), payload.booking.time, roomText, emailText);
+    message.textContent = isConfirmed
+      ? copy.confirmed(formatDate(payload.booking.date), payload.booking.time, roomText)
+      : copy.success(formatDate(payload.booking.date), payload.booking.time, roomText, emailText);
     bookingForm.reset();
     bookingDate.value = today;
     bookingForm.elements.time.value = "20:00";

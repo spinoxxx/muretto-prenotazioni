@@ -43,6 +43,7 @@ const SPECIAL_EVENT_NAME = "Notte al Muretto";
 const SPECIAL_EVENT_TIME = "20:00";
 const SPECIAL_EVENT_PRICE = "45€ a persona, bevande escluse";
 const SPECIAL_EVENT_MENU = "Antipasto: scampo flambato al Grand Marnier con purè di patate e olio all'erba cipollina. Primo: linguine alle vongole e bottarga. Dolce: cheese cake.";
+const PUBLIC_AUTO_CONFIRM_LIMIT_RATIO = 0.85;
 const PUBLIC_BASE_URL = sanitizePublicText(process.env.MURETTO_PUBLIC_URL, "https://muretto-prenotazioni.onrender.com", 220).replace(/\/+$/, "");
 const PUBLIC_BOOKING_URL = `${PUBLIC_BASE_URL}/prenota.html`;
 
@@ -517,7 +518,8 @@ function validateBooking(input) {
     tableNumber: sanitizeText(input.tableNumber, 30),
     status: sanitizeText(input.status || "confermata", 20),
     language: normalizeLanguage(input.language),
-    notes: sanitizeText(input.notes, 300)
+    notes: sanitizeText(input.notes, 300),
+    customerNotes: sanitizeText(input.customerNotes, 220)
   };
 
   const statuses = new Set(["confermata", "in attesa", "da verificare", "arrivati", "annullata", "completata"]);
@@ -1002,6 +1004,7 @@ function validatePublicBooking(input) {
   const language = normalizeLanguage(input.language);
   const gardenRequested = input.gardenRequested === true || input.gardenRequested === "on" || input.gardenRequested === "true";
   const privacyAccepted = input.privacyAccepted === true || input.privacyAccepted === "on" || input.privacyAccepted === "true";
+  const customerNotes = sanitizeText(input.notes, 220);
   const allowedConsumptions = new Set(["cena", "aperitivo"]);
   if (!privacyAccepted) return language === "en" ? "You must read and accept the privacy notice." : "Devi leggere e accettare l'informativa privacy.";
   if (!allowedConsumptions.has(consumption)) return language === "en" ? "Choose lunch/dinner or aperitif." : "Scegli pranzo/cena o aperitivo.";
@@ -1014,7 +1017,7 @@ function validatePublicBooking(input) {
     `Consumazione prevista: ${consumption}.`,
     gardenRequested ? "Richiesta giardino: da confermare." : "",
     input.date === SPECIAL_EVENT_DATE ? `Data evento ${SPECIAL_EVENT_NAME}: Cena & Jazz ore ${SPECIAL_EVENT_TIME}, ${SPECIAL_EVENT_PRICE}.` : "",
-    sanitizeText(input.notes, 220)
+    customerNotes
   ].filter(Boolean).join(" ");
 
   const booking = validateBooking({
@@ -1028,7 +1031,8 @@ function validatePublicBooking(input) {
     tableNumber: "",
     status: "da verificare",
     language,
-    notes
+    notes,
+    customerNotes
   });
   return typeof booking === "string" ? publicValidationError(booking, language) : booking;
 }
@@ -1125,6 +1129,53 @@ async function publicZoneError(booking, bookings) {
     return language === "en" ? `${roomName} does not have enough availability for the ${periodLabel} service.` : `${booking.room} non ha abbastanza disponibilita nella fascia ${periodLabel}.`;
   }
   return "";
+}
+
+async function publicBookingAutomation(booking, bookings) {
+  if (!ZONE_ROOMS.includes(booking.room)) {
+    return {
+      ...booking,
+      status: "da verificare",
+      notes: appendBookingNote(booking, "Automazione: sala non gestibile automaticamente, verifica manuale richiesta.")
+    };
+  }
+
+  if (booking.customerNotes) {
+    return {
+      ...booking,
+      status: "da verificare",
+      notes: appendBookingNote(booking, "Automazione: note cliente presenti, verifica manuale richiesta.")
+    };
+  }
+
+  const settings = await getZoneSettings(booking.date);
+  const period = mealPeriod(booking.time);
+  const rule = settings.zones[booking.room][period];
+  const occupied = zoneOccupancy(bookings, booking);
+  const projected = occupied + Number(booking.people || 0);
+  const limit = Number(rule.limit || 0);
+
+  if (rule.blocked) {
+    return {
+      ...booking,
+      status: "da verificare",
+      notes: appendBookingNote(booking, "Automazione: zona bloccata, verifica manuale richiesta.")
+    };
+  }
+
+  if (limit > 0 && projected > Math.floor(limit * PUBLIC_AUTO_CONFIRM_LIMIT_RATIO)) {
+    return {
+      ...booking,
+      status: "in attesa",
+      notes: appendBookingNote(booking, `Automazione: soglia 85% quasi raggiunta (${projected}/${limit} coperti), conferma manuale richiesta.`)
+    };
+  }
+
+  return {
+    ...booking,
+    status: "confermata",
+    notes: appendBookingNote(booking, `Automazione: prenotazione confermata automaticamente (${projected}/${limit || "senza limite"} coperti).`)
+  };
 }
 
 function eraseDeletedBookingPersonalData(log, actor) {
@@ -1573,8 +1624,9 @@ async function markCancellationEmailIfNeeded(previousBooking, booking, actor) {
 function publicBookingNotificationText(booking) {
   const seat = emailSeatLine(booking, "it");
   const eventLines = specialEventEmailLines(booking, "it");
+  const needsAttention = booking.status !== "confermata";
   return [
-    "Nuova prenotazione ricevuta dal modulo online.",
+    needsAttention ? "ATTENZIONE: prenotazione ricevuta dal modulo online da gestire." : "Nuova prenotazione ricevuta dal modulo online.",
     "",
     `Cliente: ${booking.guestName}`,
     `Data prenotazione: ${booking.date}`,
@@ -1587,17 +1639,18 @@ function publicBookingNotificationText(booking) {
     ...eventLines,
     "",
     `Ricevuta il: ${booking.createdAt}`,
-    "Stato iniziale: da verificare",
+    `Stato iniziale: ${booking.status}`,
     "",
-    "Apri il pannello admin per confermare o modificare la prenotazione."
+    needsAttention ? "Apri il pannello admin per verificare, rispondere o confermare la prenotazione." : "Prenotazione confermata automaticamente. Controlla il pannello admin se servono modifiche."
   ].filter(Boolean).join("\n");
 }
 
 async function markPublicBookingNotification(booking) {
   try {
+    const needsAttention = booking.status !== "confermata";
     const result = await sendPlainEmail({
       to: NOTIFICATION_EMAIL,
-      subject: `Nuova prenotazione ricevuta - ${BRAND_CONFIG.name}`,
+      subject: needsAttention ? `ATTENZIONE: Prenotazione da gestire - ${BRAND_CONFIG.name}` : `Nuova prenotazione confermata automaticamente - ${BRAND_CONFIG.name}`,
       text: publicBookingNotificationText(booking)
     });
     if (!result.sent) return booking;
@@ -1947,7 +2000,11 @@ async function handleApi(req, res) {
       privacyAcceptedAt: now,
       privacyVersion: PRIVACY_VERSION
     };
+    booking = await publicBookingAutomation(booking, bookings);
     bookings.push(booking);
+    await writeJson(bookingsFile, bookings);
+    booking = await markConfirmationEmailIfNeeded(null, booking, "automazione modulo online");
+    bookings[bookings.length - 1] = booking;
     await writeJson(bookingsFile, bookings);
     booking = await markPublicBookingNotification(booking);
     bookings[bookings.length - 1] = booking;
