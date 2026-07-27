@@ -1540,10 +1540,36 @@ function bookingCancellationText(booking) {
   ].filter(Boolean).join("\n");
 }
 
+function bookingHasAllergyOrIntolerance(booking) {
+  const text = String(booking.notes || "").toLowerCase();
+  return /\b(allerg|intoller|celiach|glutin|lattos|frutt[ai]\s+secc|arachid|crosta(?:cei|ce[io])|mollusch|uov[ao]|dairy|nuts?|peanuts?|shellfish|gluten|lactose|celiac|coeliac|intoleran)/i.test(text);
+}
+
+function allergyWarningLines(booking, language) {
+  if (!bookingHasAllergyOrIntolerance(booking)) return [];
+  if (language === "en") {
+    return [
+      "",
+      "IMPORTANT NOTICE ABOUT ALLERGIES / INTOLERANCES:",
+      "WE HAVE ONLY ONE KITCHEN. EVEN WITH THE UTMOST CARE, WE CANNOT GUARANTEE THE ABSENCE OF CROSS-CONTAMINATION.",
+      "If you have a serious allergy or intolerance, please contact us before coming so we can evaluate the request together.",
+      ""
+    ];
+  }
+  return [
+    "",
+    "ATTENZIONE ALLERGIE / INTOLLERANZE:",
+    "ABBIAMO UNA SOLA CUCINA. ANCHE CON LA MASSIMA ATTENZIONE, NON POSSIAMO GARANTIRE L'ASSENZA DI CONTAMINAZIONE CROCIATA.",
+    "In caso di allergie o intolleranze importanti, ti chiediamo di contattarci prima dell'arrivo per valutare insieme la richiesta.",
+    ""
+  ];
+}
+
 function bookingConfirmationText(booking) {
   const language = normalizeLanguage(booking.language);
   const seat = emailSeatLine(booking, language);
   const eventLines = specialEventEmailLines(booking, language);
+  const allergyLines = allergyWarningLines(booking, language);
   const gardenRequested = String(booking.notes || "").toLowerCase().includes("richiesta giardino");
   const confirmedAwayFromGarden = gardenRequested && String(booking.room || "").trim().toLowerCase() !== "giardino";
   const gardenChangeLine = confirmedAwayFromGarden
@@ -1565,6 +1591,7 @@ function bookingConfirmationText(booking) {
       `Address: ${VENUE_ADDRESS}`,
       `Map: ${VENUE_MAP_URL}`,
       ...eventLines,
+      ...allergyLines,
       "",
       "Important note:",
       "- Due to the imbalance between indoor and outdoor seating, in case of rain we cannot guarantee that the booking can be moved to a sheltered area.",
@@ -1589,6 +1616,7 @@ function bookingConfirmationText(booking) {
     `Indirizzo: ${VENUE_ADDRESS}`,
     `Mappa: ${VENUE_MAP_URL}`,
     ...eventLines,
+    ...allergyLines,
     "",
     "Nota importante:",
     "- Visto lo squilibrio tra le sedute interne ed esterne, in caso di pioggia non garantiamo di poter spostare la prenotazione in area protetta.",
