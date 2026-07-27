@@ -1095,9 +1095,7 @@ function validateEmployeeReferralBooking(input) {
 
 function employeeRewards(bookings, month) {
   const rows = new Map();
-  for (const booking of bookings) {
-    if (!booking.referredByEmployeeId || booking.status !== "arrivati") continue;
-    if (!String(booking.date || "").startsWith(`${month}-`)) continue;
+  const ensureRow = (booking) => {
     const key = booking.referredByEmployeeId;
     if (!rows.has(key)) {
       rows.set(key, {
@@ -1105,22 +1103,47 @@ function employeeRewards(bookings, month) {
         employeeName: booking.referredByEmployeeName || "Dipendente",
         bookings: 0,
         people: 0,
-        items: []
+        projectedBookings: 0,
+        projectedPeople: 0,
+        items: [],
+        projectedItems: []
       });
     }
-    const row = rows.get(key);
-    row.bookings += 1;
-    row.people += Number(booking.people || 0);
-    row.items.push({
+    return rows.get(key);
+  };
+
+  for (const booking of bookings) {
+    if (!booking.referredByEmployeeId) continue;
+    if (!String(booking.date || "").startsWith(`${month}-`)) continue;
+
+    const row = ensureRow(booking);
+    const item = {
       id: booking.id,
       guestName: booking.guestName,
       date: booking.date,
       time: booking.time,
       people: booking.people,
       room: booking.room || ""
-    });
+    };
+
+    if (booking.status === "arrivati") {
+      row.bookings += 1;
+      row.people += Number(booking.people || 0);
+      row.items.push(item);
+      continue;
+    }
+
+    if (booking.status !== "annullata") {
+      row.projectedBookings += 1;
+      row.projectedPeople += Number(booking.people || 0);
+      row.projectedItems.push({ ...item, status: booking.status });
+    }
   }
-  return [...rows.values()].sort((a, b) => b.bookings - a.bookings || b.people - a.people || a.employeeName.localeCompare(b.employeeName));
+  return [...rows.values()].sort((a, b) => (
+    (b.bookings + b.projectedBookings) - (a.bookings + a.projectedBookings)
+    || (b.people + b.projectedPeople) - (a.people + a.projectedPeople)
+    || a.employeeName.localeCompare(b.employeeName)
+  ));
 }
 
 function mealPeriod(time) {

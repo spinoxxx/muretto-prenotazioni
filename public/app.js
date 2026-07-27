@@ -671,18 +671,27 @@ function renderReceivedBookings(receivedBookings) {
 }
 
 function renderEmployeeRewards(rewards) {
-  if (!rewards.length) {
-    employeeRewardsList.innerHTML = `<p class="empty compact-empty">Nessun premio maturato in questo mese.</p>`;
+  const visibleRewards = rewards.filter((reward) => (
+    Number(reward.bookings || 0) > 0
+    || Number(reward.projectedBookings || 0) > 0
+  ));
+
+  if (!visibleRewards.length) {
+    employeeRewardsList.innerHTML = `<p class="empty compact-empty">Nessun premio maturato o previsto in questo mese.</p>`;
     return;
   }
 
-  employeeRewardsList.innerHTML = rewards.map((reward) => `
+  employeeRewardsList.innerHTML = visibleRewards.map((reward) => `
     <div class="received-booking-row reward-row">
       <div>
         <strong>${escapeHtml(reward.employeeName)}</strong>
-        <span>${Number(reward.bookings || 0)} prenotazioni arrivate · ${Number(reward.people || 0)} coperti</span>
+        <span>Maturato: ${Number(reward.bookings || 0)} prenotazioni arrivate · ${Number(reward.people || 0)} coperti</span>
+        <span>Previsto: ${Number(reward.projectedBookings || 0)} prenotazioni da arrivare · ${Number(reward.projectedPeople || 0)} coperti</span>
         ${reward.items.map((item) => `
-          <span>${formatDate(item.date)} · ${escapeHtml(item.time || "")} · ${escapeHtml(item.guestName || "")} · ${Number(item.people || 0)} persone · Sala ${escapeHtml(roomDisplayName(item.room))}</span>
+          <span>Arrivata · ${formatDate(item.date)} · ${escapeHtml(item.time || "")} · ${escapeHtml(item.guestName || "")} · ${Number(item.people || 0)} persone · Sala ${escapeHtml(roomDisplayName(item.room))}</span>
+        `).join("")}
+        ${(reward.projectedItems || []).map((item) => `
+          <span>Prevista · ${formatDate(item.date)} · ${escapeHtml(item.time || "")} · ${escapeHtml(item.guestName || "")} · ${Number(item.people || 0)} persone · Sala ${escapeHtml(roomDisplayName(item.room))} · ${escapeHtml(item.status || "")}</span>
         `).join("")}
       </div>
     </div>
