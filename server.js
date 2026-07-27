@@ -58,6 +58,7 @@ const DEFAULT_EMPLOYEE_NAME = process.env.MURETTO_ADMIN_NAME || "Admin";
 const DEFAULT_EMPLOYEE_PIN = process.env.MURETTO_ADMIN_PIN || "123456";
 const SYNC_ADMIN_PIN = process.env.MURETTO_SYNC_ADMIN_PIN === "true";
 const TURNI_EMPLOYEE_DEFAULT_PIN = process.env.MURETTO_TURNI_EMPLOYEE_PIN || "1234";
+const TURNI_EMPLOYEE_PIN_VERSION = "2026-07-27-1234";
 const TURNI_EMPLOYEE_NAMES = [
   "Ilenia",
   "Erika",
@@ -342,28 +343,41 @@ async function ensureDataFiles() {
 
   if (pinIsValid(TURNI_EMPLOYEE_DEFAULT_PIN)) {
     const employees = await readJson(employeesFile, []);
-    const existingNames = new Set(employees.map((employee) => normalizeName(employee.name).toLowerCase()));
-    const missingNames = TURNI_EMPLOYEE_NAMES
-      .map(normalizeName)
-      .filter((name) => name && !existingNames.has(name.toLowerCase()));
+    let created = 0;
+    let updated = 0;
 
-    if (missingNames.length) {
+    for (const name of TURNI_EMPLOYEE_NAMES.map(normalizeName).filter(Boolean)) {
+      const employee = employees.find((item) => normalizeName(item.name).toLowerCase() === name.toLowerCase());
       const now = new Date().toISOString();
-      for (const name of missingNames) {
-        const { salt, hash } = await hashPin(TURNI_EMPLOYEE_DEFAULT_PIN);
+      if (employee) {
+        if (employee.turniPinVersion === TURNI_EMPLOYEE_PIN_VERSION) continue;
+        const credentials = await hashPin(TURNI_EMPLOYEE_DEFAULT_PIN);
+        employee.pinSalt = credentials.salt;
+        employee.pinHash = credentials.hash;
+        employee.turniPinVersion = TURNI_EMPLOYEE_PIN_VERSION;
+        employee.updatedAt = now;
+        employee.updatedBy = "import turni";
+        updated += 1;
+      } else {
+        const credentials = await hashPin(TURNI_EMPLOYEE_DEFAULT_PIN);
         employees.push({
           id: crypto.randomUUID(),
           name,
           role: "dipendente",
-          pinSalt: salt,
-          pinHash: hash,
+          pinSalt: credentials.salt,
+          pinHash: credentials.hash,
           active: true,
           createdAt: now,
-          createdBy: "import turni"
+          createdBy: "import turni",
+          turniPinVersion: TURNI_EMPLOYEE_PIN_VERSION
         });
+        created += 1;
       }
+    }
+
+    if (created || updated) {
       await writeJson(employeesFile, employees);
-      console.log(`Import turni: ${missingNames.length} dipendenti creati con ruolo "dipendente".`);
+      console.log(`Import turni: ${created} dipendenti creati, ${updated} PIN aggiornati.`);
     }
   }
 
