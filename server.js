@@ -57,6 +57,54 @@ const PUBLIC_BOOKING_URL = `${PUBLIC_BASE_URL}/prenota.html`;
 const DEFAULT_EMPLOYEE_NAME = process.env.MURETTO_ADMIN_NAME || "Admin";
 const DEFAULT_EMPLOYEE_PIN = process.env.MURETTO_ADMIN_PIN || "123456";
 const SYNC_ADMIN_PIN = process.env.MURETTO_SYNC_ADMIN_PIN === "true";
+const TURNI_EMPLOYEE_DEFAULT_PIN = process.env.MURETTO_TURNI_EMPLOYEE_PIN || "1234";
+const TURNI_EMPLOYEE_NAMES = [
+  "Ilenia",
+  "Erika",
+  "Anta",
+  "Chiara",
+  "Daniele",
+  "Filippo",
+  "Gianluca",
+  "Leo Albi",
+  "Leo Gamb",
+  "Lynn",
+  "Mahtab",
+  "Andrea",
+  "Alessio",
+  "Michael",
+  "Mohamed",
+  "Paola Lup",
+  "Redo",
+  "Selene",
+  "Victor",
+  "Luca",
+  "Jasmin",
+  "Hanieh",
+  "Paola Mar",
+  "Ivan",
+  "Naomi",
+  "Schena",
+  "Thomas",
+  "Giorgio",
+  "Giacomo",
+  "Monica",
+  "Evangeline",
+  "Fabrizio",
+  "Andrea Garga",
+  "Tuhin",
+  "Azmi",
+  "Jashim",
+  "Iqbal",
+  "Elena",
+  "Reyen",
+  "Sarah",
+  "Sakib",
+  "Linda",
+  "Marco",
+  "Ina",
+  "Giuliano"
+];
 const privacyControllerEnv = process.env.MURETTO_PRIVACY_CONTROLLER;
 const EMAIL_FROM = sanitizePublicText(process.env.MURETTO_EMAIL_FROM, "", 160);
 const NOTIFICATION_EMAIL = sanitizePublicText(process.env.MURETTO_NOTIFICATION_EMAIL || extractEmailAddress(EMAIL_FROM), "", 160);
@@ -290,6 +338,33 @@ async function ensureDataFiles() {
     else employees.push(syncedAdmin);
     await writeJson(employeesFile, employees);
     console.log(`Admin "${DEFAULT_EMPLOYEE_NAME}" sincronizzato dalle variabili ambiente.`);
+  }
+
+  if (pinIsValid(TURNI_EMPLOYEE_DEFAULT_PIN)) {
+    const employees = await readJson(employeesFile, []);
+    const existingNames = new Set(employees.map((employee) => normalizeName(employee.name).toLowerCase()));
+    const missingNames = TURNI_EMPLOYEE_NAMES
+      .map(normalizeName)
+      .filter((name) => name && !existingNames.has(name.toLowerCase()));
+
+    if (missingNames.length) {
+      const now = new Date().toISOString();
+      for (const name of missingNames) {
+        const { salt, hash } = await hashPin(TURNI_EMPLOYEE_DEFAULT_PIN);
+        employees.push({
+          id: crypto.randomUUID(),
+          name,
+          role: "dipendente",
+          pinSalt: salt,
+          pinHash: hash,
+          active: true,
+          createdAt: now,
+          createdBy: "import turni"
+        });
+      }
+      await writeJson(employeesFile, employees);
+      console.log(`Import turni: ${missingNames.length} dipendenti creati con ruolo "dipendente".`);
+    }
   }
 
   try {
@@ -2586,7 +2661,7 @@ async function handleApi(req, res) {
     const body = await readBody(req);
     const name = normalizeName(body.name);
     const pin = String(body.pin || "");
-    const role = ["admin", "staff", "agenda"].includes(body.role) ? body.role : "staff";
+    const role = ["admin", "staff", "agenda", "dipendente"].includes(body.role) ? body.role : "staff";
     if (!name) {
       sendJson(res, 400, { error: "Inserisci il nome del dipendente" });
       return;

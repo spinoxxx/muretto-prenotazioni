@@ -1016,6 +1016,10 @@ loginForm.addEventListener("submit", async (event) => {
       window.location.href = "/agenda.html";
       return;
     }
+    if (payload.employee.role === "dipendente") {
+      window.location.href = "/dipendenti.html";
+      return;
+    }
     showApp(payload.employee);
     await loadBookings();
     await loadReceivedBookings();
@@ -1333,13 +1337,15 @@ if (me.employee) {
   csrfToken = me.csrfToken;
   if (me.employee.role === "agenda") {
     window.location.href = "/agenda.html";
+  } else if (me.employee.role === "dipendente") {
+    window.location.href = "/dipendenti.html";
   } else {
-  showApp(me.employee);
-  await loadBookings();
-  await loadReceivedBookings();
-  await loadEmployees();
-  await loadZoneSettings();
-  await loadBackups();
+    showApp(me.employee);
+    await loadBookings();
+    await loadReceivedBookings();
+    await loadEmployees();
+    await loadZoneSettings();
+    await loadBackups();
   await loadDeleteLogs();
   }
 } else {
