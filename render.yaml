@@ -56,7 +56,7 @@ services:
       - key: MURETTO_PUBLIC_URL
         value: https://muretto-prenotazioni.onrender.com
       - key: MURETTO_GOOGLE_REVIEW_URL
-        sync: false
+        value: https://g.page/r/CRHTfO5wyYamEAE/review
     disk:
       name: muretto-data
       mountPath: /var/data
