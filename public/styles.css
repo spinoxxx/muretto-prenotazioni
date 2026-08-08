@@ -974,6 +974,24 @@ label {
   font-weight: 700;
 }
 
+.feedback-summary {
+  display: grid;
+  gap: 3px;
+  margin-top: 8px !important;
+  padding: 8px 10px;
+  border-left: 3px solid var(--accent);
+  border-radius: 5px;
+  background: #edf5f0;
+  color: var(--accent-dark) !important;
+  font-size: 0.82rem;
+}
+
+.feedback-summary.needs-attention {
+  border-left-color: var(--danger);
+  background: #fff0ed;
+  color: #8e3329 !important;
+}
+
 .status {
   display: inline-flex;
   align-items: center;

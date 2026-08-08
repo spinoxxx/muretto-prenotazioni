@@ -383,17 +383,30 @@ function renderBookings() {
         <p class="booking-details">${formatDate(booking.date)} · ${seatLine(booking)} · ${contactLine(booking)}</p>
         ${referralLine(booking) ? `<p class="booking-referral">${referralLine(booking)}</p>` : ""}
         ${booking.notes ? `<p class="booking-notes">${escapeHtml(booking.notes)}</p>` : ""}
+        ${feedbackSummary(booking)}
         <p><span class="status ${statusClass(booking.status)}">${escapeHtml(booking.status)}</span></p>
         <p class="booking-meta">${bookingMetaLine(booking)}</p>
       </div>
       <div class="actions">
         <button class="arrived" type="button" data-action="arrived" data-id="${booking.id}">${booking.status === "arrivati" ? "ANNULLA ARRIVO" : "ARRIVATI"}</button>
+        ${booking.status === "completata" && booking.email && booking.feedbackConsentAt && !booking.feedbackRequestedAt ? `<button class="ghost" type="button" data-action="feedback" data-id="${booking.id}">Invia feedback</button>` : ""}
         ${booking.email ? `<button class="ghost" type="button" data-action="message" data-id="${booking.id}">Rispondi</button>` : ""}
         <button class="ghost" type="button" data-action="edit" data-id="${booking.id}">Modifica</button>
         <button class="delete" type="button" data-action="delete" data-id="${booking.id}">Elimina</button>
       </div>
     </article>
   `).join("");
+}
+
+function feedbackSummary(booking) {
+  if (booking.feedbackSubmittedAt) {
+    const needsAttention = Number(booking.feedbackRating) <= 3;
+    const comment = booking.feedbackComment ? `<span>${escapeHtml(booking.feedbackComment)}</span>` : "";
+    return `<p class="feedback-summary${needsAttention ? " needs-attention" : ""}"><strong>Feedback ${Number(booking.feedbackRating)}/5${needsAttention ? " · da approfondire" : ""}</strong>${comment}</p>`;
+  }
+  if (booking.feedbackRequestedAt) return `<p class="feedback-summary">Feedback richiesto il ${formatDateTime(booking.feedbackRequestedAt)}.</p>`;
+  if (booking.feedbackRequestError) return `<p class="feedback-summary needs-attention">${escapeHtml(booking.feedbackRequestError)}</p>`;
+  return "";
 }
 
 function roomFilterLabel(room) {
@@ -501,6 +514,8 @@ function bookingMetaLine(booking) {
   if (booking.customerActionNotificationSentAt) parts.push(`Notifica staff ${formatDateTime(booking.customerActionNotificationSentAt)}`);
   if (booking.cancellationEmailSentAt) parts.push(`Annullamento inviato ${formatDateTime(booking.cancellationEmailSentAt)}`);
   if (booking.cancellationEmailSkippedAt) parts.push(`Annullamento non inviato ${formatDateTime(booking.cancellationEmailSkippedAt)}`);
+  if (booking.feedbackRequestedAt) parts.push(`Feedback richiesto ${formatDateTime(booking.feedbackRequestedAt)}`);
+  if (booking.feedbackSubmittedAt) parts.push(`Feedback ricevuto ${formatDateTime(booking.feedbackSubmittedAt)}`);
   return parts.length ? parts.map(escapeHtml).join(" · ") : "Storico non disponibile";
 }
 
@@ -1069,6 +1084,7 @@ bookingList.addEventListener("click", async (event) => {
     for (const [key, value] of Object.entries(booking)) {
       if (bookingForm.elements[key]) bookingForm.elements[key].value = value;
     }
+    bookingForm.elements.feedbackConsent.checked = Boolean(booking.feedbackConsentAt);
     if (roomStatKey(booking.room) === "ristorante") bookingForm.elements.room.value = "Ristorante Esterno";
     bookingForm.elements.date.value = booking.date;
     updateDateDisplay(bookingForm.elements.date, bookingDateDisplay);
@@ -1083,6 +1099,19 @@ bookingList.addEventListener("click", async (event) => {
     await loadBookings();
     await handleSearchInput();
     await loadEmployeeRewards();
+    return;
+  }
+
+  if (button.dataset.action === "feedback") {
+    try {
+      await api(`/api/bookings/${booking.id}/feedback-request`, { method: "POST", body: JSON.stringify({}) });
+      formMessage.textContent = "Richiesta feedback inviata.";
+      resetSearchBookings();
+      await loadBookings();
+      await handleSearchInput();
+    } catch (error) {
+      formMessage.textContent = error.message;
+    }
     return;
   }
 

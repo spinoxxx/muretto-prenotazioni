@@ -34,7 +34,7 @@ const DEFAULT_ZONE_LIMITS = {
   Bar: 40,
   Giardino: 18
 };
-const PRIVACY_VERSION = "2026-06-26";
+const PRIVACY_VERSION = "2026-08-08";
 const PRIVACY_CONTROLLER = "Bar Flora srl, Piazza Vecchia 13, 24129 Bergamo";
 const VENUE_ADDRESS = "Viale delle Mura 1, 24129 Bergamo";
 const VENUE_MAP_URL = "https://www.google.com/maps/search/?api=1&query=Viale%20delle%20Mura%201%2C%2024129%20Bergamo";
@@ -53,6 +53,8 @@ const PUBLIC_SLOT_WINDOWS = {
 };
 const PUBLIC_BASE_URL = sanitizePublicText(process.env.MURETTO_PUBLIC_URL, "https://muretto-prenotazioni.onrender.com", 220).replace(/\/+$/, "");
 const PUBLIC_BOOKING_URL = `${PUBLIC_BASE_URL}/prenota.html`;
+const FEEDBACK_FORM_URL = `${PUBLIC_BASE_URL}/feedback.html`;
+const GOOGLE_REVIEW_URL = sanitizeHttpUrl(process.env.MURETTO_GOOGLE_REVIEW_URL);
 
 const DEFAULT_EMPLOYEE_NAME = process.env.MURETTO_ADMIN_NAME || "Admin";
 const DEFAULT_EMPLOYEE_PIN = process.env.MURETTO_ADMIN_PIN || "123456";
@@ -177,6 +179,17 @@ function sanitizeText(value, max = 180) {
 function sanitizePublicText(value, fallback, max = 120) {
   const text = String(value || "").trim().replace(/\s+/g, " ").slice(0, max);
   return text || fallback;
+}
+
+function sanitizeHttpUrl(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  try {
+    const url = new URL(text);
+    return ["http:", "https:"].includes(url.protocol) ? url.toString() : "";
+  } catch {
+    return "";
+  }
 }
 
 function sanitizeMessageText(value, max = 2000) {
@@ -631,7 +644,8 @@ function validateBooking(input) {
     status: sanitizeText(input.status || "confermata", 20),
     language: normalizeLanguage(input.language),
     notes: sanitizeText(input.notes, 300),
-    customerNotes: sanitizeText(input.customerNotes, 220)
+    customerNotes: sanitizeText(input.customerNotes, 220),
+    feedbackConsent: input.feedbackConsent === true || input.feedbackConsent === "on" || input.feedbackConsent === "true"
   };
 
   const statuses = new Set(["confermata", "in attesa", "da verificare", "arrivati", "annullata", "completata"]);
@@ -1116,6 +1130,7 @@ function validatePublicBooking(input) {
   const language = normalizeLanguage(input.language);
   const gardenRequested = input.gardenRequested === true || input.gardenRequested === "on" || input.gardenRequested === "true";
   const privacyAccepted = input.privacyAccepted === true || input.privacyAccepted === "on" || input.privacyAccepted === "true";
+  const feedbackConsent = input.feedbackConsent === true || input.feedbackConsent === "on" || input.feedbackConsent === "true";
   const customerNotes = sanitizeText(input.notes, 220);
   const allowedConsumptions = new Set(["cena", "aperitivo"]);
   if (!privacyAccepted) return language === "en" ? "You must read and accept the privacy notice." : "Devi leggere e accettare l'informativa privacy.";
@@ -1146,7 +1161,7 @@ function validatePublicBooking(input) {
     notes,
     customerNotes
   });
-  return typeof booking === "string" ? publicValidationError(booking, language) : booking;
+  return typeof booking === "string" ? publicValidationError(booking, language) : { ...booking, feedbackConsent };
 }
 
 function validateEmployeeReferralBooking(input) {
@@ -1167,7 +1182,7 @@ function validateEmployeeReferralBooking(input) {
     sanitizeText(input.notes, 220)
   ].filter(Boolean).join(" ");
 
-  return validateBooking({
+  const booking = validateBooking({
     guestName: input.guestName,
     phone: input.phone,
     email: input.email,
@@ -1178,8 +1193,10 @@ function validateEmployeeReferralBooking(input) {
     tableNumber: "",
     status: "confermata",
     language: "it",
-    notes
+    notes,
+    feedbackConsent: input.feedbackConsent
   });
+  return typeof booking === "string" ? booking : booking;
 }
 
 function employeeRewards(bookings, month) {
@@ -1919,6 +1936,102 @@ async function markCancellationEmailIfNeeded(previousBooking, booking, actor) {
   }
 }
 
+function feedbackLink(token) {
+  return `${FEEDBACK_FORM_URL}?token=${encodeURIComponent(token)}`;
+}
+
+function feedbackRequestText(booking, token) {
+  const language = normalizeLanguage(booking.language);
+  const link = feedbackLink(token);
+  if (language === "en") {
+    return [
+      `Hi ${booking.guestName},`,
+      "",
+      `Thank you for visiting ${BRAND_CONFIG.name}. Would you take one minute to tell us how it went?`,
+      "",
+      `Share your feedback: ${link}`,
+      "",
+      "Your response helps us improve. If you would also like to leave a public Google review, you will find the option after submitting this short form.",
+      "",
+      `The ${BRAND_CONFIG.name} Team`
+    ].join("\n");
+  }
+  return [
+    `Ciao ${booking.guestName},`,
+    "",
+    `Grazie per essere stato al ${BRAND_CONFIG.name}. Ti va di dedicarci un minuto per raccontarci com'è andata?`,
+    "",
+    `Lascia il tuo feedback: ${link}`,
+    "",
+    "La tua risposta ci aiuta a migliorare. Dopo il questionario, se lo desideri, troverai anche il collegamento per lasciare una recensione pubblica su Google.",
+    "",
+    `Lo Staff del ${BRAND_CONFIG.name}`
+  ].join("\n");
+}
+
+function feedbackRequestHtml(booking, token) {
+  const language = normalizeLanguage(booking.language);
+  const link = feedbackLink(token);
+  const heading = language === "en" ? "How was your experience?" : "Com'è stata la tua esperienza?";
+  const intro = language === "en"
+    ? `Thank you for visiting ${BRAND_CONFIG.name}. Your feedback helps us improve.`
+    : `Grazie per essere stato al ${BRAND_CONFIG.name}. Il tuo feedback ci aiuta a migliorare.`;
+  const action = language === "en" ? "Share feedback" : "Lascia il tuo feedback";
+  const note = language === "en"
+    ? "After submitting the form, you can also choose whether to leave a public Google review."
+    : "Dopo il questionario potrai scegliere liberamente se lasciare anche una recensione pubblica su Google.";
+  return `<!doctype html><html lang="${language}"><body style="margin:0;padding:24px;background:#f5f2ec;color:#20201d;font-family:Arial,sans-serif;line-height:1.5"><main style="max-width:560px;margin:0 auto;background:#ffffff;padding:32px;border-radius:14px"><h1 style="margin:0 0 16px;font-size:24px">${escapeHtml(heading)}</h1><p>${escapeHtml(intro)}</p><p style="margin:24px 0"><a href="${escapeHtml(link)}" style="display:inline-block;padding:12px 18px;border-radius:7px;background:#2f6f5e;color:#ffffff;text-decoration:none;font-weight:700">${escapeHtml(action)}</a></p><p style="color:#5e665f;font-size:14px">${escapeHtml(note)}</p></main></body></html>`;
+}
+
+async function sendFeedbackRequest(booking, actor) {
+  const token = randomToken(24);
+  try {
+    const result = await sendPlainEmail({
+      to: booking.email,
+      subject: normalizeLanguage(booking.language) === "en"
+        ? `How was your experience at ${BRAND_CONFIG.name}?`
+        : `Com'è stata la tua esperienza al ${BRAND_CONFIG.name}?`,
+      text: feedbackRequestText(booking, token),
+      html: feedbackRequestHtml(booking, token)
+    });
+    if (!result.sent) return { booking, sent: false };
+    const now = new Date().toISOString();
+    return {
+      sent: true,
+      booking: {
+        ...booking,
+        feedbackTokenHash: hashValue(token),
+        feedbackRequestedAt: now,
+        feedbackRequestedBy: actor,
+        feedbackRequestError: ""
+      }
+    };
+  } catch (error) {
+    console.error(error);
+    return {
+      sent: false,
+      booking: {
+        ...booking,
+        feedbackRequestError: "Invio richiesta feedback non riuscito"
+      }
+    };
+  }
+}
+
+async function markFeedbackRequestIfNeeded(previousBooking, booking, actor) {
+  const wasCompleted = previousBooking?.status === "completata";
+  const isCompleted = booking.status === "completata";
+  if (!isCompleted || wasCompleted || !booking.email || !booking.feedbackConsentAt || booking.feedbackRequestedAt) return booking;
+  const result = await sendFeedbackRequest(booking, actor);
+  return result.booking;
+}
+
+function findBookingByFeedbackToken(bookings, token) {
+  if (!token) return -1;
+  const tokenHash = hashValue(token);
+  return bookings.findIndex((booking) => booking.feedbackTokenHash && tokenMatches(booking.feedbackTokenHash, tokenHash));
+}
+
 function publicBookingNotificationText(booking) {
   const seat = emailSeatLine(booking, "it");
   const eventLines = specialEventEmailLines(booking, "it");
@@ -2361,15 +2474,18 @@ async function handleApi(req, res) {
       return;
     }
     const now = new Date().toISOString();
+    const { feedbackConsent, ...bookingInput } = result;
     let booking = {
       id: crypto.randomUUID(),
-      ...result,
+      ...bookingInput,
       createdBy: "modulo online",
       createdAt: now,
       updatedAt: now,
       updatedBy: "modulo online",
       privacyAcceptedAt: now,
-      privacyVersion: PRIVACY_VERSION
+      privacyVersion: PRIVACY_VERSION,
+      feedbackConsentAt: feedbackConsent ? now : "",
+      feedbackConsentVersion: feedbackConsent ? PRIVACY_VERSION : ""
     };
     booking = await publicBookingAutomation(booking, bookings);
     bookings.push(booking);
@@ -2391,6 +2507,68 @@ async function handleApi(req, res) {
         status: booking.status
       }
     });
+    return;
+  }
+
+  if (url.pathname === "/api/feedback" && req.method === "GET") {
+    const token = sanitizeText(url.searchParams.get("token"), 120);
+    const bookings = await readJson(bookingsFile, []);
+    const index = findBookingByFeedbackToken(bookings, token);
+    if (index === -1) {
+      sendJson(res, 404, { error: "Link feedback non valido o scaduto" });
+      return;
+    }
+    const booking = bookings[index];
+    sendJson(res, 200, {
+      feedback: {
+        language: normalizeLanguage(booking.language),
+        submittedAt: booking.feedbackSubmittedAt || "",
+        rating: Number(booking.feedbackRating || 0)
+      },
+      googleReviewUrl: GOOGLE_REVIEW_URL
+    });
+    return;
+  }
+
+  if (url.pathname === "/api/feedback" && req.method === "POST") {
+    const body = await readBody(req);
+    const token = sanitizeText(body.token, 120);
+    const rating = Number(body.rating);
+    const comment = sanitizeMessageText(body.comment, 1000);
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+      sendJson(res, 400, { error: "Scegli un punteggio da 1 a 5" });
+      return;
+    }
+    if (rating <= 3 && !comment) {
+      sendJson(res, 400, { error: "Raccontaci cosa possiamo migliorare" });
+      return;
+    }
+    const bookings = await readJson(bookingsFile, []);
+    const index = findBookingByFeedbackToken(bookings, token);
+    if (index === -1) {
+      sendJson(res, 404, { error: "Link feedback non valido o scaduto" });
+      return;
+    }
+    if (bookings[index].feedbackSubmittedAt) {
+      sendJson(res, 409, { error: "Questo feedback è già stato inviato" });
+      return;
+    }
+    const now = new Date().toISOString();
+    bookings[index] = {
+      ...bookings[index],
+      feedbackRating: rating,
+      feedbackComment: comment,
+      feedbackSubmittedAt: now,
+      feedbackSubmittedBy: "cliente",
+      feedbackNeedsAttention: rating <= 3,
+      notes: appendBookingNote(bookings[index], rating <= 3
+        ? `Feedback cliente ${rating}/5: richiede approfondimento interno.`
+        : `Feedback cliente ricevuto: ${rating}/5.`),
+      updatedAt: now,
+      updatedBy: "cliente: feedback"
+    };
+    await writeJson(bookingsFile, bookings);
+    sendJson(res, 201, { ok: true, googleReviewUrl: GOOGLE_REVIEW_URL });
     return;
   }
 
@@ -2815,9 +2993,10 @@ async function handleApi(req, res) {
       return;
     }
     const now = new Date().toISOString();
+    const { feedbackConsent, ...bookingInput } = result;
     let booking = {
       id: crypto.randomUUID(),
-      ...result,
+      ...bookingInput,
       bookingChannel: "dipendente",
       referredByEmployeeId: session.employeeId,
       referredByEmployeeName: session.employeeName,
@@ -2828,7 +3007,9 @@ async function handleApi(req, res) {
       createdBy: `dipendente: ${session.employeeName}`,
       createdAt: now,
       updatedAt: now,
-      updatedBy: `dipendente: ${session.employeeName}`
+      updatedBy: `dipendente: ${session.employeeName}`,
+      feedbackConsentAt: feedbackConsent ? now : "",
+      feedbackConsentVersion: feedbackConsent ? PRIVACY_VERSION : ""
     };
     bookings.push(booking);
     await writeJson(bookingsFile, bookings);
@@ -2849,12 +3030,15 @@ async function handleApi(req, res) {
     }
     const bookings = await readJson(bookingsFile, []);
     const now = new Date().toISOString();
+    const { feedbackConsent, ...bookingInput } = result;
     const booking = {
       id: crypto.randomUUID(),
-      ...result,
+      ...bookingInput,
       createdBy: session.employeeName,
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
+      feedbackConsentAt: feedbackConsent ? now : "",
+      feedbackConsentVersion: feedbackConsent ? PRIVACY_VERSION : ""
     };
     bookings.push(booking);
     await writeJson(bookingsFile, bookings);
@@ -2922,6 +3106,7 @@ async function handleApi(req, res) {
   }
 
   const bookingMessageMatch = url.pathname.match(/^\/api\/bookings\/([a-f0-9-]+)\/message$/i);
+  const bookingFeedbackMatch = url.pathname.match(/^\/api\/bookings\/([a-f0-9-]+)\/feedback-request$/i);
   if (bookingMessageMatch && req.method === "POST") {
     if (!requireBookingEditor(session, res)) return;
     const body = await readBody(req);
@@ -2977,6 +3162,38 @@ async function handleApi(req, res) {
     return;
   }
 
+  if (bookingFeedbackMatch && req.method === "POST") {
+    if (!requireBookingEditor(session, res)) return;
+    const bookings = await readJson(bookingsFile, []);
+    const index = bookings.findIndex((item) => item.id === bookingFeedbackMatch[1]);
+    if (index === -1) {
+      sendJson(res, 404, { error: "Prenotazione non trovata" });
+      return;
+    }
+    const booking = bookings[index];
+    if (booking.status !== "completata") {
+      sendJson(res, 400, { error: "Puoi richiedere il feedback solo dopo aver completato la prenotazione" });
+      return;
+    }
+    if (!booking.email || !booking.feedbackConsentAt) {
+      sendJson(res, 400, { error: "Mancano email o consenso del cliente per il feedback" });
+      return;
+    }
+    if (booking.feedbackRequestedAt) {
+      sendJson(res, 409, { error: "La richiesta feedback è già stata inviata" });
+      return;
+    }
+    const result = await sendFeedbackRequest(booking, session.employeeName);
+    bookings[index] = result.booking;
+    await writeJson(bookingsFile, bookings);
+    if (!result.sent) {
+      sendJson(res, 400, { error: "Invio email non configurato o non riuscito" });
+      return;
+    }
+    sendJson(res, 200, { ok: true, booking: bookings[index] });
+    return;
+  }
+
   if (bookingMatch && req.method === "PATCH") {
     if (!requireBookingEditor(session, res)) return;
     const body = await readBody(req);
@@ -2992,13 +3209,20 @@ async function handleApi(req, res) {
       return;
     }
     const previousBooking = bookings[index];
+    const { feedbackConsent, ...bookingInput } = result;
+    const now = new Date().toISOString();
+    const feedbackConsentAt = feedbackConsent ? (previousBooking.feedbackConsentAt || now) : "";
     const updatedBooking = await markConfirmationEmailIfNeeded(previousBooking, {
       ...previousBooking,
-      ...result,
-      updatedAt: new Date().toISOString(),
+      ...bookingInput,
+      feedbackConsentAt,
+      feedbackConsentVersion: feedbackConsent ? (previousBooking.feedbackConsentVersion || PRIVACY_VERSION) : "",
+      feedbackConsentRevokedAt: feedbackConsent ? "" : (previousBooking.feedbackConsentAt ? now : previousBooking.feedbackConsentRevokedAt || ""),
+      updatedAt: now,
       updatedBy: session.employeeName
     }, session.employeeName);
-    bookings[index] = await markCancellationEmailIfNeeded(previousBooking, updatedBooking, session.employeeName);
+    const cancellationCheckedBooking = await markCancellationEmailIfNeeded(previousBooking, updatedBooking, session.employeeName);
+    bookings[index] = await markFeedbackRequestIfNeeded(previousBooking, cancellationCheckedBooking, session.employeeName);
     await writeJson(bookingsFile, bookings);
     sendJson(res, 200, { booking: bookings[index] });
     return;
