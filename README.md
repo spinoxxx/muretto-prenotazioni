@@ -66,6 +66,7 @@ Variabili disponibili:
 - Il modulo pubblico richiede accettazione dell'informativa privacy e salva la versione accettata.
 - Il modulo pubblico non usa cookie di marketing o profilazione. L'area staff usa solo il cookie tecnico `muretto_session`; per questo non viene mostrato un banner consenso cookie.
 - Se `MURETTO_EMAIL_FROM` e le variabili SMTP Gmail sono configurate, quando una prenotazione con email passa a `confermata` viene inviata una conferma via mail.
+- Per le prenotazioni confermate con email, l'app invia un solo promemoria automatico prima dell'orario riservato. L'intervallo predefinito è 24 ore e può essere modificato dalla variabile `MURETTO_REMINDER_HOURS`.
 - Se il cliente ha scelto il questionario post-visita, quando una prenotazione passa a `completata` viene inviata una sola email di feedback. Le risposte e gli eventuali commenti restano nell'area staff. Dopo aver risposto, tutti i clienti vedono la stessa opzione facoltativa per recensire il locale su Google.
 - Gli admin possono rimuovere i dati personali dai log di cancellazione lasciando solo lo storico operativo.
 - Per cancellare dati personali, elimina la prenotazione dall'agenda.
@@ -99,6 +100,7 @@ Variabili usate in produzione:
 - `MURETTO_EMAIL_FROM`: mittente usato per inviare conferme via mail, es. `Il Muretto <murettobergamo@gmail.com>`.
 - `MURETTO_SMTP_HOST`, `MURETTO_SMTP_PORT`, `MURETTO_SMTP_USER`, `MURETTO_SMTP_PASS`: configurazione SMTP Gmail. `MURETTO_SMTP_PASS` deve essere una password per app Google, non la password normale.
 - `MURETTO_RESEND_API_KEY`: alternativa Resend per inviare le conferme email. Se SMTP e Resend non sono configurati, le conferme email non vengono inviate.
+- `MURETTO_REMINDER_HOURS`: quante ore prima della prenotazione inviare il promemoria email. Default: `24`.
 - `MURETTO_PUBLIC_URL`: URL pubblico dell'app, usato nei collegamenti delle email, ad esempio `https://muretto-prenotazioni.onrender.com`.
 - `MURETTO_GOOGLE_REVIEW_URL`: link diretto alla pagina Google per lasciare una recensione. È mostrato facoltativamente a tutti i clienti dopo l'invio del questionario, senza filtrare in base al punteggio.
 - `MURETTO_VOICE_API_TOKEN`: token segreto usato da gateway telefonici/voce per creare prenotazioni tramite API protette.

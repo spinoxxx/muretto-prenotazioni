@@ -53,6 +53,8 @@ services:
         value: "465"
       - key: MURETTO_SMTP_USER
         value: murettobergamo@gmail.com
+      - key: MURETTO_REMINDER_HOURS
+        value: "24"
       - key: MURETTO_PUBLIC_URL
         value: https://muretto-prenotazioni.onrender.com
       - key: MURETTO_GOOGLE_REVIEW_URL

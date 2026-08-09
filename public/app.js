@@ -514,6 +514,8 @@ function bookingMetaLine(booking) {
   if (booking.customerActionNotificationSentAt) parts.push(`Notifica staff ${formatDateTime(booking.customerActionNotificationSentAt)}`);
   if (booking.cancellationEmailSentAt) parts.push(`Annullamento inviato ${formatDateTime(booking.cancellationEmailSentAt)}`);
   if (booking.cancellationEmailSkippedAt) parts.push(`Annullamento non inviato ${formatDateTime(booking.cancellationEmailSkippedAt)}`);
+  if (booking.reminderEmailSentAt) parts.push(`Promemoria inviato ${formatDateTime(booking.reminderEmailSentAt)}`);
+  if (booking.reminderEmailError) parts.push(booking.reminderEmailError);
   if (booking.feedbackRequestedAt) parts.push(`Feedback richiesto ${formatDateTime(booking.feedbackRequestedAt)}`);
   if (booking.feedbackSubmittedAt) parts.push(`Feedback ricevuto ${formatDateTime(booking.feedbackSubmittedAt)}`);
   return parts.length ? parts.map(escapeHtml).join(" · ") : "Storico non disponibile";

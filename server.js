@@ -16,6 +16,7 @@ const voiceCallbacksFile = path.join(dataDir, "voice-callbacks.json");
 const backupsDir = path.join(dataDir, "backups");
 const sessions = new Map();
 const publicBookingAttempts = new Map();
+let reminderCheckInProgress = false;
 
 const PORT = Number(process.env.PORT || 4220);
 const HOST = process.env.HOST || "127.0.0.1";
@@ -25,6 +26,9 @@ const BACKUP_INTERVAL_MS = Number(process.env.MURETTO_BACKUP_INTERVAL_MS || 1000
 const BACKUP_RETENTION = Number(process.env.MURETTO_BACKUP_RETENTION || 30);
 const PUBLIC_BOOKING_WINDOW_MS = 1000 * 60 * 10;
 const PUBLIC_BOOKING_MAX_ATTEMPTS = 8;
+const REMINDER_HOURS = Math.min(168, Math.max(1, Number(process.env.MURETTO_REMINDER_HOURS || 24))) || 24;
+const REMINDER_CHECK_INTERVAL_MS = 1000 * 60 * 5;
+const VENUE_TIME_ZONE = "Europe/Rome";
 const RESTAURANT_ROOM = "Ristorante Esterno";
 const LEGACY_RESTAURANT_ROOM = "Ristorante";
 const ZONE_ROOMS = [RESTAURANT_ROOM, "Bar", "Giardino"];
@@ -1513,7 +1517,21 @@ function bookingCancellationEmailSubject(booking) {
 
 function bookingDateTimeMs(booking) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(booking.date || "")) || !/^\d{2}:\d{2}$/.test(String(booking.time || ""))) return NaN;
-  return new Date(`${booking.date}T${booking.time}:00+02:00`).getTime();
+  const [year, month, day] = booking.date.split("-").map(Number);
+  const [hour, minute] = booking.time.split(":").map(Number);
+  const utcGuess = Date.UTC(year, month - 1, day, hour, minute);
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: VENUE_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23"
+  }).formatToParts(new Date(utcGuess));
+  const local = Object.fromEntries(parts.filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
+  const renderedAsUtc = Date.UTC(Number(local.year), Number(local.month) - 1, Number(local.day), Number(local.hour), Number(local.minute));
+  return utcGuess - (renderedAsUtc - utcGuess);
 }
 
 function shouldSendCancellationEmail(booking, now = new Date()) {
@@ -1555,6 +1573,107 @@ function bookingCancellationText(booking) {
     "",
     `Lo Staff del ${BRAND_CONFIG.name}`
   ].filter(Boolean).join("\n");
+}
+
+function bookingReminderEmailSubject(booking) {
+  const language = normalizeLanguage(booking.language);
+  return language === "en" ? `Reminder: your booking at ${BRAND_CONFIG.name}` : `Promemoria: la tua prenotazione al ${BRAND_CONFIG.name}`;
+}
+
+function bookingReminderText(booking) {
+  const language = normalizeLanguage(booking.language);
+  const seat = emailSeatLine(booking, language);
+  if (language === "en") {
+    return [
+      `Hi ${booking.guestName},`,
+      "",
+      `This is a reminder of your booking at ${BRAND_CONFIG.name}.`,
+      "",
+      `Date: ${booking.date}`,
+      `Time: ${booking.time}`,
+      `Guests: ${booking.people}`,
+      seat ? `Area: ${seat}` : "",
+      `Address: ${VENUE_ADDRESS}`,
+      `Map: ${VENUE_MAP_URL}`,
+      "",
+      "If you need to change or cancel your booking, reply to this email as soon as possible.",
+      "",
+      `The ${BRAND_CONFIG.name} Team`
+    ].filter(Boolean).join("\n");
+  }
+  return [
+    `Ciao ${booking.guestName},`,
+    "",
+    `Ti ricordiamo la tua prenotazione al ${BRAND_CONFIG.name}.`,
+    "",
+    `Data: ${booking.date}`,
+    `Ora: ${booking.time}`,
+    `Persone: ${booking.people}`,
+    seat ? `Zona: ${seat}` : "",
+    `Indirizzo: ${VENUE_ADDRESS}`,
+    `Mappa: ${VENUE_MAP_URL}`,
+    "",
+    "Se hai bisogno di modificare o annullare la prenotazione, rispondi a questa email appena possibile.",
+    "",
+    `Lo Staff del ${BRAND_CONFIG.name}`
+  ].filter(Boolean).join("\n");
+}
+
+function shouldSendBookingReminder(booking, now = new Date()) {
+  if (booking.status !== "confermata" || !booking.email || booking.reminderEmailSentAt) return false;
+  const bookingTime = bookingDateTimeMs(booking);
+  if (!Number.isFinite(bookingTime)) return false;
+  const reminderTime = bookingTime - REMINDER_HOURS * 60 * 60 * 1000;
+  const nowMs = now.getTime();
+  return nowMs >= reminderTime && nowMs < bookingTime;
+}
+
+async function markBookingReminderIfNeeded(booking, actor, now = new Date()) {
+  if (!shouldSendBookingReminder(booking, now)) return booking;
+  try {
+    const result = await sendPlainEmail({
+      to: booking.email,
+      subject: bookingReminderEmailSubject(booking),
+      text: bookingReminderText(booking)
+    });
+    if (!result.sent) return booking;
+    return {
+      ...booking,
+      reminderEmailSentAt: new Date().toISOString(),
+      reminderEmailSentBy: actor,
+      reminderEmailError: ""
+    };
+  } catch (error) {
+    console.error(error);
+    return {
+      ...booking,
+      reminderEmailError: "Invio promemoria email non riuscito"
+    };
+  }
+}
+
+async function sendDueBookingReminders() {
+  if (reminderCheckInProgress) return;
+  reminderCheckInProgress = true;
+  try {
+    const candidates = (await readJson(bookingsFile, [])).filter((booking) => shouldSendBookingReminder(booking));
+    for (const candidate of candidates) {
+      const updated = await markBookingReminderIfNeeded(candidate, `automazione promemoria ${REMINDER_HOURS} ore`);
+      if (updated.reminderEmailSentAt === candidate.reminderEmailSentAt && updated.reminderEmailError === candidate.reminderEmailError) continue;
+      const bookings = await readJson(bookingsFile, []);
+      const index = bookings.findIndex((booking) => booking.id === candidate.id);
+      if (index === -1 || bookings[index].reminderEmailSentAt) continue;
+      bookings[index] = {
+        ...bookings[index],
+        reminderEmailSentAt: updated.reminderEmailSentAt || "",
+        reminderEmailSentBy: updated.reminderEmailSentBy || "",
+        reminderEmailError: updated.reminderEmailError || ""
+      };
+      await writeJson(bookingsFile, bookings);
+    }
+  } finally {
+    reminderCheckInProgress = false;
+  }
 }
 
 function bookingHasAllergyOrIntolerance(booking) {
@@ -3279,6 +3398,10 @@ function pruneSessions() {
 await ensureDataFiles();
 createBackup("avvio", "system").catch((error) => console.error("Backup iniziale non riuscito", error));
 setInterval(pruneSessions, 1000 * 60 * 10).unref();
+sendDueBookingReminders().catch((error) => console.error("Invio promemoria iniziale non riuscito", error));
+setInterval(() => {
+  sendDueBookingReminders().catch((error) => console.error("Invio promemoria automatico non riuscito", error));
+}, REMINDER_CHECK_INTERVAL_MS).unref();
 if (BACKUP_INTERVAL_MS > 0) {
   setInterval(() => {
     createBackup("automatico", "system").catch((error) => console.error("Backup automatico non riuscito", error));
