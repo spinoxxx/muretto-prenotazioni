@@ -7,7 +7,7 @@ const eventBookingNotice = document.querySelector("#eventBookingNotice");
 const publicEventCard = document.querySelector("#publicEventCard");
 const publicTimeSlots = document.querySelector("#publicTimeSlots");
 const zonePreviewCards = document.querySelectorAll("[data-zone-preview]");
-const SPECIAL_EVENT_DATE = "2026-07-22";
+const SPECIAL_EVENT_DATE = "2026-08-16";
 const pageLanguage = document.documentElement.lang === "en" ? "en" : "it";
 let timeSlotRequestId = 0;
 const copy = {

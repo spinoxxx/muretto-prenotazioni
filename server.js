@@ -42,11 +42,11 @@ const PRIVACY_VERSION = "2026-08-08";
 const PRIVACY_CONTROLLER = "Bar Flora srl, Piazza Vecchia 13, 24129 Bergamo";
 const VENUE_ADDRESS = "Viale delle Mura 1, 24129 Bergamo";
 const VENUE_MAP_URL = "https://www.google.com/maps/search/?api=1&query=Viale%20delle%20Mura%201%2C%2024129%20Bergamo";
-const SPECIAL_EVENT_DATE = "2026-07-22";
-const SPECIAL_EVENT_NAME = "Notte al Muretto";
+const SPECIAL_EVENT_DATE = "2026-08-16";
+const SPECIAL_EVENT_NAME = "Note d'Agrumi";
 const SPECIAL_EVENT_TIME = "20:00";
 const SPECIAL_EVENT_PRICE = "45€ a persona, bevande escluse";
-const SPECIAL_EVENT_MENU = "Antipasto: scampo flambato al Grand Marnier con purè di patate e olio all'erba cipollina. Primo: linguine alle vongole e bottarga. Dolce: cheese cake.";
+const SPECIAL_EVENT_MENU = "Antipasto: tartare di tonno con mela Granny Smith e salsa agrumata. Primo: risotto al profumo di agrumi e battuta di scampo. Dolce: lemon curd e tartelletta di frolla al limone. Opzione vegetariana disponibile.";
 const PUBLIC_AUTO_CONFIRM_LIMIT_RATIO = 0.85;
 const PUBLIC_SLOT_INTERVAL_MINUTES = 15;
 const PUBLIC_SLOT_MAX_BOOKINGS = 3;
@@ -1147,7 +1147,7 @@ function validatePublicBooking(input) {
     "Richiesta dal modulo online.",
     `Consumazione prevista: ${consumption}.`,
     gardenRequested ? "Richiesta giardino: da confermare." : "",
-    input.date === SPECIAL_EVENT_DATE ? `Data evento ${SPECIAL_EVENT_NAME}: Cena & Jazz ore ${SPECIAL_EVENT_TIME}, ${SPECIAL_EVENT_PRICE}.` : "",
+    input.date === SPECIAL_EVENT_DATE ? `Data evento ${SPECIAL_EVENT_NAME}: cena in musica ore ${SPECIAL_EVENT_TIME}, musica dal vivo con Nataly, ${SPECIAL_EVENT_PRICE}.` : "",
     customerNotes
   ].filter(Boolean).join(" ");
 
@@ -1771,15 +1771,15 @@ function specialEventEmailLines(booking, language) {
     return [
       "",
       `Special event: ${SPECIAL_EVENT_NAME}`,
-      `Dinner & Jazz on 22 July from ${SPECIAL_EVENT_TIME}. Event menu at ${SPECIAL_EVENT_PRICE.replace("a persona", "per person").replace("bevande escluse", "drinks excluded")}.`,
-      "Menu: Grand Marnier flambéed prawn with potato purée and chive oil; linguine with clams and bottarga; cheese cake.",
-      "Booking required."
+      `Dinner with live music on Sunday 16 August from ${SPECIAL_EVENT_TIME}, with Nataly. Event menu at ${SPECIAL_EVENT_PRICE.replace("a persona", "per person").replace("bevande escluse", "drinks excluded")}.`,
+      "Menu: tuna tartare with Granny Smith apple and citrus sauce; citrus-scented risotto with scampi tartare; lemon curd and lemon shortcrust tartlet.",
+      "Vegetarian option available. Booking required."
     ];
   }
   return [
     "",
     `Evento speciale: ${SPECIAL_EVENT_NAME}`,
-    `Cena & Jazz il 22 luglio dalle ${SPECIAL_EVENT_TIME}. Menu evento a ${SPECIAL_EVENT_PRICE}.`,
+    `Cena in musica domenica 16 agosto dalle ${SPECIAL_EVENT_TIME}, con musica dal vivo con Nataly. Menu evento a ${SPECIAL_EVENT_PRICE}.`,
     `Menu: ${SPECIAL_EVENT_MENU}`,
     "Prenotazione obbligatoria."
   ];
