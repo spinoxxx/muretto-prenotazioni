@@ -217,7 +217,7 @@ function statusClass(status) {
 
 function matchesSearch(booking, term) {
   if (!term) return true;
-  const haystack = `${booking.guestName} ${booking.phone} ${booking.email} ${booking.room} ${booking.tableNumber} ${booking.notes}`.toLowerCase();
+  const haystack = `${booking.guestName} ${booking.phone} ${booking.email} ${booking.room} ${booking.tableNumber} ${booking.voucherCode} ${booking.notes}`.toLowerCase();
   return haystack.includes(term.toLowerCase());
 }
 
@@ -382,6 +382,7 @@ function renderBookings() {
         <h3>${escapeHtml(booking.guestName)} · ${Number(booking.people)} persone</h3>
         <p class="booking-details">${formatDate(booking.date)} · ${seatLine(booking)} · ${contactLine(booking)}</p>
         ${referralLine(booking) ? `<p class="booking-referral">${referralLine(booking)}</p>` : ""}
+        ${booking.voucherCode ? `<p class="booking-voucher"><strong>Voucher</strong> ${escapeHtml(booking.voucherCode)}</p>` : ""}
         ${booking.notes ? `<p class="booking-notes">${escapeHtml(booking.notes)}</p>` : ""}
         ${feedbackSummary(booking)}
         <p><span class="status ${statusClass(booking.status)}">${escapeHtml(booking.status)}</span></p>
@@ -678,6 +679,7 @@ function renderReceivedBookings(receivedBookings) {
           <span>Ricevuta ${formatDateTime(booking.createdAt)}</span>
           <span>${formatDate(booking.date)} · ${escapeHtml(booking.time || "")} · ${Number(booking.people || 0)} persone</span>
           <span>${seatLine(booking)} · ${contactLine(booking)}</span>
+          ${booking.voucherCode ? `<span>Voucher/buono regalo: ${escapeHtml(booking.voucherCode)}</span>` : ""}
           ${booking.notes ? `<span>${escapeHtml(booking.notes)}</span>` : ""}
           ${notification}
         </div>
@@ -743,7 +745,7 @@ function renderWeeklyExport() {
       <span>
         <strong>${escapeHtml(booking.guestName || "Prenotazione senza nome")}</strong>
         <small>${formatDate(booking.date)} · ${escapeHtml(booking.time || "")} · ${Number(booking.people || 0)} persone · ${seatLine(booking)}</small>
-        <small>${contactLine(booking)}${booking.notes ? ` · ${escapeHtml(booking.notes)}` : ""}</small>
+        <small>${contactLine(booking)}${booking.voucherCode ? ` · Voucher ${escapeHtml(booking.voucherCode)}` : ""}${booking.notes ? ` · ${escapeHtml(booking.notes)}` : ""}</small>
       </span>
       <span class="status ${statusClass(booking.status)}">${escapeHtml(booking.status)}</span>
     </label>
@@ -779,6 +781,7 @@ function renderWeeklyPrintArea(selected) {
               <p>${formatDate(booking.date)} · ${escapeHtml(booking.time || "")} · ${Number(booking.people || 0)} persone</p>
               <p>${seatLine(booking)}</p>
               <p>${contactLine(booking)}</p>
+              ${booking.voucherCode ? `<p>Voucher ${escapeHtml(booking.voucherCode)}</p>` : ""}
             </div>
             <div>
               <strong>${escapeHtml(booking.status)}</strong>

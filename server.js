@@ -180,6 +180,15 @@ function sanitizeText(value, max = 180) {
   return String(value || "").trim().replace(/\s+/g, " ").slice(0, max);
 }
 
+function normalizeVoucherCode(value) {
+  return String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "")
+    .replace(/[^A-Z0-9-]/g, "")
+    .slice(0, 40);
+}
+
 function sanitizePublicText(value, fallback, max = 120) {
   const text = String(value || "").trim().replace(/\s+/g, " ").slice(0, max);
   return text || fallback;
@@ -647,6 +656,7 @@ function validateBooking(input) {
     tableNumber: sanitizeText(input.tableNumber, 30),
     status: sanitizeText(input.status || "confermata", 20),
     language: normalizeLanguage(input.language),
+    voucherCode: normalizeVoucherCode(input.voucherCode),
     notes: sanitizeText(input.notes, 300),
     customerNotes: sanitizeText(input.customerNotes, 220),
     feedbackConsent: input.feedbackConsent === true || input.feedbackConsent === "on" || input.feedbackConsent === "true"
@@ -1136,6 +1146,7 @@ function validatePublicBooking(input) {
   const privacyAccepted = input.privacyAccepted === true || input.privacyAccepted === "on" || input.privacyAccepted === "true";
   const feedbackConsent = input.feedbackConsent === true || input.feedbackConsent === "on" || input.feedbackConsent === "true";
   const customerNotes = sanitizeText(input.notes, 220);
+  const voucherCode = normalizeVoucherCode(input.voucherCode);
   const allowedConsumptions = new Set(["cena", "aperitivo"]);
   if (!privacyAccepted) return language === "en" ? "You must read and accept the privacy notice." : "Devi leggere e accettare l'informativa privacy.";
   if (!allowedConsumptions.has(consumption)) return language === "en" ? "Choose lunch/dinner or aperitif." : "Scegli pranzo/cena o aperitivo.";
@@ -1162,6 +1173,7 @@ function validatePublicBooking(input) {
     tableNumber: "",
     status: "da verificare",
     language,
+    voucherCode,
     notes,
     customerNotes
   });
@@ -1553,6 +1565,7 @@ function bookingCancellationText(booking) {
       `Time: ${booking.time}`,
       `Guests: ${booking.people}`,
       seat ? `Area: ${seat}` : "",
+      booking.voucherCode ? `Voucher code: ${booking.voucherCode}` : "",
       "",
       "For any questions or new requests, you can reply to this email.",
       "",
@@ -1568,6 +1581,7 @@ function bookingCancellationText(booking) {
     `Ora: ${booking.time}`,
     `Persone: ${booking.people}`,
     seat ? `Zona: ${seat}` : "",
+    booking.voucherCode ? `Codice voucher: ${booking.voucherCode}` : "",
     "",
     "Per qualsiasi domanda o nuova richiesta puoi rispondere a questa email.",
     "",
@@ -1593,6 +1607,7 @@ function bookingReminderText(booking) {
       `Time: ${booking.time}`,
       `Guests: ${booking.people}`,
       seat ? `Area: ${seat}` : "",
+      booking.voucherCode ? `Voucher code: ${booking.voucherCode}` : "",
       `Address: ${VENUE_ADDRESS}`,
       `Map: ${VENUE_MAP_URL}`,
       "",
@@ -1610,6 +1625,7 @@ function bookingReminderText(booking) {
     `Ora: ${booking.time}`,
     `Persone: ${booking.people}`,
     seat ? `Zona: ${seat}` : "",
+    booking.voucherCode ? `Codice voucher: ${booking.voucherCode}` : "",
     `Indirizzo: ${VENUE_ADDRESS}`,
     `Mappa: ${VENUE_MAP_URL}`,
     "",
@@ -1724,6 +1740,7 @@ function bookingConfirmationText(booking) {
       `Time: ${booking.time}`,
       `Guests: ${booking.people}`,
       seat ? `Area: ${seat}` : "",
+      booking.voucherCode ? `Voucher code: ${booking.voucherCode}` : "",
       `Address: ${VENUE_ADDRESS}`,
       `Map: ${VENUE_MAP_URL}`,
       ...eventLines,
@@ -1749,6 +1766,7 @@ function bookingConfirmationText(booking) {
     `Ora: ${booking.time}`,
     `Persone: ${booking.people}`,
     seat ? `Zona: ${seat}` : "",
+    booking.voucherCode ? `Codice voucher: ${booking.voucherCode}` : "",
     `Indirizzo: ${VENUE_ADDRESS}`,
     `Mappa: ${VENUE_MAP_URL}`,
     ...eventLines,
@@ -2164,6 +2182,7 @@ function publicBookingNotificationText(booking) {
     `Ora: ${booking.time}`,
     `Persone: ${booking.people}`,
     seat ? `Zona proposta: ${seat}` : "",
+    booking.voucherCode ? `Voucher/buono regalo: ${booking.voucherCode}` : "",
     booking.phone ? `Telefono: ${booking.phone}` : "",
     booking.email ? `Email cliente: ${booking.email}` : "",
     booking.notes ? `Note: ${booking.notes}` : "",
@@ -2203,6 +2222,7 @@ function publicBookingNotificationHtml(booking) {
           Ora: ${escapeHtml(booking.time)}<br>
           Persone: ${escapeHtml(booking.people)}<br>
           ${seat ? `Zona proposta: ${escapeHtml(seat)}<br>` : ""}
+          ${booking.voucherCode ? `Voucher/buono regalo: ${escapeHtml(booking.voucherCode)}<br>` : ""}
           ${booking.phone ? `Telefono: ${escapeHtml(booking.phone)}<br>` : ""}
           ${booking.email ? `Email cliente: ${escapeHtml(booking.email)}<br>` : ""}
           ${booking.notes ? `Note: ${escapeHtml(booking.notes)}<br>` : ""}
@@ -2850,6 +2870,7 @@ async function handleApi(req, res) {
         room: item.room || "",
         tableNumber: item.tableNumber || "",
         status: item.status,
+        voucherCode: item.voucherCode || "",
         notes: item.notes || "",
         referredByEmployeeName: item.referredByEmployeeName || ""
       }));
@@ -2875,6 +2896,7 @@ async function handleApi(req, res) {
         room: item.room || "",
         tableNumber: item.tableNumber || "",
         status: item.status,
+        voucherCode: item.voucherCode || "",
         notes: item.notes || "",
         referredByEmployeeName: item.referredByEmployeeName || "",
         language: normalizeLanguage(item.language),
@@ -3372,6 +3394,7 @@ async function handleApi(req, res) {
         status: booking.status,
         phone: booking.phone,
         email: booking.email,
+        voucherCode: booking.voucherCode,
         notes: booking.notes,
         createdBy: booking.createdBy,
         createdAt: booking.createdAt,

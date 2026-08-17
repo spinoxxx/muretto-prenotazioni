@@ -834,6 +834,19 @@ label {
   padding-left: 10px;
 }
 
+.booking-voucher {
+  display: inline-flex;
+  width: fit-content;
+  gap: 6px;
+  border: 1px solid #d8bf72;
+  border-radius: 6px;
+  padding: 5px 8px;
+  background: #fff8df;
+  color: #645221;
+  font-size: 0.88rem;
+  font-weight: 750;
+}
+
 .agenda-notes strong {
   color: var(--ink);
 }
