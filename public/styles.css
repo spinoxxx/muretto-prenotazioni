@@ -1446,6 +1446,13 @@ label {
   display: block;
 }
 
+.voucher-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .check-row {
   display: flex;
   align-items: center;

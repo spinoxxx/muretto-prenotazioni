@@ -13,6 +13,7 @@ const bookingsFile = path.join(dataDir, "bookings.json");
 const deletedBookingsFile = path.join(dataDir, "deleted-bookings.json");
 const zoneSettingsFile = path.join(dataDir, "zone-settings.json");
 const voiceCallbacksFile = path.join(dataDir, "voice-callbacks.json");
+const vouchersFile = path.join(dataDir, "vouchers.json");
 const backupsDir = path.join(dataDir, "backups");
 const sessions = new Map();
 const publicBookingAttempts = new Map();
@@ -187,6 +188,26 @@ function normalizeVoucherCode(value) {
     .replace(/\s+/g, "")
     .replace(/[^A-Z0-9-]/g, "")
     .slice(0, 40);
+}
+
+function findVoucherByCode(vouchers, code) {
+  const normalized = normalizeVoucherCode(code);
+  if (!normalized) return null;
+  return vouchers.find((voucher) => normalizeVoucherCode(voucher.code) === normalized) || null;
+}
+
+function publicVoucher(voucher) {
+  return {
+    id: voucher.id,
+    code: voucher.code,
+    description: voucher.description || "",
+    createdAt: voucher.createdAt || "",
+    createdBy: voucher.createdBy || "",
+    usedAt: voucher.usedAt || "",
+    usedBy: voucher.usedBy || "",
+    usedForBookingId: voucher.usedForBookingId || "",
+    usedForGuestName: voucher.usedForGuestName || ""
+  };
 }
 
 function sanitizePublicText(value, fallback, max = 120) {
@@ -430,6 +451,12 @@ async function ensureDataFiles() {
   } catch {
     await writeJson(voiceCallbacksFile, []);
   }
+
+  try {
+    await fs.access(vouchersFile);
+  } catch {
+    await writeJson(vouchersFile, []);
+  }
 }
 
 async function readJson(file, fallback) {
@@ -487,7 +514,8 @@ async function createBackup(reason = "manuale", actor = "system") {
       employees: await readJson(employeesFile, []),
       deletedBookings: await readJson(deletedBookingsFile, []),
       zoneSettings: await readJson(zoneSettingsFile, {}),
-      voiceCallbacks: await readJson(voiceCallbacksFile, [])
+      voiceCallbacks: await readJson(voiceCallbacksFile, []),
+      vouchers: await readJson(vouchersFile, [])
     }
   };
   const name = backupFileName(new Date(createdAt));
@@ -1435,6 +1463,14 @@ async function publicBookingSlots(input, bookings) {
 }
 
 async function publicBookingAutomation(booking, bookings) {
+  if (booking.voucherCode && booking.voucherStatus !== "registrato") {
+    return {
+      ...booking,
+      status: "da verificare",
+      notes: appendBookingNote(booking, "Automazione: voucher non presente nel registro, verifica manuale richiesta.")
+    };
+  }
+
   if (!ZONE_ROOMS.includes(booking.room)) {
     return {
       ...booking,
@@ -1666,6 +1702,50 @@ async function markBookingReminderIfNeeded(booking, actor, now = new Date()) {
       reminderEmailError: "Invio promemoria email non riuscito"
     };
   }
+}
+
+async function syncVoucherArrival(booking, arriving, actor, now = new Date().toISOString()) {
+  if (!booking.voucherCode) return booking;
+  const vouchers = await readJson(vouchersFile, []);
+  const index = vouchers.findIndex((voucher) => normalizeVoucherCode(voucher.code) === normalizeVoucherCode(booking.voucherCode));
+  if (index === -1) return booking;
+  const voucher = vouchers[index];
+
+  if (arriving && !voucher.usedAt) {
+    vouchers[index] = {
+      ...voucher,
+      usedAt: now,
+      usedBy: actor,
+      usedForBookingId: booking.id,
+      usedForGuestName: booking.guestName || ""
+    };
+    await writeJson(vouchersFile, vouchers);
+    return {
+      ...booking,
+      voucherUsedAt: now,
+      voucherUsedBy: actor,
+      notes: appendBookingNote(booking, `Voucher ${booking.voucherCode} segnato come utilizzato.`)
+    };
+  }
+
+  if (!arriving && voucher.usedForBookingId === booking.id) {
+    vouchers[index] = {
+      ...voucher,
+      usedAt: "",
+      usedBy: "",
+      usedForBookingId: "",
+      usedForGuestName: ""
+    };
+    await writeJson(vouchersFile, vouchers);
+    return {
+      ...booking,
+      voucherUsedAt: "",
+      voucherUsedBy: "",
+      notes: appendBookingNote(booking, `Voucher ${booking.voucherCode} riportato disponibile dopo annullamento arrivo.`)
+    };
+  }
+
+  return booking;
 }
 
 async function sendDueBookingReminders() {
@@ -2602,6 +2682,16 @@ async function handleApi(req, res) {
       return;
     }
     const bookings = await readJson(bookingsFile, []);
+    const vouchers = await readJson(vouchersFile, []);
+    const voucher = findVoucherByCode(vouchers, result.voucherCode);
+    if (voucher?.usedAt) {
+      sendJson(res, 409, {
+        error: normalizeLanguage(result.language) === "en"
+          ? "This voucher code has already been used. Contact us if you think this is a mistake."
+          : "Questo codice voucher risulta gia utilizzato. Contattaci se pensi sia un errore."
+      });
+      return;
+    }
     const slotError = publicSlotError(result, bookings);
     if (slotError) {
       sendJson(res, 409, { error: slotError });
@@ -2626,6 +2716,10 @@ async function handleApi(req, res) {
       feedbackConsentAt: feedbackConsent ? now : "",
       feedbackConsentVersion: feedbackConsent ? PRIVACY_VERSION : ""
     };
+    if (booking.voucherCode) {
+      booking.voucherStatus = voucher ? "registrato" : "non registrato";
+      if (voucher) booking.voucherId = voucher.id;
+    }
     booking = await publicBookingAutomation(booking, bookings);
     bookings.push(booking);
     await writeJson(bookingsFile, bookings);
@@ -2999,6 +3093,111 @@ async function handleApi(req, res) {
     return;
   }
 
+  if (url.pathname === "/api/vouchers" && req.method === "GET") {
+    if (!requireAdmin(session, res)) return;
+    const vouchers = await readJson(vouchersFile, []);
+    sendJson(res, 200, {
+      vouchers: vouchers
+        .slice()
+        .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
+        .map(publicVoucher)
+    });
+    return;
+  }
+
+  if (url.pathname === "/api/vouchers" && req.method === "POST") {
+    if (!requireAdmin(session, res)) return;
+    const body = await readBody(req);
+    const code = normalizeVoucherCode(body.code);
+    const description = sanitizeText(body.description, 140);
+    if (!code) {
+      sendJson(res, 400, { error: "Inserisci il codice voucher" });
+      return;
+    }
+    const vouchers = await readJson(vouchersFile, []);
+    if (findVoucherByCode(vouchers, code)) {
+      sendJson(res, 409, { error: "Esiste gia un voucher con questo codice" });
+      return;
+    }
+    const voucher = {
+      id: crypto.randomUUID(),
+      code,
+      description,
+      createdAt: new Date().toISOString(),
+      createdBy: session.employeeName
+    };
+    vouchers.push(voucher);
+    await writeJson(vouchersFile, vouchers);
+    sendJson(res, 201, { voucher: publicVoucher(voucher) });
+    return;
+  }
+
+  const voucherUseMatch = url.pathname.match(/^\/api\/vouchers\/([a-f0-9-]+)\/use$/i);
+  if (voucherUseMatch && req.method === "PATCH") {
+    if (!requireAdmin(session, res)) return;
+    const vouchers = await readJson(vouchersFile, []);
+    const index = vouchers.findIndex((item) => item.id === voucherUseMatch[1]);
+    if (index === -1) {
+      sendJson(res, 404, { error: "Voucher non trovato" });
+      return;
+    }
+    if (vouchers[index].usedAt) {
+      sendJson(res, 409, { error: "Questo voucher risulta gia utilizzato" });
+      return;
+    }
+    const bookings = await readJson(bookingsFile, []);
+    const booking = bookings
+      .filter((item) => normalizeVoucherCode(item.voucherCode) === normalizeVoucherCode(vouchers[index].code))
+      .filter((item) => item.status !== "annullata")
+      .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))[0];
+    const now = new Date().toISOString();
+    vouchers[index] = {
+      ...vouchers[index],
+      usedAt: now,
+      usedBy: session.employeeName,
+      usedForBookingId: booking?.id || "",
+      usedForGuestName: booking?.guestName || ""
+    };
+    if (booking) {
+      const bookingIndex = bookings.findIndex((item) => item.id === booking.id);
+      bookings[bookingIndex] = {
+        ...bookings[bookingIndex],
+        voucherUsedAt: now,
+        voucherUsedBy: session.employeeName,
+        notes: appendBookingNote(bookings[bookingIndex], `Voucher ${vouchers[index].code} segnato come utilizzato da pannello admin.`),
+        updatedAt: now,
+        updatedBy: session.employeeName
+      };
+      await writeJson(bookingsFile, bookings);
+    }
+    await writeJson(vouchersFile, vouchers);
+    sendJson(res, 200, { voucher: publicVoucher(vouchers[index]) });
+    return;
+  }
+
+  const voucherResetMatch = url.pathname.match(/^\/api\/vouchers\/([a-f0-9-]+)\/reset$/i);
+  if (voucherResetMatch && req.method === "PATCH") {
+    if (!requireAdmin(session, res)) return;
+    const vouchers = await readJson(vouchersFile, []);
+    const index = vouchers.findIndex((item) => item.id === voucherResetMatch[1]);
+    if (index === -1) {
+      sendJson(res, 404, { error: "Voucher non trovato" });
+      return;
+    }
+    vouchers[index] = {
+      ...vouchers[index],
+      usedAt: "",
+      usedBy: "",
+      usedForBookingId: "",
+      usedForGuestName: "",
+      resetAt: new Date().toISOString(),
+      resetBy: session.employeeName
+    };
+    await writeJson(vouchersFile, vouchers);
+    sendJson(res, 200, { voucher: publicVoucher(vouchers[index]) });
+    return;
+  }
+
   const backupMatch = url.pathname.match(/^\/api\/backups\/([^/]+)$/);
   if (backupMatch && req.method === "GET") {
     if (!requireAdmin(session, res)) return;
@@ -3199,14 +3398,14 @@ async function handleApi(req, res) {
     }
     const now = new Date().toISOString();
     const isArrived = bookings[index].status === "arrivati";
-    bookings[index] = {
+    bookings[index] = await syncVoucherArrival({
       ...bookings[index],
       status: isArrived ? "confermata" : "arrivati",
       arrivedAt: isArrived ? "" : now,
       arrivedBy: isArrived ? "" : session.employeeName,
       updatedAt: now,
       updatedBy: session.employeeName
-    };
+    }, !isArrived, session.employeeName, now);
     await writeJson(bookingsFile, bookings);
     sendJson(res, 200, {
       booking: {

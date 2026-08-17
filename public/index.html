@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Muretto Prenotazioni</title>
-    <link rel="stylesheet" href="/styles.css?v=25">
+    <link rel="stylesheet" href="/styles.css?v=26">
   </head>
   <body>
     <main class="shell">
@@ -237,6 +237,28 @@
               </details>
             </section>
 
+            <section id="voucherPanel" class="staff-panel received-bookings-panel" hidden>
+              <details class="collapsible-admin-section">
+                <summary>
+                  <span>Buoni regalo</span>
+                  <small>Registro codici voucher.</small>
+                </summary>
+                <form id="voucherForm" class="employee-form" autocomplete="off">
+                  <label>
+                    Codice voucher
+                    <input name="code" type="text" maxlength="40" placeholder="Es. MR-2026-001" required>
+                  </label>
+                  <label>
+                    Descrizione
+                    <input name="description" type="text" maxlength="140" placeholder="Es. Cena regalo per 2 persone">
+                  </label>
+                  <button type="submit">Aggiungi voucher</button>
+                  <p id="voucherMessage" class="message" role="status"></p>
+                </form>
+                <div id="voucherList" class="received-bookings-list" aria-live="polite"></div>
+              </details>
+            </section>
+
             <section id="staffPanel" class="staff-panel" hidden>
               <details class="collapsible-admin-section">
                 <summary>Staff</summary>
@@ -426,6 +448,6 @@
       </form>
     </dialog>
     <section id="weeklyPrintArea" class="weekly-print-area" aria-hidden="true"></section>
-    <script src="/app.js?v=45" type="module"></script>
+    <script src="/app.js?v=46" type="module"></script>
   </body>
 </html>

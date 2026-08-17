@@ -74,8 +74,12 @@ const backupPanel = document.querySelector("#backupPanel");
 const deleteLogPanel = document.querySelector("#deleteLogPanel");
 const receivedBookingsPanel = document.querySelector("#receivedBookingsPanel");
 const employeeRewardsPanel = document.querySelector("#employeeRewardsPanel");
+const voucherPanel = document.querySelector("#voucherPanel");
 const employeeRewardsMonth = document.querySelector("#employeeRewardsMonth");
 const employeeRewardsList = document.querySelector("#employeeRewardsList");
+const voucherForm = document.querySelector("#voucherForm");
+const voucherList = document.querySelector("#voucherList");
+const voucherMessage = document.querySelector("#voucherMessage");
 const createBackupButton = document.querySelector("#createBackupButton");
 const backupMessage = document.querySelector("#backupMessage");
 const backupDownloadLink = document.querySelector("#backupDownloadLink");
@@ -161,6 +165,7 @@ function showLogin() {
   zoneSettingsPanel.hidden = true;
   receivedBookingsPanel.hidden = true;
   employeeRewardsPanel.hidden = true;
+  voucherPanel.hidden = true;
   backupPanel.hidden = true;
   deleteLogPanel.hidden = true;
 }
@@ -173,6 +178,7 @@ function showApp(employee) {
   zoneSettingsPanel.hidden = employee.role !== "admin";
   receivedBookingsPanel.hidden = employee.role !== "admin";
   employeeRewardsPanel.hidden = employee.role !== "admin";
+  voucherPanel.hidden = employee.role !== "admin";
   backupPanel.hidden = employee.role !== "admin";
   deleteLogPanel.hidden = employee.role !== "admin";
   loginView.hidden = true;
@@ -500,6 +506,12 @@ async function loadEmployeeRewards() {
   renderEmployeeRewards(payload.rewards);
 }
 
+async function loadVouchers() {
+  if (currentEmployee?.role !== "admin") return;
+  const payload = await api("/api/vouchers");
+  renderVouchers(payload.vouchers);
+}
+
 function contactLine(booking) {
   const parts = [booking.phone, booking.email].filter(Boolean).map(escapeHtml);
   return parts.length ? parts.join(" · ") : "nessun recapito";
@@ -715,6 +727,35 @@ function renderEmployeeRewards(rewards) {
       </div>
     </div>
   `).join("");
+}
+
+function renderVouchers(vouchers) {
+  if (!vouchers.length) {
+    voucherList.innerHTML = `<p class="empty compact-empty">Nessun voucher registrato.</p>`;
+    return;
+  }
+
+  voucherList.innerHTML = vouchers.map((voucher) => {
+    const used = Boolean(voucher.usedAt);
+    const statusLabel = used ? "utilizzato" : "disponibile";
+    const statusClassName = used ? "annullata" : "confermata";
+    return `
+      <div class="received-booking-row voucher-row">
+        <div>
+          <strong>${escapeHtml(voucher.code)}</strong>
+          ${voucher.description ? `<span>${escapeHtml(voucher.description)}</span>` : ""}
+          <span>Creato ${formatDateTime(voucher.createdAt)}${voucher.createdBy ? ` da ${escapeHtml(voucher.createdBy)}` : ""}</span>
+          ${used ? `<span>Usato ${formatDateTime(voucher.usedAt)}${voucher.usedBy ? ` da ${escapeHtml(voucher.usedBy)}` : ""}${voucher.usedForGuestName ? ` · ${escapeHtml(voucher.usedForGuestName)}` : ""}</span>` : ""}
+        </div>
+        <div class="voucher-actions">
+          <span class="status ${statusClassName}">${statusLabel}</span>
+          ${used
+            ? `<button class="ghost compact" type="button" data-voucher-action="reset" data-voucher-id="${voucher.id}">Riapri</button>`
+            : `<button class="ghost compact" type="button" data-voucher-action="use" data-voucher-id="${voucher.id}">Segna usato</button>`}
+        </div>
+      </div>
+    `;
+  }).join("");
 }
 
 async function openWeeklyExport() {
@@ -1044,6 +1085,7 @@ loginForm.addEventListener("submit", async (event) => {
     await loadBookings();
     await loadReceivedBookings();
     await loadEmployeeRewards();
+    await loadVouchers();
     await loadEmployees();
     await loadZoneSettings();
     await loadBackups();
@@ -1322,6 +1364,37 @@ employeeList.addEventListener("click", async (event) => {
   await loadEmployees();
 });
 
+voucherForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  voucherMessage.textContent = "";
+  const payload = Object.fromEntries(new FormData(voucherForm).entries());
+  try {
+    await api("/api/vouchers", { method: "POST", body: JSON.stringify(payload) });
+    voucherForm.reset();
+    voucherMessage.textContent = "Voucher aggiunto.";
+    await loadVouchers();
+  } catch (error) {
+    voucherMessage.textContent = error.message;
+  }
+});
+
+voucherList.addEventListener("click", async (event) => {
+  const button = event.target.closest("button[data-voucher-action]");
+  if (!button) return;
+  const action = button.dataset.voucherAction;
+  const message = action === "use" ? "Segnare questo voucher come utilizzato?" : "Rendere di nuovo disponibile questo voucher?";
+  if (!confirm(message)) return;
+  button.disabled = true;
+  try {
+    await api(`/api/vouchers/${button.dataset.voucherId}/${action}`, { method: "PATCH" });
+    await loadVouchers();
+    await loadBookings();
+  } catch (error) {
+    voucherMessage.textContent = error.message;
+    button.disabled = false;
+  }
+});
+
 createBackupButton.addEventListener("click", async () => {
   backupMessage.textContent = "Creazione backup in corso...";
   backupDownloadLink.hidden = true;
@@ -1377,10 +1450,12 @@ if (me.employee) {
     showApp(me.employee);
     await loadBookings();
     await loadReceivedBookings();
+    await loadEmployeeRewards();
+    await loadVouchers();
     await loadEmployees();
     await loadZoneSettings();
     await loadBackups();
-  await loadDeleteLogs();
+    await loadDeleteLogs();
   }
 } else {
   showLogin();
