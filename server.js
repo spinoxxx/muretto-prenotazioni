@@ -18,6 +18,7 @@ const backupsDir = path.join(dataDir, "backups");
 const sessions = new Map();
 const publicBookingAttempts = new Map();
 let reminderCheckInProgress = false;
+let feedbackCheckInProgress = false;
 
 const PORT = Number(process.env.PORT || 4220);
 const HOST = process.env.HOST || "127.0.0.1";
@@ -29,6 +30,8 @@ const PUBLIC_BOOKING_WINDOW_MS = 1000 * 60 * 10;
 const PUBLIC_BOOKING_MAX_ATTEMPTS = 8;
 const REMINDER_HOURS = Math.min(168, Math.max(1, Number(process.env.MURETTO_REMINDER_HOURS || 24))) || 24;
 const REMINDER_CHECK_INTERVAL_MS = 1000 * 60 * 5;
+const FEEDBACK_DELAY_HOURS = Math.min(336, Math.max(1, Number(process.env.MURETTO_FEEDBACK_DELAY_HOURS || 24))) || 24;
+const FEEDBACK_CHECK_INTERVAL_MS = 1000 * 60 * 10;
 const VENUE_TIME_ZONE = "Europe/Rome";
 const RESTAURANT_ROOM = "Ristorante Esterno";
 const LEGACY_RESTAURANT_ROOM = "Ristorante";
@@ -2238,9 +2241,46 @@ async function sendFeedbackRequest(booking, actor) {
 async function markFeedbackRequestIfNeeded(previousBooking, booking, actor) {
   const wasCompleted = previousBooking?.status === "completata";
   const isCompleted = booking.status === "completata";
-  if (!isCompleted || wasCompleted || !booking.email || !booking.feedbackConsentAt || booking.feedbackRequestedAt) return booking;
+  if (!isCompleted || wasCompleted || !shouldSendAutomaticFeedbackRequest(booking)) return booking;
   const result = await sendFeedbackRequest(booking, actor);
   return result.booking;
+}
+
+function shouldSendAutomaticFeedbackRequest(booking, now = new Date()) {
+  if (!["arrivati", "completata"].includes(booking.status)) return false;
+  if (!booking.email || !booking.feedbackConsentAt || booking.feedbackRequestedAt) return false;
+  const bookingTime = bookingDateTimeMs(booking);
+  if (!Number.isFinite(bookingTime)) return false;
+  return now.getTime() >= bookingTime + FEEDBACK_DELAY_HOURS * 60 * 60 * 1000;
+}
+
+async function sendDueFeedbackRequests() {
+  if (feedbackCheckInProgress) return;
+  feedbackCheckInProgress = true;
+  try {
+    const candidates = (await readJson(bookingsFile, [])).filter((booking) => shouldSendAutomaticFeedbackRequest(booking));
+    for (const candidate of candidates) {
+      const result = await sendFeedbackRequest(candidate, `automazione feedback ${FEEDBACK_DELAY_HOURS} ore`);
+      const bookings = await readJson(bookingsFile, []);
+      const index = bookings.findIndex((booking) => booking.id === candidate.id);
+      if (index === -1 || bookings[index].feedbackRequestedAt) continue;
+      bookings[index] = result.sent
+        ? {
+          ...bookings[index],
+          ...result.booking,
+          notes: appendBookingNote(result.booking, `Richiesta feedback inviata automaticamente ${FEEDBACK_DELAY_HOURS} ore dopo la prenotazione.`)
+        }
+        : {
+          ...bookings[index],
+          feedbackRequestError: result.booking.feedbackRequestError || "Invio richiesta feedback non riuscito"
+        };
+      await writeJson(bookingsFile, bookings);
+    }
+  } catch (error) {
+    console.error("Invio automatico feedback non riuscito", error);
+  } finally {
+    feedbackCheckInProgress = false;
+  }
 }
 
 function findBookingByFeedbackToken(bookings, token) {
@@ -3511,8 +3551,8 @@ async function handleApi(req, res) {
       return;
     }
     const booking = bookings[index];
-    if (booking.status !== "completata") {
-      sendJson(res, 400, { error: "Puoi richiedere il feedback solo dopo aver completato la prenotazione" });
+    if (!["arrivati", "completata"].includes(booking.status)) {
+      sendJson(res, 400, { error: "Puoi richiedere il feedback solo dopo aver segnato la prenotazione come arrivata o completata" });
       return;
     }
     if (!booking.email || !booking.feedbackConsentAt) {
@@ -3624,6 +3664,10 @@ sendDueBookingReminders().catch((error) => console.error("Invio promemoria inizi
 setInterval(() => {
   sendDueBookingReminders().catch((error) => console.error("Invio promemoria automatico non riuscito", error));
 }, REMINDER_CHECK_INTERVAL_MS).unref();
+sendDueFeedbackRequests().catch((error) => console.error("Invio feedback iniziale non riuscito", error));
+setInterval(() => {
+  sendDueFeedbackRequests().catch((error) => console.error("Invio feedback automatico non riuscito", error));
+}, FEEDBACK_CHECK_INTERVAL_MS).unref();
 if (BACKUP_INTERVAL_MS > 0) {
   setInterval(() => {
     createBackup("automatico", "system").catch((error) => console.error("Backup automatico non riuscito", error));

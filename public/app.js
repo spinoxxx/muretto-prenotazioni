@@ -396,7 +396,7 @@ function renderBookings() {
       </div>
       <div class="actions">
         <button class="arrived" type="button" data-action="arrived" data-id="${booking.id}">${booking.status === "arrivati" ? "ANNULLA ARRIVO" : "ARRIVATI"}</button>
-        ${booking.status === "completata" && booking.email && booking.feedbackConsentAt && !booking.feedbackRequestedAt ? `<button class="ghost" type="button" data-action="feedback" data-id="${booking.id}">Invia feedback</button>` : ""}
+        ${["arrivati", "completata"].includes(booking.status) && booking.email && booking.feedbackConsentAt && !booking.feedbackRequestedAt ? `<button class="ghost" type="button" data-action="feedback" data-id="${booking.id}">Invia feedback</button>` : ""}
         ${booking.email ? `<button class="ghost" type="button" data-action="message" data-id="${booking.id}">Rispondi</button>` : ""}
         <button class="ghost" type="button" data-action="edit" data-id="${booking.id}">Modifica</button>
         <button class="delete" type="button" data-action="delete" data-id="${booking.id}">Elimina</button>
