@@ -73,6 +73,7 @@ const zoneSettingsMessage = document.querySelector("#zoneSettingsMessage");
 const backupPanel = document.querySelector("#backupPanel");
 const deleteLogPanel = document.querySelector("#deleteLogPanel");
 const receivedBookingsPanel = document.querySelector("#receivedBookingsPanel");
+const feedbackPanel = document.querySelector("#feedbackPanel");
 const employeeRewardsPanel = document.querySelector("#employeeRewardsPanel");
 const voucherPanel = document.querySelector("#voucherPanel");
 const employeeRewardsMonth = document.querySelector("#employeeRewardsMonth");
@@ -86,6 +87,7 @@ const backupDownloadLink = document.querySelector("#backupDownloadLink");
 const backupList = document.querySelector("#backupList");
 const deleteLogList = document.querySelector("#deleteLogList");
 const receivedBookingsList = document.querySelector("#receivedBookingsList");
+const feedbackList = document.querySelector("#feedbackList");
 const employeeForm = document.querySelector("#employeeForm");
 const employeeList = document.querySelector("#employeeList");
 const employeeMessage = document.querySelector("#employeeMessage");
@@ -164,6 +166,7 @@ function showLogin() {
   staffPanel.hidden = true;
   zoneSettingsPanel.hidden = true;
   receivedBookingsPanel.hidden = true;
+  feedbackPanel.hidden = true;
   employeeRewardsPanel.hidden = true;
   voucherPanel.hidden = true;
   backupPanel.hidden = true;
@@ -177,6 +180,7 @@ function showApp(employee) {
   staffPanel.hidden = employee.role !== "admin";
   zoneSettingsPanel.hidden = employee.role !== "admin";
   receivedBookingsPanel.hidden = employee.role !== "admin";
+  feedbackPanel.hidden = employee.role !== "admin";
   employeeRewardsPanel.hidden = employee.role !== "admin";
   voucherPanel.hidden = employee.role !== "admin";
   backupPanel.hidden = employee.role !== "admin";
@@ -499,6 +503,12 @@ async function loadReceivedBookings() {
   renderReceivedBookings(payload.bookings);
 }
 
+async function loadFeedbackSubmissions() {
+  if (currentEmployee?.role !== "admin") return;
+  const payload = await api("/api/feedback-submissions");
+  renderFeedbackSubmissions(payload.feedback);
+}
+
 async function loadEmployeeRewards() {
   if (currentEmployee?.role !== "admin") return;
   const month = employeeRewardsMonth.value || today.slice(0, 7);
@@ -696,6 +706,28 @@ function renderReceivedBookings(receivedBookings) {
           ${notification}
         </div>
         <span class="status ${statusClass(booking.status)}">${escapeHtml(booking.status)}</span>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderFeedbackSubmissions(items) {
+  if (!items.length) {
+    feedbackList.innerHTML = `<p class="empty compact-empty">Nessuna valutazione ricevuta.</p>`;
+    return;
+  }
+
+  feedbackList.innerHTML = items.map((item) => {
+    const needsAttention = Number(item.rating || 0) <= 3;
+    return `
+      <div class="received-booking-row feedback-row ${needsAttention ? "needs-attention" : ""}">
+        <div>
+          <strong>${escapeHtml(item.guestName || "Prenotazione senza nome")} · ${Number(item.rating || 0)}/5</strong>
+          <span>Ricevuta ${formatDateTime(item.submittedAt)}</span>
+          <span>Visita ${formatDate(item.date)} · ${escapeHtml(item.time || "")} · ${Number(item.people || 0)} persone · ${seatLine(item)}</span>
+          ${item.comment ? `<span>${escapeHtml(item.comment)}</span>` : ""}
+        </div>
+        <span class="status ${needsAttention ? "da-verificare" : "confermata"}">${needsAttention ? "da approfondire" : "ok"}</span>
       </div>
     `;
   }).join("");
@@ -1084,6 +1116,7 @@ loginForm.addEventListener("submit", async (event) => {
     showApp(payload.employee);
     await loadBookings();
     await loadReceivedBookings();
+    await loadFeedbackSubmissions();
     await loadEmployeeRewards();
     await loadVouchers();
     await loadEmployees();
@@ -1450,6 +1483,7 @@ if (me.employee) {
     showApp(me.employee);
     await loadBookings();
     await loadReceivedBookings();
+    await loadFeedbackSubmissions();
     await loadEmployeeRewards();
     await loadVouchers();
     await loadEmployees();

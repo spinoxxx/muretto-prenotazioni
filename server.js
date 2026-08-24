@@ -3042,6 +3042,30 @@ async function handleApi(req, res) {
     return;
   }
 
+  if (url.pathname === "/api/feedback-submissions" && req.method === "GET") {
+    if (!requireAdmin(session, res)) return;
+    const bookings = await readJson(bookingsFile, []);
+    const feedback = bookings
+      .filter((item) => item.feedbackSubmittedAt)
+      .sort((a, b) => String(b.feedbackSubmittedAt || "").localeCompare(String(a.feedbackSubmittedAt || "")))
+      .slice(0, 200)
+      .map((item) => ({
+        id: item.id,
+        guestName: item.guestName,
+        date: item.date,
+        time: item.time,
+        people: item.people,
+        room: item.room || "",
+        tableNumber: item.tableNumber || "",
+        rating: Number(item.feedbackRating || 0),
+        comment: item.feedbackComment || "",
+        submittedAt: item.feedbackSubmittedAt,
+        needsAttention: Boolean(item.feedbackNeedsAttention)
+      }));
+    sendJson(res, 200, { feedback });
+    return;
+  }
+
   if (url.pathname === "/api/employee-rewards" && req.method === "GET") {
     if (!requireAdmin(session, res)) return;
     const rawMonth = sanitizeText(url.searchParams.get("month"), 7);
