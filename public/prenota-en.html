@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Book a Table</title>
-    <link rel="stylesheet" href="/styles.css?v=26">
+    <link rel="stylesheet" href="/styles.css?v=27">
   </head>
   <body>
     <main class="shell public-shell">
@@ -43,6 +43,24 @@
             </div>
           </div>
 
+          <fieldset class="request-type-group">
+            <legend>Request type</legend>
+            <label class="request-type-card">
+              <input name="requestType" type="radio" value="standard" checked>
+              <span>
+                <strong>Standard booking</strong>
+                <small>Table for lunch, dinner or aperitif.</small>
+              </span>
+            </label>
+            <label class="request-type-card">
+              <input name="requestType" type="radio" value="special">
+              <span>
+                <strong>Group / event / special request</strong>
+                <small>Birthdays, companies, menus, prices or agreements to define.</small>
+              </span>
+            </label>
+          </fieldset>
+
           <label>
             Full name
             <input name="guestName" type="text" maxlength="80" autocomplete="name" required>
@@ -59,7 +77,7 @@
             </label>
           </div>
 
-          <label>
+          <label data-standard-fields>
             Voucher / gift card code
             <input name="voucherCode" type="text" maxlength="40" autocomplete="off" placeholder="E.g. MR-2026-001">
             <small>Enter it if you are using a gift voucher. Please present the voucher again when you come for dinner.</small>
@@ -75,16 +93,44 @@
             </label>
             <label>
               Guests
-              <input name="people" type="number" min="1" max="40" value="2" required>
+              <input name="people" type="number" min="1" max="300" value="2" required>
             </label>
           </div>
 
-          <section id="eventBookingNotice" class="event-booking-notice" hidden aria-live="polite">
+          <section id="eventBookingNotice" class="event-booking-notice" data-standard-fields hidden aria-live="polite">
             <strong>You are booking for Note d'Agrumi.</strong>
             <span>On 16 August the evening is Dinner with live music from 8:00 pm, with Nataly and a 45€ per person event menu, drinks excluded. Vegetarian option available.</span>
           </section>
 
-          <fieldset class="choice-group">
+          <section id="specialRequestFields" class="special-request-fields" hidden>
+            <div class="grid-2">
+              <label>
+                Request type
+                <select name="specialType">
+                  <option value="">Choose</option>
+                  <option value="gruppo">Group</option>
+                  <option value="evento">Event</option>
+                  <option value="compleanno">Birthday</option>
+                  <option value="azienda">Company</option>
+                  <option value="privato">Private event</option>
+                  <option value="altro">Other</option>
+                </select>
+              </label>
+              <label>
+                Preferred time window
+                <select name="specialTimeWindow">
+                  <option value="">Choose</option>
+                  <option value="pranzo">Lunch</option>
+                  <option value="aperitivo">Aperitif</option>
+                  <option value="cena">Dinner</option>
+                  <option value="da concordare">To be agreed</option>
+                </select>
+              </label>
+            </div>
+            <p>The request is reviewed by the staff and does not automatically confirm availability.</p>
+          </section>
+
+          <fieldset class="choice-group" data-standard-fields>
             <legend>Type of visit</legend>
             <label class="choice-card">
               <span class="choice-card-head">
@@ -108,7 +154,7 @@
             </label>
           </fieldset>
 
-          <label id="gardenRequest" class="zone-photo-card" data-zone-preview="garden">
+          <label id="gardenRequest" class="zone-photo-card" data-zone-preview="garden" data-standard-fields>
             <span class="zone-photo-head">
               <input name="gardenRequested" type="checkbox">
               <span>
@@ -119,7 +165,7 @@
             <img src="/zone-giardino.jpg" alt="Garden area tables" loading="lazy">
           </label>
 
-          <section class="public-time-section" aria-labelledby="publicTimeSlotsTitle">
+          <section class="public-time-section" data-standard-fields aria-labelledby="publicTimeSlotsTitle">
             <div>
               <h3 id="publicTimeSlotsTitle">Choose a time</h3>
               <p>Available slots change based on date, guests and area.</p>
@@ -166,6 +212,6 @@
         </section>
       </section>
     </main>
-    <script src="/prenota.js?v=13" type="module"></script>
+    <script src="/prenota.js?v=14" type="module"></script>
   </body>
 </html>

@@ -42,6 +42,14 @@ const DEFAULT_ZONE_LIMITS = {
   Bar: 40,
   Giardino: 18
 };
+const SPECIAL_REQUEST_TYPES = new Set(["gruppo", "evento", "compleanno", "azienda", "privato", "altro"]);
+const SPECIAL_REQUEST_STATUSES = new Set(["nuova", "in trattativa", "confermata", "persa", "annullata"]);
+const SPECIAL_TIME_WINDOWS = {
+  pranzo: "13:00",
+  aperitivo: "18:30",
+  cena: "20:00",
+  "da concordare": "12:00"
+};
 const PRIVACY_VERSION = "2026-08-08";
 const PRIVACY_CONTROLLER = "Bar Flora srl, Piazza Vecchia 13, 24129 Bergamo";
 const VENUE_ADDRESS = "Viale delle Mura 1, 24129 Bergamo";
@@ -211,6 +219,50 @@ function publicVoucher(voucher) {
     usedForBookingId: voucher.usedForBookingId || "",
     usedForGuestName: voucher.usedForGuestName || ""
   };
+}
+
+function publicBookingRecord(item) {
+  return {
+    ...item,
+    requestType: item.requestType || "standard",
+    specialType: item.specialType || "",
+    specialStatus: item.specialStatus || "",
+    specialTimeWindow: item.specialTimeWindow || "",
+    assignedTo: item.assignedTo || "",
+    internalNotes: item.internalNotes || ""
+  };
+}
+
+function publicSpecialRequest(item) {
+  return {
+    id: item.id,
+    guestName: item.guestName,
+    phone: item.phone || "",
+    email: item.email || "",
+    date: item.date,
+    time: item.time,
+    people: item.people,
+    room: item.room || "",
+    status: item.status,
+    notes: item.notes || "",
+    customerNotes: item.customerNotes || "",
+    specialType: item.specialType || "",
+    specialStatus: item.specialStatus || "nuova",
+    specialTimeWindow: item.specialTimeWindow || "",
+    assignedTo: item.assignedTo || "",
+    internalNotes: item.internalNotes || "",
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+    updatedBy: item.updatedBy || ""
+  };
+}
+
+function employeeCanViewCalendar(employee) {
+  return employee.role === "admin" || employee.role === "calendario" || employee.calendarAccess === true;
+}
+
+function sessionCanViewCalendar(session) {
+  return session.role === "admin" || session.role === "calendario" || session.calendarAccess === true;
 }
 
 function sanitizePublicText(value, fallback, max = 120) {
@@ -687,6 +739,12 @@ function validateBooking(input) {
     tableNumber: sanitizeText(input.tableNumber, 30),
     status: sanitizeText(input.status || "confermata", 20),
     language: normalizeLanguage(input.language),
+    requestType: sanitizeText(input.requestType || "standard", 20),
+    specialType: sanitizeText(input.specialType, 40).toLowerCase(),
+    specialStatus: sanitizeText(input.specialStatus || "nuova", 30),
+    specialTimeWindow: sanitizeText(input.specialTimeWindow, 30).toLowerCase(),
+    assignedTo: sanitizeText(input.assignedTo, 80),
+    internalNotes: sanitizeMessageText(input.internalNotes, 1000),
     voucherCode: normalizeVoucherCode(input.voucherCode),
     notes: sanitizeText(input.notes, 300),
     customerNotes: sanitizeText(input.customerNotes, 220),
@@ -696,15 +754,61 @@ function validateBooking(input) {
   const statuses = new Set(["confermata", "in attesa", "da verificare", "arrivati", "annullata", "completata"]);
   const rooms = new Set([RESTAURANT_ROOM, LEGACY_RESTAURANT_ROOM, "Bar", "Giardino", "Interno"]);
   if (booking.room === LEGACY_RESTAURANT_ROOM) booking.room = RESTAURANT_ROOM;
+  if (booking.requestType === "special") {
+    booking.notes = sanitizeMessageText(input.notes, 1200);
+    booking.customerNotes = sanitizeMessageText(input.customerNotes ?? input.notes, 600);
+  }
+  if (!["standard", "special"].includes(booking.requestType)) return "Tipo richiesta non valido.";
+  if (booking.requestType === "special" && !SPECIAL_REQUEST_STATUSES.has(booking.specialStatus)) return "Stato richiesta speciale non valido.";
   if (!booking.guestName) return "Inserisci il nome del cliente.";
   if (!booking.phone && !booking.email) return "Serve almeno un recapito.";
   if (!/^\d{4}-\d{2}-\d{2}$/.test(booking.date)) return "Data non valida.";
   if (!/^\d{2}:\d{2}$/.test(booking.time)) return "Orario non valido.";
-  if (!Number.isInteger(booking.people) || booking.people < 1 || booking.people > 40) return "Numero di persone non valido.";
+  const maxPeople = booking.requestType === "special" ? 300 : 40;
+  if (!Number.isInteger(booking.people) || booking.people < 1 || booking.people > maxPeople) return "Numero di persone non valido.";
   if (!booking.room) return "Seleziona la sala.";
   if (!rooms.has(booking.room)) return "Sala non valida.";
   if (!statuses.has(booking.status)) return "Stato non valido.";
   return booking;
+}
+
+function validatePublicSpecialRequest(input) {
+  const language = normalizeLanguage(input.language);
+  const privacyAccepted = input.privacyAccepted === true || input.privacyAccepted === "on" || input.privacyAccepted === "true";
+  const specialType = sanitizeText(input.specialType, 40).toLowerCase();
+  const timeWindow = sanitizeText(input.specialTimeWindow, 30).toLowerCase();
+  const customerNotes = sanitizeText(input.notes, 420);
+  if (!privacyAccepted) return language === "en" ? "You must read and accept the privacy notice." : "Devi leggere e accettare l'informativa privacy.";
+  if (!sanitizeText(input.email, 120)) return language === "en" ? "Enter an email address so we can reply to your request." : "Inserisci un indirizzo email per ricevere risposta.";
+  if (!SPECIAL_REQUEST_TYPES.has(specialType)) return language === "en" ? "Choose the type of request." : "Scegli il tipo di richiesta.";
+  if (!Object.prototype.hasOwnProperty.call(SPECIAL_TIME_WINDOWS, timeWindow)) return language === "en" ? "Choose the preferred time window." : "Scegli la fascia oraria desiderata.";
+
+  const notes = [
+    "Richiesta speciale dal modulo online.",
+    `Tipo richiesta: ${specialType}.`,
+    `Fascia desiderata: ${timeWindow}.`,
+    customerNotes
+  ].filter(Boolean).join(" ");
+
+  const booking = validateBooking({
+    guestName: input.guestName,
+    phone: input.phone,
+    email: input.email,
+    date: input.date,
+    time: SPECIAL_TIME_WINDOWS[timeWindow],
+    people: input.people,
+    room: "Interno",
+    tableNumber: "",
+    status: "da verificare",
+    language,
+    requestType: "special",
+    specialType,
+    specialTimeWindow: timeWindow,
+    specialStatus: "nuova",
+    notes,
+    customerNotes
+  });
+  return typeof booking === "string" ? publicValidationError(booking, language) : booking;
 }
 
 function validatePhoneBooking(input) {
@@ -1171,6 +1275,8 @@ function publicValidationError(error, language) {
 }
 
 function validatePublicBooking(input) {
+  if (sanitizeText(input.requestType, 20) === "special") return validatePublicSpecialRequest(input);
+
   const consumption = sanitizeText(input.consumption, 20).toLowerCase();
   const language = normalizeLanguage(input.language);
   const gardenRequested = input.gardenRequested === true || input.gardenRequested === "on" || input.gardenRequested === "true";
@@ -1391,6 +1497,7 @@ function zoneOccupancy(bookings, booking) {
   const period = mealPeriod(booking.time);
   const targetRoom = roomKey(booking.room);
   return bookings
+    .filter((item) => (item.requestType || "standard") !== "special")
     .filter((item) => item.date === booking.date)
     .filter((item) => item.status !== "annullata")
     .filter((item) => roomKey(item.room) === targetRoom)
@@ -1400,6 +1507,7 @@ function zoneOccupancy(bookings, booking) {
 
 function publicSlotBookingCount(bookings, booking) {
   return bookings
+    .filter((item) => (item.requestType || "standard") !== "special")
     .filter((item) => item.date === booking.date)
     .filter((item) => item.status !== "annullata")
     .filter((item) => item.time === booking.time)
@@ -2156,6 +2264,70 @@ async function markCancellationEmailIfNeeded(previousBooking, booking, actor) {
   }
 }
 
+function specialRequestReceivedSubject(booking) {
+  return normalizeLanguage(booking.language) === "en"
+    ? `Special request received - ${BRAND_CONFIG.name}`
+    : `Richiesta speciale ricevuta - ${BRAND_CONFIG.name}`;
+}
+
+function specialRequestReceivedText(booking) {
+  if (normalizeLanguage(booking.language) === "en") {
+    return [
+      `Hi ${booking.guestName},`,
+      "",
+      `We have received your group/event request at ${BRAND_CONFIG.name}.`,
+      "This is not a booking confirmation yet: our staff will review the details and reply as soon as possible.",
+      "",
+      `Date: ${booking.date}`,
+      `Preferred time window: ${booking.specialTimeWindow || booking.time}`,
+      `Guests: ${booking.people}`,
+      `Request type: ${booking.specialType}`,
+      booking.customerNotes ? `Notes: ${booking.customerNotes}` : "",
+      "",
+      "See you soon!",
+      `The ${BRAND_CONFIG.name} Team`
+    ].filter(Boolean).join("\n");
+  }
+  return [
+    `Ciao ${booking.guestName},`,
+    "",
+    `Abbiamo ricevuto la tua richiesta per gruppo/evento da ${BRAND_CONFIG.name}.`,
+    "Non è ancora una conferma di prenotazione: lo staff verificherà i dettagli e ti risponderà appena possibile.",
+    "",
+    `Data: ${booking.date}`,
+    `Fascia desiderata: ${booking.specialTimeWindow || booking.time}`,
+    `Persone indicative: ${booking.people}`,
+    `Tipo richiesta: ${booking.specialType}`,
+    booking.customerNotes ? `Note: ${booking.customerNotes}` : "",
+    "",
+    "A presto!",
+    `Lo Staff del ${BRAND_CONFIG.name}`
+  ].filter(Boolean).join("\n");
+}
+
+async function markSpecialRequestReceivedEmail(booking) {
+  if (booking.requestType !== "special" || !booking.email || booking.specialRequestEmailSentAt) return booking;
+  try {
+    const result = await sendPlainEmail({
+      to: booking.email,
+      subject: specialRequestReceivedSubject(booking),
+      text: specialRequestReceivedText(booking)
+    });
+    if (!result.sent) return booking;
+    return {
+      ...booking,
+      specialRequestEmailSentAt: new Date().toISOString(),
+      specialRequestEmailError: ""
+    };
+  } catch (error) {
+    console.error(error);
+    return {
+      ...booking,
+      specialRequestEmailError: "Invio presa in carico richiesta speciale non riuscito"
+    };
+  }
+}
+
 function feedbackLink(token) {
   return `${FEEDBACK_FORM_URL}?token=${encodeURIComponent(token)}`;
 }
@@ -2292,15 +2464,18 @@ function findBookingByFeedbackToken(bookings, token) {
 function publicBookingNotificationText(booking) {
   const seat = emailSeatLine(booking, "it");
   const eventLines = specialEventEmailLines(booking, "it");
+  const isSpecial = (booking.requestType || "standard") === "special";
   const needsAttention = booking.status !== "confermata";
   const adminLinks = adminBookingActionLinks(booking);
   return [
-    needsAttention ? "ATTENZIONE: prenotazione ricevuta dal modulo online da gestire." : "Nuova prenotazione ricevuta dal modulo online.",
+    isSpecial ? "ATTENZIONE: richiesta speciale ricevuta dal modulo online." : needsAttention ? "ATTENZIONE: prenotazione ricevuta dal modulo online da gestire." : "Nuova prenotazione ricevuta dal modulo online.",
     "",
     `Cliente: ${booking.guestName}`,
     `Data prenotazione: ${booking.date}`,
     `Ora: ${booking.time}`,
     `Persone: ${booking.people}`,
+    isSpecial && booking.specialType ? `Tipo richiesta: ${booking.specialType}` : "",
+    isSpecial && booking.specialTimeWindow ? `Fascia desiderata: ${booking.specialTimeWindow}` : "",
     seat ? `Zona proposta: ${seat}` : "",
     booking.voucherCode ? `Voucher/buono regalo: ${booking.voucherCode}` : "",
     booking.phone ? `Telefono: ${booking.phone}` : "",
@@ -2310,10 +2485,10 @@ function publicBookingNotificationText(booking) {
     "",
     `Ricevuta il: ${booking.createdAt}`,
     `Stato iniziale: ${booking.status}`,
-    needsAttention && adminLinks.approve ? "" : "",
-    needsAttention && adminLinks.approve ? `Approva prenotazione: ${adminLinks.approve}` : "",
+    needsAttention && !isSpecial && adminLinks.approve ? "" : "",
+    needsAttention && !isSpecial && adminLinks.approve ? `Approva prenotazione: ${adminLinks.approve}` : "",
     "",
-    needsAttention ? "Apri il pannello admin per verificare, rispondere o confermare la prenotazione." : "Prenotazione confermata automaticamente. Controlla il pannello admin se servono modifiche."
+    isSpecial ? "Apri il pannello admin per assegnare, gestire e convertire la richiesta quando l'accordo e chiuso." : needsAttention ? "Apri il pannello admin per verificare, rispondere o confermare la prenotazione." : "Prenotazione confermata automaticamente. Controlla il pannello admin se servono modifiche."
   ].filter(Boolean).join("\n");
 }
 
@@ -2328,19 +2503,23 @@ function adminBookingActionLinks(booking) {
 function publicBookingNotificationHtml(booking) {
   const seat = emailSeatLine(booking, "it");
   const eventLines = specialEventEmailLines(booking, "it");
+  const isSpecial = (booking.requestType || "standard") === "special";
   const needsAttention = booking.status !== "confermata";
   const adminLinks = adminBookingActionLinks(booking);
+  const title = isSpecial ? "ATTENZIONE: richiesta speciale ricevuta dal modulo online." : needsAttention ? "ATTENZIONE: prenotazione ricevuta dal modulo online da gestire." : "Nuova prenotazione ricevuta dal modulo online.";
   return `<!doctype html>
 <html lang="it">
   <body style="margin:0;padding:0;background:#f7f4ed;font-family:Arial,sans-serif;color:#1f2320;">
     <div style="max-width:640px;margin:0 auto;padding:24px;">
       <div style="background:#ffffff;border:1px solid #ded8ce;border-radius:8px;padding:22px;">
-        <p style="margin:0 0 14px;font-weight:700;">${escapeHtml(needsAttention ? "ATTENZIONE: prenotazione ricevuta dal modulo online da gestire." : "Nuova prenotazione ricevuta dal modulo online.")}</p>
+        <p style="margin:0 0 14px;font-weight:700;">${escapeHtml(title)}</p>
         <p style="margin:0;line-height:1.5;">
           Cliente: ${escapeHtml(booking.guestName)}<br>
           Data prenotazione: ${escapeHtml(booking.date)}<br>
           Ora: ${escapeHtml(booking.time)}<br>
           Persone: ${escapeHtml(booking.people)}<br>
+          ${isSpecial && booking.specialType ? `Tipo richiesta: ${escapeHtml(booking.specialType)}<br>` : ""}
+          ${isSpecial && booking.specialTimeWindow ? `Fascia desiderata: ${escapeHtml(booking.specialTimeWindow)}<br>` : ""}
           ${seat ? `Zona proposta: ${escapeHtml(seat)}<br>` : ""}
           ${booking.voucherCode ? `Voucher/buono regalo: ${escapeHtml(booking.voucherCode)}<br>` : ""}
           ${booking.phone ? `Telefono: ${escapeHtml(booking.phone)}<br>` : ""}
@@ -2350,12 +2529,12 @@ function publicBookingNotificationHtml(booking) {
           Ricevuta il: ${escapeHtml(booking.createdAt)}<br>
           Stato iniziale: ${escapeHtml(booking.status)}
         </p>
-        ${needsAttention && adminLinks.approve ? `
+        ${needsAttention && !isSpecial && adminLinks.approve ? `
         <p style="margin:20px 0 0;">
           <a href="${escapeHtml(adminLinks.approve)}" style="display:inline-block;padding:12px 16px;border-radius:6px;background:#2f6f5e;color:#ffffff;text-decoration:none;font-weight:700;">Approva prenotazione</a>
         </p>
         <p style="margin:10px 0 0;color:#6d756f;font-size:13px;line-height:1.4;">Il pulsante conferma la prenotazione e invia la mail di conferma al cliente.</p>` : `
-        <p style="margin:18px 0 0;color:#6d756f;font-size:13px;line-height:1.4;">Prenotazione confermata automaticamente. Controlla il pannello admin se servono modifiche.</p>`}
+        <p style="margin:18px 0 0;color:#6d756f;font-size:13px;line-height:1.4;">${escapeHtml(isSpecial ? "Apri il pannello admin per assegnare, gestire e convertire la richiesta quando l'accordo e chiuso." : "Prenotazione confermata automaticamente. Controlla il pannello admin se servono modifiche.")}</p>`}
       </div>
     </div>
   </body>
@@ -2364,13 +2543,14 @@ function publicBookingNotificationHtml(booking) {
 
 async function markPublicBookingNotification(booking) {
   try {
+    const isSpecial = (booking.requestType || "standard") === "special";
     const needsAttention = booking.status !== "confermata";
     const bookingForNotification = needsAttention && !booking.adminActionToken
       ? { ...booking, adminActionToken: randomToken(24) }
       : booking;
     const result = await sendPlainEmail({
       to: NOTIFICATION_EMAIL,
-      subject: needsAttention ? `ATTENZIONE: Prenotazione da gestire - ${BRAND_CONFIG.name}` : `Nuova prenotazione confermata automaticamente - ${BRAND_CONFIG.name}`,
+      subject: isSpecial ? `ATTENZIONE: Richiesta speciale - ${BRAND_CONFIG.name}` : needsAttention ? `ATTENZIONE: Prenotazione da gestire - ${BRAND_CONFIG.name}` : `Nuova prenotazione confermata automaticamente - ${BRAND_CONFIG.name}`,
       text: publicBookingNotificationText(bookingForNotification),
       html: publicBookingNotificationHtml(bookingForNotification)
     });
@@ -2600,6 +2780,14 @@ function requireAgendaTableEditor(session, res) {
   return true;
 }
 
+function requireCalendarViewer(session, res) {
+  if (!sessionCanViewCalendar(session)) {
+    sendJson(res, 403, { error: "Accesso calendario richiesto" });
+    return false;
+  }
+  return true;
+}
+
 async function handleApi(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
 
@@ -2624,6 +2812,7 @@ async function handleApi(req, res) {
       employeeId: employee.id,
       employeeName: employee.name,
       role: employee.role,
+      calendarAccess: employeeCanViewCalendar(employee),
       csrfToken: randomToken(24),
       expiresAt: Date.now() + SESSION_TTL_MS
     };
@@ -2633,7 +2822,14 @@ async function handleApi(req, res) {
       ...securityHeaders,
       "set-cookie": sessionCookie(token)
     });
-    res.end(JSON.stringify({ employee: { name: employee.name, role: employee.role }, csrfToken: session.csrfToken }));
+    res.end(JSON.stringify({
+      employee: {
+        name: employee.name,
+        role: employee.role,
+        calendarAccess: employeeCanViewCalendar(employee)
+      },
+      csrfToken: session.csrfToken
+    }));
     return;
   }
 
@@ -2651,7 +2847,14 @@ async function handleApi(req, res) {
       sendJson(res, 200, { employee: null });
       return;
     }
-    sendJson(res, 200, { employee: { name: session.employeeName, role: session.role }, csrfToken: session.csrfToken });
+    sendJson(res, 200, {
+      employee: {
+        name: session.employeeName,
+        role: session.role,
+        calendarAccess: sessionCanViewCalendar(session)
+      },
+      csrfToken: session.csrfToken
+    });
     return;
   }
 
@@ -2719,6 +2922,43 @@ async function handleApi(req, res) {
     const result = validatePublicBooking(body);
     if (typeof result === "string") {
       sendJson(res, 400, { error: result });
+      return;
+    }
+    if (result.requestType === "special") {
+      const bookings = await readJson(bookingsFile, []);
+      const now = new Date().toISOString();
+      let booking = {
+        id: crypto.randomUUID(),
+        ...result,
+        bookingChannel: "modulo online",
+        createdBy: "modulo online",
+        createdAt: now,
+        updatedAt: now,
+        updatedBy: "modulo online",
+        privacyAcceptedAt: now,
+        privacyVersion: PRIVACY_VERSION
+      };
+      bookings.push(booking);
+      await writeJson(bookingsFile, bookings);
+      booking = await markSpecialRequestReceivedEmail(booking);
+      bookings[bookings.length - 1] = booking;
+      await writeJson(bookingsFile, bookings);
+      booking = await markPublicBookingNotification(booking);
+      bookings[bookings.length - 1] = booking;
+      await writeJson(bookingsFile, bookings);
+      sendJson(res, 201, {
+        ok: true,
+        booking: {
+          id: booking.id,
+          requestType: booking.requestType,
+          date: booking.date,
+          time: booking.time,
+          people: booking.people,
+          room: booking.room,
+          status: booking.status,
+          specialStatus: booking.specialStatus
+        }
+      });
       return;
     }
     const bookings = await readJson(bookingsFile, []);
@@ -3017,6 +3257,7 @@ async function handleApi(req, res) {
     const bookings = await readJson(bookingsFile, []);
     const received = bookings
       .filter((item) => item.createdBy === "modulo online")
+      .filter((item) => (item.requestType || "standard") !== "special")
       .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
       .slice(0, 200)
       .map((item) => ({
@@ -3039,6 +3280,157 @@ async function handleApi(req, res) {
         notificationEmailError: item.notificationEmailError || ""
       }));
     sendJson(res, 200, { bookings: received });
+    return;
+  }
+
+  if (url.pathname === "/api/special-requests" && req.method === "GET") {
+    if (!requireBookingEditor(session, res)) return;
+    const bookings = await readJson(bookingsFile, []);
+    const requests = bookings
+      .filter((item) => (item.requestType || "standard") === "special")
+      .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
+      .slice(0, 200)
+      .map(publicSpecialRequest);
+    sendJson(res, 200, { requests });
+    return;
+  }
+
+  if (url.pathname === "/api/special-requests" && req.method === "POST") {
+    if (!requireBookingEditor(session, res)) return;
+    const body = await readBody(req);
+    const timeWindow = sanitizeText(body.specialTimeWindow, 30).toLowerCase();
+    const draft = {
+      ...body,
+      time: sanitizeText(body.time, 5) || SPECIAL_TIME_WINDOWS[timeWindow] || "20:00",
+      room: sanitizeText(body.room, 30) || "Interno",
+      status: "da verificare",
+      requestType: "special",
+      specialStatus: SPECIAL_REQUEST_STATUSES.has(sanitizeText(body.specialStatus, 30).toLowerCase()) ? sanitizeText(body.specialStatus, 30).toLowerCase() : "nuova"
+    };
+    const result = validateBooking(draft);
+    if (typeof result === "string") {
+      sendJson(res, 400, { error: result });
+      return;
+    }
+    const now = new Date().toISOString();
+    const bookings = await readJson(bookingsFile, []);
+    const booking = {
+      id: crypto.randomUUID(),
+      ...result,
+      createdBy: session.employeeName,
+      createdAt: now,
+      updatedAt: now,
+      updatedBy: session.employeeName
+    };
+    bookings.push(booking);
+    await writeJson(bookingsFile, bookings);
+    sendJson(res, 201, { request: publicSpecialRequest(booking) });
+    return;
+  }
+
+  const specialRequestMatch = url.pathname.match(/^\/api\/special-requests\/([a-f0-9-]+)$/i);
+  const specialRequestConvertMatch = url.pathname.match(/^\/api\/special-requests\/([a-f0-9-]+)\/convert$/i);
+  if (specialRequestMatch && req.method === "PATCH") {
+    if (!requireBookingEditor(session, res)) return;
+    const body = await readBody(req);
+    const bookings = await readJson(bookingsFile, []);
+    const index = bookings.findIndex((item) => item.id === specialRequestMatch[1] && (item.requestType || "standard") === "special");
+    if (index === -1) {
+      sendJson(res, 404, { error: "Richiesta speciale non trovata" });
+      return;
+    }
+    const previous = bookings[index];
+    const specialStatus = sanitizeText(body.specialStatus || previous.specialStatus || "nuova", 30).toLowerCase();
+    const specialType = sanitizeText(body.specialType || previous.specialType || "altro", 40).toLowerCase();
+    const updated = {
+      ...previous,
+      guestName: normalizeName(body.guestName || previous.guestName),
+      phone: sanitizeText(body.phone ?? previous.phone, 40),
+      email: sanitizeText(body.email ?? previous.email, 120).toLowerCase(),
+      date: normalizeDate(body.date || previous.date),
+      time: sanitizeText(body.time || previous.time, 5),
+      people: Number(body.people || previous.people),
+      room: sanitizeText(body.room || previous.room || "Interno", 30),
+      tableNumber: sanitizeText(body.tableNumber ?? previous.tableNumber, 30),
+      notes: sanitizeMessageText(body.notes ?? previous.notes, 1200),
+      specialType,
+      specialStatus: SPECIAL_REQUEST_STATUSES.has(specialStatus) ? specialStatus : previous.specialStatus || "nuova",
+      specialTimeWindow: sanitizeText(body.specialTimeWindow ?? previous.specialTimeWindow, 30).toLowerCase(),
+      assignedTo: sanitizeText(body.assignedTo ?? previous.assignedTo, 80),
+      internalNotes: sanitizeMessageText(body.internalNotes ?? previous.internalNotes, 1600),
+      requestType: "special",
+      status: "da verificare",
+      updatedAt: new Date().toISOString(),
+      updatedBy: session.employeeName
+    };
+    const result = validateBooking(updated);
+    if (typeof result === "string") {
+      sendJson(res, 400, { error: result });
+      return;
+    }
+    bookings[index] = result;
+    await writeJson(bookingsFile, bookings);
+    sendJson(res, 200, { request: publicSpecialRequest(bookings[index]) });
+    return;
+  }
+
+  if (specialRequestConvertMatch && req.method === "POST") {
+    if (!requireBookingEditor(session, res)) return;
+    const bookings = await readJson(bookingsFile, []);
+    const index = bookings.findIndex((item) => item.id === specialRequestConvertMatch[1] && (item.requestType || "standard") === "special");
+    if (index === -1) {
+      sendJson(res, 404, { error: "Richiesta speciale non trovata" });
+      return;
+    }
+    const previous = bookings[index];
+    let converted = {
+      ...previous,
+      requestType: "standard",
+      specialStatus: "confermata",
+      status: "confermata",
+      notes: appendBookingNote(previous, `Richiesta speciale convertita in prenotazione confermata da ${session.employeeName}.`),
+      updatedAt: new Date().toISOString(),
+      updatedBy: session.employeeName
+    };
+    converted = await markConfirmationEmailIfNeeded(previous, converted, session.employeeName);
+    bookings[index] = converted;
+    await writeJson(bookingsFile, bookings);
+    sendJson(res, 200, { booking: publicBookingRecord(bookings[index]) });
+    return;
+  }
+
+  if (url.pathname === "/api/calendar" && req.method === "GET") {
+    if (!requireCalendarViewer(session, res)) return;
+    const from = normalizeDate(url.searchParams.get("from"));
+    const to = normalizeDate(url.searchParams.get("to"));
+    if (!from || !to) {
+      sendJson(res, 400, { error: "Intervallo date non valido" });
+      return;
+    }
+    const bookings = await readJson(bookingsFile, []);
+    const items = bookings
+      .filter((item) => item.date >= from && item.date <= to)
+      .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`))
+      .map((item) => ({
+        id: item.id,
+        requestType: item.requestType || "standard",
+        guestName: item.guestName,
+        date: item.date,
+        time: item.time,
+        people: item.people,
+        room: item.room || "",
+        tableNumber: item.tableNumber || "",
+        status: item.status,
+        specialType: item.specialType || "",
+        specialStatus: item.specialStatus || "",
+        specialTimeWindow: item.specialTimeWindow || "",
+        assignedTo: item.assignedTo || "",
+        notes: item.notes || "",
+        internalNotes: item.internalNotes || "",
+        email: item.email || "",
+        phone: item.phone || ""
+      }));
+    sendJson(res, 200, { from, to, items });
     return;
   }
 
@@ -3083,6 +3475,7 @@ async function handleApi(req, res) {
         id: employee.id,
         name: employee.name,
         role: employee.role,
+        calendarAccess: employeeCanViewCalendar(employee),
         active: employee.active,
         createdAt: employee.createdAt
       }))
@@ -3285,7 +3678,7 @@ async function handleApi(req, res) {
     const body = await readBody(req);
     const name = normalizeName(body.name);
     const pin = String(body.pin || "");
-    const role = ["admin", "staff", "agenda", "dipendente"].includes(body.role) ? body.role : "staff";
+    const role = ["admin", "staff", "agenda", "dipendente", "calendario"].includes(body.role) ? body.role : "staff";
     if (!name) {
       sendJson(res, 400, { error: "Inserisci il nome del dipendente" });
       return;
@@ -3312,7 +3705,7 @@ async function handleApi(req, res) {
     };
     employees.push(employee);
     await writeJson(employeesFile, employees);
-    sendJson(res, 201, { employee: { id: employee.id, name: employee.name, role: employee.role, active: true, createdAt: employee.createdAt } });
+    sendJson(res, 201, { employee: { id: employee.id, name: employee.name, role: employee.role, calendarAccess: employeeCanViewCalendar(employee), active: true, createdAt: employee.createdAt } });
     return;
   }
 

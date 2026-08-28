@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Muretto Prenotazioni</title>
-    <link rel="stylesheet" href="/styles.css?v=26">
+    <link rel="stylesheet" href="/styles.css?v=27">
   </head>
   <body>
     <main class="shell">
@@ -45,6 +45,7 @@
             <a class="ghost-link" href="/prenota.html">Modulo clienti</a>
             <a class="ghost-link" href="/dipendenti.html">Modulo dipendenti</a>
             <a class="ghost-link" href="/agenda.html">Agenda</a>
+            <a class="ghost-link" href="/calendario.html">Calendario</a>
             <button id="logoutButton" class="ghost" type="button">Esci</button>
           </div>
         </header>
@@ -223,6 +224,109 @@
               </details>
             </section>
 
+            <section id="specialRequestsPanel" class="staff-panel received-bookings-panel" hidden>
+              <details class="collapsible-admin-section">
+                <summary>
+                  <span>Richieste speciali</span>
+                  <small>Gruppi, eventi, compleanni, aziende e accordi da confermare.</small>
+                </summary>
+                <form id="specialRequestForm" class="employee-form special-request-admin-form" autocomplete="off">
+                  <input name="id" type="hidden">
+                  <div class="grid-2">
+                    <label>
+                      Cliente
+                      <input name="guestName" type="text" maxlength="80" required>
+                    </label>
+                    <label>
+                      Assegnata a
+                      <input name="assignedTo" type="text" maxlength="80" placeholder="Nome staff">
+                    </label>
+                  </div>
+                  <div class="grid-2">
+                    <label>
+                      Telefono
+                      <input name="phone" type="tel" maxlength="40">
+                    </label>
+                    <label>
+                      Email
+                      <input name="email" type="email" maxlength="120" required>
+                    </label>
+                  </div>
+                  <div class="grid-3">
+                    <label>
+                      Data
+                      <input name="date" type="date" required>
+                    </label>
+                    <label>
+                      Ora
+                      <input name="time" type="time" required>
+                    </label>
+                    <label>
+                      Persone
+                      <input name="people" type="number" min="1" max="300" value="10" required>
+                    </label>
+                  </div>
+                  <div class="grid-2">
+                    <label>
+                      Tipo
+                      <select name="specialType" required>
+                        <option value="gruppo">gruppo</option>
+                        <option value="evento">evento</option>
+                        <option value="compleanno">compleanno</option>
+                        <option value="azienda">azienda</option>
+                        <option value="privato">privato</option>
+                        <option value="altro">altro</option>
+                      </select>
+                    </label>
+                    <label>
+                      Stato richiesta
+                      <select name="specialStatus">
+                        <option>nuova</option>
+                        <option>in trattativa</option>
+                        <option>confermata</option>
+                        <option>persa</option>
+                        <option>annullata</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div class="grid-2">
+                    <label>
+                      Sala ipotizzata
+                      <select name="room">
+                        <option>Interno</option>
+                        <option>Ristorante Esterno</option>
+                        <option>Bar</option>
+                        <option>Giardino</option>
+                      </select>
+                    </label>
+                    <label>
+                      Fascia
+                      <select name="specialTimeWindow">
+                        <option value="pranzo">pranzo</option>
+                        <option value="aperitivo">aperitivo</option>
+                        <option value="cena">cena</option>
+                        <option value="da concordare">da concordare</option>
+                      </select>
+                    </label>
+                  </div>
+                  <label>
+                    Richiesta cliente
+                    <textarea name="notes" maxlength="1200" rows="4"></textarea>
+                  </label>
+                  <label>
+                    Note interne / storico
+                    <textarea name="internalNotes" maxlength="1600" rows="4"></textarea>
+                  </label>
+                  <div class="form-actions-row">
+                    <button type="submit">Salva richiesta</button>
+                    <button id="resetSpecialRequestButton" class="ghost compact" type="button">Pulisci</button>
+                  </div>
+                  <p id="specialRequestMessage" class="message" role="status"></p>
+                </form>
+                <div id="specialRequestsList" class="received-bookings-list" aria-live="polite"></div>
+              </details>
+            </section>
+
             <section id="feedbackPanel" class="staff-panel received-bookings-panel" hidden>
               <details class="collapsible-admin-section">
                 <summary>
@@ -288,6 +392,7 @@
                       <option value="staff">staff</option>
                       <option value="dipendente">solo modulo dipendenti</option>
                       <option value="agenda">solo agenda</option>
+                      <option value="calendario">solo calendario</option>
                       <option value="admin">admin</option>
                     </select>
                   </label>
@@ -458,6 +563,6 @@
       </form>
     </dialog>
     <section id="weeklyPrintArea" class="weekly-print-area" aria-hidden="true"></section>
-    <script src="/app.js?v=48" type="module"></script>
+    <script src="/app.js?v=49" type="module"></script>
   </body>
 </html>

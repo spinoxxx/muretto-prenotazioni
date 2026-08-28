@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Prenota</title>
-    <link rel="stylesheet" href="/styles.css?v=26">
+    <link rel="stylesheet" href="/styles.css?v=27">
   </head>
   <body>
     <main class="shell public-shell">
@@ -43,6 +43,24 @@
             </div>
           </div>
 
+          <fieldset class="request-type-group">
+            <legend>Tipo richiesta</legend>
+            <label class="request-type-card">
+              <input name="requestType" type="radio" value="standard" checked>
+              <span>
+                <strong>Prenotazione normale</strong>
+                <small>Tavolo per pranzo, cena o aperitivo.</small>
+              </span>
+            </label>
+            <label class="request-type-card">
+              <input name="requestType" type="radio" value="special">
+              <span>
+                <strong>Gruppo / evento / richiesta particolare</strong>
+                <small>Compleanni, aziende, menu, prezzi o accordi da definire.</small>
+              </span>
+            </label>
+          </fieldset>
+
           <label>
             Nome e cognome
             <input name="guestName" type="text" maxlength="80" autocomplete="name" required>
@@ -59,7 +77,7 @@
             </label>
           </div>
 
-          <label>
+          <label data-standard-fields>
             Codice voucher / buono regalo
             <input name="voucherCode" type="text" maxlength="40" autocomplete="off" placeholder="Es. MR-2026-001">
             <small>Inseriscilo se stai usando un buono regalo. Il voucher deve essere presentato anche al momento della cena.</small>
@@ -75,16 +93,44 @@
             </label>
             <label>
               Persone
-              <input name="people" type="number" min="1" max="40" value="2" required>
+              <input name="people" type="number" min="1" max="300" value="2" required>
             </label>
           </div>
 
-          <section id="eventBookingNotice" class="event-booking-notice" hidden aria-live="polite">
+          <section id="eventBookingNotice" class="event-booking-notice" data-standard-fields hidden aria-live="polite">
             <strong>Stai prenotando per Note d'Agrumi.</strong>
             <span>Il 16 agosto la serata è Cena in musica dalle 20:00, con musica dal vivo con Nataly e menu evento a 45€ a persona, bevande escluse. Opzione vegetariana disponibile.</span>
           </section>
 
-          <fieldset class="choice-group">
+          <section id="specialRequestFields" class="special-request-fields" hidden>
+            <div class="grid-2">
+              <label>
+                Tipo richiesta
+                <select name="specialType">
+                  <option value="">Seleziona</option>
+                  <option value="gruppo">Gruppo</option>
+                  <option value="evento">Evento</option>
+                  <option value="compleanno">Compleanno</option>
+                  <option value="azienda">Azienda</option>
+                  <option value="privato">Privato</option>
+                  <option value="altro">Altro</option>
+                </select>
+              </label>
+              <label>
+                Fascia oraria desiderata
+                <select name="specialTimeWindow">
+                  <option value="">Seleziona</option>
+                  <option value="pranzo">Pranzo</option>
+                  <option value="aperitivo">Aperitivo</option>
+                  <option value="cena">Cena</option>
+                  <option value="da concordare">Da concordare</option>
+                </select>
+              </label>
+            </div>
+            <p>La richiesta viene presa in carico dallo staff e non conferma automaticamente la disponibilità.</p>
+          </section>
+
+          <fieldset class="choice-group" data-standard-fields>
             <legend>Tipo di consumazione</legend>
             <label class="choice-card">
               <span class="choice-card-head">
@@ -108,7 +154,7 @@
             </label>
           </fieldset>
 
-          <label id="gardenRequest" class="zone-photo-card" data-zone-preview="garden">
+          <label id="gardenRequest" class="zone-photo-card" data-zone-preview="garden" data-standard-fields>
             <span class="zone-photo-head">
               <input name="gardenRequested" type="checkbox">
               <span>
@@ -119,7 +165,7 @@
             <img src="/zone-giardino.jpg" alt="Tavoli della zona Giardino" loading="lazy">
           </label>
 
-          <section class="public-time-section" aria-labelledby="publicTimeSlotsTitle">
+          <section class="public-time-section" data-standard-fields aria-labelledby="publicTimeSlotsTitle">
             <div>
               <h3 id="publicTimeSlotsTitle">Scegli orario</h3>
               <p>Le fasce disponibili cambiano in base a data, persone e zona.</p>
@@ -166,6 +212,6 @@
         </section>
       </section>
     </main>
-    <script src="/prenota.js?v=13" type="module"></script>
+    <script src="/prenota.js?v=14" type="module"></script>
   </body>
 </html>

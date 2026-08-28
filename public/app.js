@@ -73,6 +73,7 @@ const zoneSettingsMessage = document.querySelector("#zoneSettingsMessage");
 const backupPanel = document.querySelector("#backupPanel");
 const deleteLogPanel = document.querySelector("#deleteLogPanel");
 const receivedBookingsPanel = document.querySelector("#receivedBookingsPanel");
+const specialRequestsPanel = document.querySelector("#specialRequestsPanel");
 const feedbackPanel = document.querySelector("#feedbackPanel");
 const employeeRewardsPanel = document.querySelector("#employeeRewardsPanel");
 const voucherPanel = document.querySelector("#voucherPanel");
@@ -87,6 +88,10 @@ const backupDownloadLink = document.querySelector("#backupDownloadLink");
 const backupList = document.querySelector("#backupList");
 const deleteLogList = document.querySelector("#deleteLogList");
 const receivedBookingsList = document.querySelector("#receivedBookingsList");
+const specialRequestForm = document.querySelector("#specialRequestForm");
+const specialRequestsList = document.querySelector("#specialRequestsList");
+const specialRequestMessage = document.querySelector("#specialRequestMessage");
+const resetSpecialRequestButton = document.querySelector("#resetSpecialRequestButton");
 const feedbackList = document.querySelector("#feedbackList");
 const employeeForm = document.querySelector("#employeeForm");
 const employeeList = document.querySelector("#employeeList");
@@ -105,6 +110,7 @@ let activeCustomerMessageBooking = null;
 let currentEmployee = null;
 let activeRoomFilter = "";
 let activeStatusFilter = "";
+let specialRequests = [];
 
 const today = new Date().toISOString().slice(0, 10);
 employeeRewardsMonth.value = today.slice(0, 7);
@@ -166,6 +172,7 @@ function showLogin() {
   staffPanel.hidden = true;
   zoneSettingsPanel.hidden = true;
   receivedBookingsPanel.hidden = true;
+  specialRequestsPanel.hidden = true;
   feedbackPanel.hidden = true;
   employeeRewardsPanel.hidden = true;
   voucherPanel.hidden = true;
@@ -180,6 +187,7 @@ function showApp(employee) {
   staffPanel.hidden = employee.role !== "admin";
   zoneSettingsPanel.hidden = employee.role !== "admin";
   receivedBookingsPanel.hidden = employee.role !== "admin";
+  specialRequestsPanel.hidden = !["admin", "staff"].includes(employee.role);
   feedbackPanel.hidden = employee.role !== "admin";
   employeeRewardsPanel.hidden = employee.role !== "admin";
   voucherPanel.hidden = employee.role !== "admin";
@@ -219,6 +227,11 @@ function syncNewBookingDateWithAgenda() {
   if (bookingForm.elements.id.value) return;
   bookingForm.elements.date.value = selectedAgendaDate();
   updateDateDisplay(bookingForm.elements.date, bookingDateDisplay);
+}
+
+function syncNewSpecialRequestDateWithAgenda() {
+  if (!specialRequestForm || specialRequestForm.elements.id.value) return;
+  specialRequestForm.elements.date.value = selectedAgendaDate();
 }
 
 function statusClass(status) {
@@ -289,6 +302,7 @@ function renderRoomStats() {
   };
 
   for (const booking of bookings) {
+    if ((booking.requestType || "standard") === "special") continue;
     if (booking.status === "annullata") continue;
     const room = roomStatKey(booking.room);
     if (!stats[room]) continue;
@@ -368,7 +382,8 @@ function renderLimitWarning(room, values) {
 
 function renderBookings() {
   const term = searchInput.value.trim();
-  const sourceBookings = term ? mergeBookings(bookings, searchBookings) : bookings;
+  const sourceBookings = (term ? mergeBookings(bookings, searchBookings) : bookings)
+    .filter((booking) => (booking.requestType || "standard") !== "special");
   const filtered = sourceBookings.filter((booking) => matchesSearch(booking, term) && matchesRoomFilter(booking) && matchesStatusFilter(booking));
   renderedBookings = filtered;
   const filterApiDate = toApiDate(filterDate.value);
@@ -501,6 +516,13 @@ async function loadReceivedBookings() {
   if (currentEmployee?.role !== "admin") return;
   const payload = await api("/api/received-bookings");
   renderReceivedBookings(payload.bookings);
+}
+
+async function loadSpecialRequests() {
+  if (!["admin", "staff"].includes(currentEmployee?.role)) return;
+  const payload = await api("/api/special-requests");
+  specialRequests = payload.requests || [];
+  renderSpecialRequests();
 }
 
 async function loadFeedbackSubmissions() {
@@ -711,6 +733,50 @@ function renderReceivedBookings(receivedBookings) {
   }).join("");
 }
 
+function renderSpecialRequests() {
+  if (!specialRequests.length) {
+    specialRequestsList.innerHTML = `<p class="empty compact-empty">Nessuna richiesta speciale.</p>`;
+    return;
+  }
+
+  specialRequestsList.innerHTML = specialRequests.map((request) => `
+    <div class="received-booking-row special-request-row">
+      <div>
+        <strong>${escapeHtml(request.guestName || "Richiesta senza nome")} · ${Number(request.people || 0)} persone</strong>
+        <span>Ricevuta ${formatDateTime(request.createdAt)} · ${formatDate(request.date)} · ${escapeHtml(request.time || "")}</span>
+        <span>${escapeHtml(request.specialType || "altro")} · ${escapeHtml(request.specialTimeWindow || "fascia non indicata")} · ${seatLine(request)} · ${contactLine(request)}</span>
+        ${request.assignedTo ? `<span>Assegnata a ${escapeHtml(request.assignedTo)}</span>` : ""}
+        ${request.notes ? `<span>${escapeHtml(request.notes)}</span>` : ""}
+        ${request.internalNotes ? `<span>Note interne: ${escapeHtml(request.internalNotes)}</span>` : ""}
+      </div>
+      <div class="special-request-actions">
+        <span class="status ${statusClass(request.specialStatus || "da verificare")}">${escapeHtml(request.specialStatus || "nuova")}</span>
+        <button class="ghost compact" type="button" data-special-action="edit" data-special-id="${request.id}">Modifica</button>
+        <button class="compact" type="button" data-special-action="convert" data-special-id="${request.id}">Converti</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+function specialRequestPayload() {
+  const payload = Object.fromEntries(new FormData(specialRequestForm).entries());
+  payload.date = toApiDate(payload.date);
+  return payload;
+}
+
+function resetSpecialRequestForm() {
+  specialRequestForm.reset();
+  specialRequestForm.elements.id.value = "";
+  specialRequestForm.elements.date.value = selectedAgendaDate();
+  specialRequestForm.elements.time.value = "20:00";
+  specialRequestForm.elements.people.value = 10;
+  specialRequestForm.elements.specialType.value = "gruppo";
+  specialRequestForm.elements.specialStatus.value = "nuova";
+  specialRequestForm.elements.room.value = "Interno";
+  specialRequestForm.elements.specialTimeWindow.value = "cena";
+  specialRequestMessage.textContent = "";
+}
+
 function renderFeedbackSubmissions(items) {
   if (!items.length) {
     feedbackList.innerHTML = `<p class="empty compact-empty">Nessuna valutazione ricevuta.</p>`;
@@ -799,6 +865,7 @@ async function openWeeklyExport() {
 
   const payload = await api(`/api/bookings?from=${from}&to=${to}`);
   weeklyExportBookings = payload.bookings
+    .filter((booking) => (booking.requestType || "standard") !== "special")
     .filter((booking) => booking.status !== "annullata")
     .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
   renderWeeklyExport();
@@ -1113,9 +1180,14 @@ loginForm.addEventListener("submit", async (event) => {
       window.location.href = "/dipendenti.html";
       return;
     }
+    if (payload.employee.role === "calendario") {
+      window.location.href = "/calendario.html";
+      return;
+    }
     showApp(payload.employee);
     await loadBookings();
     await loadReceivedBookings();
+    await loadSpecialRequests();
     await loadFeedbackSubmissions();
     await loadEmployeeRewards();
     await loadVouchers();
@@ -1123,6 +1195,7 @@ loginForm.addEventListener("submit", async (event) => {
     await loadZoneSettings();
     await loadBackups();
     await loadDeleteLogs();
+    resetSpecialRequestForm();
   } catch (error) {
     loginError.textContent = error.message;
   }
@@ -1282,6 +1355,7 @@ employeeRewardsMonth.addEventListener("change", () => {
 filterDate.addEventListener("change", async () => {
   updateDateDisplay(filterDate, filterDateDisplay);
   syncNewBookingDateWithAgenda();
+  syncNewSpecialRequestDateWithAgenda();
   resetSearchBookings();
   await loadBookings();
   await handleSearchInput();
@@ -1294,6 +1368,7 @@ prevDayButton.addEventListener("click", async () => {
   filterDate.value = addDays(filterDate.value, -1);
   updateDateDisplay(filterDate, filterDateDisplay);
   syncNewBookingDateWithAgenda();
+  syncNewSpecialRequestDateWithAgenda();
   resetSearchBookings();
   await loadBookings();
   await handleSearchInput();
@@ -1303,6 +1378,7 @@ nextDayButton.addEventListener("click", async () => {
   filterDate.value = addDays(filterDate.value, 1);
   updateDateDisplay(filterDate, filterDateDisplay);
   syncNewBookingDateWithAgenda();
+  syncNewSpecialRequestDateWithAgenda();
   resetSearchBookings();
   await loadBookings();
   await handleSearchInput();
@@ -1312,6 +1388,7 @@ todayButton.addEventListener("click", async () => {
   filterDate.value = today;
   updateDateDisplay(filterDate, filterDateDisplay);
   syncNewBookingDateWithAgenda();
+  syncNewSpecialRequestDateWithAgenda();
   resetSearchBookings();
   await loadBookings();
   await handleSearchInput();
@@ -1428,6 +1505,63 @@ voucherList.addEventListener("click", async (event) => {
   }
 });
 
+specialRequestForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  specialRequestMessage.textContent = "Salvataggio richiesta...";
+  const payload = specialRequestPayload();
+  const id = payload.id;
+  delete payload.id;
+  try {
+    if (id) {
+      await api(`/api/special-requests/${id}`, { method: "PATCH", body: JSON.stringify(payload) });
+      specialRequestMessage.textContent = "Richiesta aggiornata.";
+    } else {
+      await api("/api/special-requests", { method: "POST", body: JSON.stringify(payload) });
+      specialRequestMessage.textContent = "Richiesta salvata.";
+    }
+    resetSpecialRequestForm();
+    await loadSpecialRequests();
+  } catch (error) {
+    specialRequestMessage.textContent = error.message;
+  }
+});
+
+resetSpecialRequestButton.addEventListener("click", resetSpecialRequestForm);
+
+specialRequestsList.addEventListener("click", async (event) => {
+  const button = event.target.closest("button[data-special-action]");
+  if (!button) return;
+  const request = specialRequests.find((item) => item.id === button.dataset.specialId);
+  if (!request) return;
+
+  if (button.dataset.specialAction === "edit") {
+    for (const [key, value] of Object.entries(request)) {
+      if (specialRequestForm.elements[key]) specialRequestForm.elements[key].value = value;
+    }
+    specialRequestMessage.textContent = "";
+    specialRequestForm.scrollIntoView({ behavior: "smooth", block: "start" });
+    return;
+  }
+
+  if (button.dataset.specialAction === "convert") {
+    const ok = confirm(`Convertire la richiesta di ${request.guestName} in prenotazione confermata?`);
+    if (!ok) return;
+    button.disabled = true;
+    try {
+      await api(`/api/special-requests/${request.id}/convert`, { method: "POST", body: JSON.stringify({}) });
+      specialRequestMessage.textContent = "Richiesta convertita in prenotazione.";
+      resetSpecialRequestForm();
+      resetSearchBookings();
+      await loadSpecialRequests();
+      await loadBookings();
+      await loadEmployeeRewards();
+    } catch (error) {
+      specialRequestMessage.textContent = error.message;
+      button.disabled = false;
+    }
+  }
+});
+
 createBackupButton.addEventListener("click", async () => {
   backupMessage.textContent = "Creazione backup in corso...";
   backupDownloadLink.hidden = true;
@@ -1479,10 +1613,13 @@ if (me.employee) {
     window.location.href = "/agenda.html";
   } else if (me.employee.role === "dipendente") {
     window.location.href = "/dipendenti.html";
+  } else if (me.employee.role === "calendario") {
+    window.location.href = "/calendario.html";
   } else {
     showApp(me.employee);
     await loadBookings();
     await loadReceivedBookings();
+    await loadSpecialRequests();
     await loadFeedbackSubmissions();
     await loadEmployeeRewards();
     await loadVouchers();
@@ -1490,6 +1627,7 @@ if (me.employee) {
     await loadZoneSettings();
     await loadBackups();
     await loadDeleteLogs();
+    resetSpecialRequestForm();
   }
 } else {
   showLogin();

@@ -7,6 +7,8 @@ const eventBookingNotice = document.querySelector("#eventBookingNotice");
 const publicEventCard = document.querySelector("#publicEventCard");
 const publicTimeSlots = document.querySelector("#publicTimeSlots");
 const zonePreviewCards = document.querySelectorAll("[data-zone-preview]");
+const standardFields = document.querySelectorAll("[data-standard-fields]");
+const specialRequestFields = document.querySelector("#specialRequestFields");
 const SPECIAL_EVENT_DATE = "2026-08-16";
 const pageLanguage = document.documentElement.lang === "en" ? "en" : "it";
 let timeSlotRequestId = 0;
@@ -21,6 +23,9 @@ const copy = {
     gardenPending: "Giardino richiesto, da confermare",
     proposedRoom: "Zona proposta",
     emailNotice: " Riceverai conferma via mail appena verificata.",
+    specialSuccess(date) {
+      return `Richiesta speciale ricevuta per ${date}. Ti risponderemo via mail appena possibile.`;
+    },
     success(date, time, roomText, emailText) {
       return `Richiesta ricevuta per ${date} alle ${time}. ${roomText}.${emailText}`;
     },
@@ -38,6 +43,9 @@ const copy = {
     gardenPending: "Garden requested, to be confirmed",
     proposedRoom: "Suggested area",
     emailNotice: " You will receive confirmation by email once verified.",
+    specialSuccess(date) {
+      return `Special request received for ${date}. We will reply by email as soon as possible.`;
+    },
     success(date, time, roomText, emailText) {
       return `Request received for ${date} at ${time}. ${roomText}.${emailText}`;
     },
@@ -99,9 +107,13 @@ function setText(selector, value) {
 function toPayload() {
   const data = Object.fromEntries(new FormData(bookingForm).entries());
   data.language = pageLanguage;
-  data.gardenRequested = bookingForm.elements.gardenRequested.checked;
+  data.gardenRequested = bookingForm.elements.gardenRequested?.checked || false;
   data.privacyAccepted = bookingForm.elements.privacyAccepted.checked;
   return data;
+}
+
+function isSpecialRequest() {
+  return bookingForm.elements.requestType.value === "special";
 }
 
 function slotParams() {
@@ -120,6 +132,7 @@ function activeConsumption() {
 }
 
 function syncGardenRequest() {
+  if (isSpecialRequest()) return;
   const isDinner = activeConsumption() === "cena";
   gardenRequest.hidden = !isDinner;
   if (!isDinner) bookingForm.elements.gardenRequested.checked = false;
@@ -156,7 +169,7 @@ function updateDateDisplay(input, display) {
 
 function syncSpecialEventNotice() {
   if (!eventBookingNotice) return;
-  eventBookingNotice.hidden = bookingDate.value !== SPECIAL_EVENT_DATE;
+  eventBookingNotice.hidden = isSpecialRequest() || bookingDate.value !== SPECIAL_EVENT_DATE;
 }
 
 function syncPublicEventCard() {
@@ -182,6 +195,11 @@ function selectTimeSlot(time) {
 }
 
 async function loadTimeSlots() {
+  if (isSpecialRequest()) {
+    bookingForm.elements.time.value = "";
+    publicTimeSlots.textContent = "";
+    return;
+  }
   const requestId = ++timeSlotRequestId;
   bookingForm.elements.time.value = "";
   publicTimeSlots.textContent = copy.loadingSlots;
@@ -211,6 +229,29 @@ async function loadTimeSlots() {
   }
 }
 
+function syncRequestType() {
+  const special = isSpecialRequest();
+  standardFields.forEach((element) => {
+    element.hidden = special;
+  });
+  specialRequestFields.hidden = !special;
+  bookingForm.elements.time.required = !special;
+  bookingForm.elements.voucherCode.disabled = special;
+  bookingForm.elements.specialType.required = special;
+  bookingForm.elements.specialTimeWindow.required = special;
+  bookingForm.elements.specialType.disabled = !special;
+  bookingForm.elements.specialTimeWindow.disabled = !special;
+  bookingForm.elements.people.max = special ? "300" : "40";
+  bookingForm.elements.notes.maxLength = special ? 1200 : 220;
+  syncSpecialEventNotice();
+  if (special) {
+    bookingForm.elements.time.value = "";
+    publicTimeSlots.textContent = "";
+  } else {
+    syncGardenRequest();
+  }
+}
+
 bookingDate.addEventListener("change", () => {
   updateDateDisplay(bookingDate, bookingDateDisplay);
   syncSpecialEventNotice();
@@ -223,12 +264,16 @@ bookingForm.querySelectorAll("input[name='consumption']").forEach((input) => {
   input.addEventListener("change", syncGardenRequest);
 });
 
+bookingForm.querySelectorAll("input[name='requestType']").forEach((input) => {
+  input.addEventListener("change", syncRequestType);
+});
+
 bookingForm.elements.gardenRequested.addEventListener("change", syncZonePreview);
 bookingForm.elements.gardenRequested.addEventListener("change", loadTimeSlots);
 
 bookingForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  if (!bookingForm.elements.time.value) {
+  if (!isSpecialRequest() && !bookingForm.elements.time.value) {
     message.textContent = copy.chooseSlot;
     return;
   }
@@ -241,12 +286,15 @@ bookingForm.addEventListener("submit", async (event) => {
       method: "POST",
       body: JSON.stringify(request)
     });
+    const isSpecial = payload.booking.requestType === "special";
     const isConfirmed = payload.booking.status === "confermata";
     const roomText = payload.booking.room === "Giardino" && !isConfirmed
       ? copy.gardenPending
       : `${copy.proposedRoom}: ${roomLabel(payload.booking.room)}`;
     const emailText = copy.emailNotice;
-    message.textContent = isConfirmed
+    message.textContent = isSpecial
+      ? copy.specialSuccess(formatDate(payload.booking.date))
+      : isConfirmed
       ? copy.confirmed(formatDate(payload.booking.date), payload.booking.time, roomText)
       : copy.success(formatDate(payload.booking.date), payload.booking.time, roomText, emailText);
     bookingForm.reset();
@@ -254,7 +302,7 @@ bookingForm.addEventListener("submit", async (event) => {
     bookingForm.elements.time.value = "";
     bookingForm.elements.people.value = 2;
     updateDateDisplay(bookingDate, bookingDateDisplay);
-    syncGardenRequest();
+    syncRequestType();
     syncSpecialEventNotice();
   } catch (error) {
     message.textContent = error.message;
@@ -263,5 +311,5 @@ bookingForm.addEventListener("submit", async (event) => {
   }
 });
 
-syncGardenRequest();
+syncRequestType();
 await loadBrandConfig();
