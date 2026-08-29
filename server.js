@@ -1514,6 +1514,13 @@ function publicSlotBookingCount(bookings, booking) {
     .length;
 }
 
+function specialTimeWindowFromBooking(booking) {
+  if (booking.room === "Bar") return "aperitivo";
+  const minutes = clockTimeToMinutes(booking.time);
+  if (minutes !== null && minutes < 17 * 60) return "pranzo";
+  return "cena";
+}
+
 function publicSlotError(booking, bookings) {
   const language = normalizeLanguage(booking.language);
   const now = romeNowParts();
@@ -3844,7 +3851,37 @@ async function handleApi(req, res) {
   }
 
   const bookingMatch = url.pathname.match(/^\/api\/bookings\/([a-f0-9-]+)$/i);
+  const bookingConvertToSpecialMatch = url.pathname.match(/^\/api\/bookings\/([a-f0-9-]+)\/convert-to-special$/i);
   const bookingArrivedMatch = url.pathname.match(/^\/api\/bookings\/([a-f0-9-]+)\/arrived$/i);
+
+  if (bookingConvertToSpecialMatch && req.method === "POST") {
+    if (!requireBookingEditor(session, res)) return;
+    const bookings = await readJson(bookingsFile, []);
+    const index = bookings.findIndex((item) => item.id === bookingConvertToSpecialMatch[1] && (item.requestType || "standard") !== "special");
+    if (index === -1) {
+      sendJson(res, 404, { error: "Prenotazione non trovata" });
+      return;
+    }
+    const previous = bookings[index];
+    const now = new Date().toISOString();
+    const converted = {
+      ...previous,
+      requestType: "special",
+      specialType: "gruppo",
+      specialStatus: "nuova",
+      specialTimeWindow: specialTimeWindowFromBooking(previous),
+      assignedTo: previous.assignedTo || session.employeeName,
+      internalNotes: appendBookingNote({ notes: previous.internalNotes || "" }, `Convertita da prenotazione normale a richiesta gruppo/evento da ${session.employeeName}.`),
+      status: "da verificare",
+      updatedAt: now,
+      updatedBy: session.employeeName
+    };
+    bookings[index] = converted;
+    await writeJson(bookingsFile, bookings);
+    sendJson(res, 200, { request: publicSpecialRequest(bookings[index]) });
+    return;
+  }
+
   if (bookingArrivedMatch && req.method === "PATCH") {
     if (!requireAgendaTableEditor(session, res)) return;
     const bookings = await readJson(bookingsFile, []);

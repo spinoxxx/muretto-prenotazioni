@@ -417,6 +417,7 @@ function renderBookings() {
         <button class="arrived" type="button" data-action="arrived" data-id="${booking.id}">${booking.status === "arrivati" ? "ANNULLA ARRIVO" : "ARRIVATI"}</button>
         ${["arrivati", "completata"].includes(booking.status) && booking.email && booking.feedbackConsentAt && !booking.feedbackRequestedAt ? `<button class="ghost" type="button" data-action="feedback" data-id="${booking.id}">Invia feedback</button>` : ""}
         ${booking.email ? `<button class="ghost" type="button" data-action="message" data-id="${booking.id}">Rispondi</button>` : ""}
+        <button class="ghost" type="button" data-action="convert-special" data-id="${booking.id}">Gruppo/evento</button>
         <button class="ghost" type="button" data-action="edit" data-id="${booking.id}">Modifica</button>
         <button class="delete" type="button" data-action="delete" data-id="${booking.id}">Elimina</button>
       </div>
@@ -1271,6 +1272,26 @@ bookingList.addEventListener("click", async (event) => {
   if (button.dataset.action === "message") {
     if (!booking.email) return;
     openCustomerMessageDialog(booking);
+    return;
+  }
+
+  if (button.dataset.action === "convert-special") {
+    const ok = confirm(`Trasformare la prenotazione di ${booking.guestName} in richiesta gruppo/evento?`);
+    if (!ok) return;
+    button.disabled = true;
+    try {
+      await api(`/api/bookings/${booking.id}/convert-to-special`, { method: "POST", body: JSON.stringify({}) });
+      formMessage.textContent = "Prenotazione trasformata in richiesta gruppo/evento.";
+      resetForm();
+      resetSearchBookings();
+      await loadBookings();
+      await handleSearchInput();
+      await loadSpecialRequests();
+      await loadEmployeeRewards();
+    } catch (error) {
+      formMessage.textContent = error.message;
+      button.disabled = false;
+    }
     return;
   }
 
