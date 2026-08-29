@@ -824,6 +824,45 @@ label {
   font-weight: 700;
 }
 
+.public-result-message {
+  display: grid;
+  gap: 6px;
+  min-height: 0;
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.public-result-message strong,
+.public-result-message span {
+  display: block;
+}
+
+.public-result-message strong {
+  font-size: 1.08rem;
+  font-weight: 900;
+}
+
+.public-result-message.is-success {
+  border-color: #2f7d59;
+  background: #e8f7ef;
+  color: #18513a;
+}
+
+.public-result-message.is-error {
+  border-color: var(--danger);
+  background: #fff0ed;
+  color: #8e3329;
+}
+
+.public-result-message.is-pending {
+  border-color: #d8a200;
+  background: #fff7d6;
+  color: #6d4b00;
+}
+
 .bookings-panel {
   overflow: hidden;
 }

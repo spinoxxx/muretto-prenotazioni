@@ -16,6 +16,9 @@ const copy = {
   it: {
     apiError: "Operazione non riuscita",
     sending: "Invio richiesta in corso...",
+    sentTitle: "Richiesta inviata",
+    confirmedTitle: "Prenotazione confermata",
+    failedTitle: "Richiesta non inviata",
     selectDate: "Seleziona data",
     loadingSlots: "Carico fasce disponibili...",
     noSlots: "Nessuna fascia disponibile per questa scelta.",
@@ -36,6 +39,9 @@ const copy = {
   en: {
     apiError: "Something went wrong",
     sending: "Sending request...",
+    sentTitle: "Request sent",
+    confirmedTitle: "Booking confirmed",
+    failedTitle: "Request not sent",
     selectDate: "Select date",
     loadingSlots: "Loading available time slots...",
     noSlots: "No time slots available for this selection.",
@@ -102,6 +108,17 @@ function setText(selector, value) {
   document.querySelectorAll(selector).forEach((element) => {
     element.textContent = value;
   });
+}
+
+function showResult(type, title, text) {
+  message.className = `message public-result-message is-${type}`;
+  message.innerHTML = `<strong>${escapeHtml(title)}</strong><span>${escapeHtml(text)}</span>`;
+  message.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function clearResult() {
+  message.className = "message";
+  message.textContent = "";
 }
 
 function toPayload() {
@@ -253,6 +270,7 @@ function syncRequestType() {
 }
 
 bookingDate.addEventListener("change", () => {
+  clearResult();
   updateDateDisplay(bookingDate, bookingDateDisplay);
   syncSpecialEventNotice();
   loadTimeSlots();
@@ -274,10 +292,10 @@ bookingForm.elements.gardenRequested.addEventListener("change", loadTimeSlots);
 bookingForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!isSpecialRequest() && !bookingForm.elements.time.value) {
-    message.textContent = copy.chooseSlot;
+    showResult("error", copy.failedTitle, copy.chooseSlot);
     return;
   }
-  message.textContent = copy.sending;
+  showResult("pending", copy.sending, pageLanguage === "en" ? "Please wait a moment, we are checking availability." : "Attendi un momento, stiamo verificando la disponibilità.");
   const submitButton = bookingForm.querySelector("button[type='submit']");
   submitButton.disabled = true;
   try {
@@ -292,11 +310,12 @@ bookingForm.addEventListener("submit", async (event) => {
       ? copy.gardenPending
       : `${copy.proposedRoom}: ${roomLabel(payload.booking.room)}`;
     const emailText = copy.emailNotice;
-    message.textContent = isSpecial
+    const resultText = isSpecial
       ? copy.specialSuccess(formatDate(payload.booking.date))
       : isConfirmed
       ? copy.confirmed(formatDate(payload.booking.date), payload.booking.time, roomText)
       : copy.success(formatDate(payload.booking.date), payload.booking.time, roomText, emailText);
+    showResult("success", isConfirmed ? copy.confirmedTitle : copy.sentTitle, resultText);
     bookingForm.reset();
     bookingDate.value = today;
     bookingForm.elements.time.value = "";
@@ -305,7 +324,7 @@ bookingForm.addEventListener("submit", async (event) => {
     syncRequestType();
     syncSpecialEventNotice();
   } catch (error) {
-    message.textContent = error.message;
+    showResult("error", copy.failedTitle, error.message);
   } finally {
     submitButton.disabled = false;
   }
@@ -313,3 +332,13 @@ bookingForm.addEventListener("submit", async (event) => {
 
 syncRequestType();
 await loadBrandConfig();
+
+function escapeHtml(value) {
+  return String(value || "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+    "'": "&#39;"
+  }[char]));
+}
