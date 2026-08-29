@@ -225,6 +225,7 @@ function publicBookingRecord(item) {
   return {
     ...item,
     requestType: item.requestType || "standard",
+    occupiesSeats: bookingOccupiesSeats(item),
     specialType: item.specialType || "",
     specialStatus: item.specialStatus || "",
     specialTimeWindow: item.specialTimeWindow || "",
@@ -244,6 +245,7 @@ function publicSpecialRequest(item) {
     people: item.people,
     room: item.room || "",
     status: item.status,
+    occupiesSeats: bookingOccupiesSeats(item),
     notes: item.notes || "",
     customerNotes: item.customerNotes || "",
     specialType: item.specialType || "",
@@ -1497,7 +1499,7 @@ function zoneOccupancy(bookings, booking) {
   const period = mealPeriod(booking.time);
   const targetRoom = roomKey(booking.room);
   return bookings
-    .filter((item) => (item.requestType || "standard") !== "special")
+    .filter(bookingOccupiesSeats)
     .filter((item) => item.date === booking.date)
     .filter((item) => item.status !== "annullata")
     .filter((item) => roomKey(item.room) === targetRoom)
@@ -1507,11 +1509,19 @@ function zoneOccupancy(bookings, booking) {
 
 function publicSlotBookingCount(bookings, booking) {
   return bookings
-    .filter((item) => (item.requestType || "standard") !== "special")
+    .filter(bookingOccupiesSeats)
     .filter((item) => item.date === booking.date)
     .filter((item) => item.status !== "annullata")
     .filter((item) => item.time === booking.time)
     .length;
+}
+
+function bookingOccupiesSeats(booking) {
+  if ((booking.requestType || "standard") !== "special") return true;
+  if (booking.occupiesSeats === true) return true;
+
+  // Mantiene occupate anche le prenotazioni convertite prima dell'introduzione di questo flag.
+  return /convertita da prenotazione normale a richiesta gruppo\/evento/i.test(String(booking.internalNotes || ""));
 }
 
 function specialTimeWindowFromBooking(booking) {
@@ -3251,6 +3261,9 @@ async function handleApi(req, res) {
         room: item.room || "",
         tableNumber: item.tableNumber || "",
         status: item.status,
+        requestType: item.requestType || "standard",
+        specialType: item.specialType || "",
+        occupiesSeats: bookingOccupiesSeats(item),
         voucherCode: item.voucherCode || "",
         notes: item.notes || "",
         referredByEmployeeName: item.referredByEmployeeName || ""
@@ -3746,7 +3759,8 @@ async function handleApi(req, res) {
     const visible = bookings
       .filter((item) => !from || item.date >= from)
       .filter((item) => !to || item.date <= to)
-      .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
+      .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`))
+      .map(publicBookingRecord);
     sendJson(res, 200, { bookings: visible, zoneSettings });
     return;
   }
@@ -3867,12 +3881,13 @@ async function handleApi(req, res) {
     const converted = {
       ...previous,
       requestType: "special",
+      occupiesSeats: true,
       specialType: "gruppo",
       specialStatus: "nuova",
       specialTimeWindow: specialTimeWindowFromBooking(previous),
       assignedTo: previous.assignedTo || session.employeeName,
       internalNotes: appendBookingNote({ notes: previous.internalNotes || "" }, `Convertita da prenotazione normale a richiesta gruppo/evento da ${session.employeeName}.`),
-      status: "da verificare",
+      status: previous.status,
       updatedAt: now,
       updatedBy: session.employeeName
     };

@@ -125,6 +125,7 @@ function renderAgenda(bookings, date) {
       <div class="time">${escapeHtml(booking.time)}</div>
       <div class="booking-main">
         <h3>${escapeHtml(booking.guestName)} · ${Number(booking.people)} persone</h3>
+        ${(booking.requestType || "standard") === "special" ? `<p class="booking-referral">Gruppo/evento · posti bloccati</p>` : ""}
         <p>${seatLine(booking)}</p>
         ${booking.referredByEmployeeName ? `<p class="booking-referral">Portata da: ${escapeHtml(booking.referredByEmployeeName)}</p>` : ""}
         ${booking.voucherCode ? `<p class="booking-voucher"><strong>Voucher</strong> ${escapeHtml(booking.voucherCode)}</p>` : ""}

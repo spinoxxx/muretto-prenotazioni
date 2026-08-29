@@ -302,7 +302,7 @@ function renderRoomStats() {
   };
 
   for (const booking of bookings) {
-    if ((booking.requestType || "standard") === "special") continue;
+    if (!booking.occupiesSeats) continue;
     if (booking.status === "annullata") continue;
     const room = roomStatKey(booking.room);
     if (!stats[room]) continue;
@@ -383,7 +383,7 @@ function renderLimitWarning(room, values) {
 function renderBookings() {
   const term = searchInput.value.trim();
   const sourceBookings = (term ? mergeBookings(bookings, searchBookings) : bookings)
-    .filter((booking) => (booking.requestType || "standard") !== "special");
+    .filter((booking) => booking.occupiesSeats);
   const filtered = sourceBookings.filter((booking) => matchesSearch(booking, term) && matchesRoomFilter(booking) && matchesStatusFilter(booking));
   renderedBookings = filtered;
   const filterApiDate = toApiDate(filterDate.value);
@@ -405,6 +405,7 @@ function renderBookings() {
       <div class="booking-main">
         ${booking.date !== filterApiDate ? `<p class="other-date-alert">Attenzione: prenotazione del ${formatDate(booking.date)}</p>` : ""}
         <h3>${escapeHtml(booking.guestName)} · ${Number(booking.people)} persone</h3>
+        ${(booking.requestType || "standard") === "special" ? `<p class="booking-referral">Gruppo/evento · accordi in gestione</p>` : ""}
         <p class="booking-details">${formatDate(booking.date)} · ${seatLine(booking)} · ${contactLine(booking)}</p>
         ${referralLine(booking) ? `<p class="booking-referral">${referralLine(booking)}</p>` : ""}
         ${booking.voucherCode ? `<p class="booking-voucher"><strong>Voucher</strong> ${escapeHtml(booking.voucherCode)}</p>` : ""}
@@ -417,7 +418,7 @@ function renderBookings() {
         <button class="arrived" type="button" data-action="arrived" data-id="${booking.id}">${booking.status === "arrivati" ? "ANNULLA ARRIVO" : "ARRIVATI"}</button>
         ${["arrivati", "completata"].includes(booking.status) && booking.email && booking.feedbackConsentAt && !booking.feedbackRequestedAt ? `<button class="ghost" type="button" data-action="feedback" data-id="${booking.id}">Invia feedback</button>` : ""}
         ${booking.email ? `<button class="ghost" type="button" data-action="message" data-id="${booking.id}">Rispondi</button>` : ""}
-        <button class="ghost" type="button" data-action="convert-special" data-id="${booking.id}">Gruppo/evento</button>
+        ${(booking.requestType || "standard") !== "special" ? `<button class="ghost" type="button" data-action="convert-special" data-id="${booking.id}">Gruppo/evento</button>` : ""}
         <button class="ghost" type="button" data-action="edit" data-id="${booking.id}">Modifica</button>
         <button class="delete" type="button" data-action="delete" data-id="${booking.id}">Elimina</button>
       </div>
@@ -866,7 +867,7 @@ async function openWeeklyExport() {
 
   const payload = await api(`/api/bookings?from=${from}&to=${to}`);
   weeklyExportBookings = payload.bookings
-    .filter((booking) => (booking.requestType || "standard") !== "special")
+    .filter((booking) => booking.occupiesSeats)
     .filter((booking) => booking.status !== "annullata")
     .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
   renderWeeklyExport();
