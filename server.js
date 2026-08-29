@@ -1508,10 +1508,13 @@ function zoneOccupancy(bookings, booking) {
 }
 
 function publicSlotBookingCount(bookings, booking) {
+  const isBarService = booking.room === "Bar";
   return bookings
     .filter(bookingOccupiesSeats)
     .filter((item) => item.date === booking.date)
     .filter((item) => item.status !== "annullata")
+    // Il Bar gestisce arrivi propri; Ristorante esterno e Giardino condividono invece la cucina.
+    .filter((item) => (item.room === "Bar") === isBarService)
     .filter((item) => item.time === booking.time)
     .length;
 }
