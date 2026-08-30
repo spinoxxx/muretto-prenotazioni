@@ -150,13 +150,21 @@
             <legend>Type of visit</legend>
             <label class="choice-card">
               <span class="choice-card-head">
-                <input name="consumption" type="radio" value="cena" checked>
+                <input name="consumption" type="radio" value="pranzo">
                 <span>
-                  <strong>Lunch/Dinner</strong>
-                  <small>Outdoor restaurant area</small>
+                  <strong>Lunch</strong>
+                  <small>Restaurant service</small>
                 </span>
               </span>
-              <img src="/zone-ristorante-esterno.jpg?v=20260829" alt="Outdoor restaurant tables" loading="lazy">
+            </label>
+            <label class="choice-card">
+              <span class="choice-card-head">
+                <input name="consumption" type="radio" value="cena" checked>
+                <span>
+                  <strong>Dinner</strong>
+                  <small>Restaurant service</small>
+                </span>
+              </span>
             </label>
             <label class="choice-card">
               <span class="choice-card-head">
@@ -170,12 +178,33 @@
             </label>
           </fieldset>
 
+          <fieldset id="restaurantPreference" class="request-type-group" data-standard-fields>
+            <legend>Lunch/dinner area</legend>
+            <label class="zone-photo-card">
+              <span class="zone-photo-head">
+                <input name="roomPreference" type="radio" value="esterno" checked>
+                <span>
+                  <strong>Outdoor restaurant</strong>
+                  <small>Restaurant tables with a view.</small>
+                </span>
+              </span>
+              <img src="/zone-ristorante-esterno.jpg?v=20260829" alt="Outdoor restaurant tables" loading="lazy">
+            </label>
+            <label class="request-type-card">
+              <input name="roomPreference" type="radio" value="interno">
+              <span>
+                <strong>Indoor room</strong>
+                <small>Request subject to staff confirmation.</small>
+              </span>
+            </label>
+          </fieldset>
+
           <label id="gardenRequest" class="zone-photo-card" data-zone-preview="garden" data-standard-fields>
             <span class="zone-photo-head">
               <input name="gardenRequested" type="checkbox">
               <span>
                 <strong>Garden</strong>
-                <small>I would like the garden, if available. Lunch/dinner only and subject to confirmation.</small>
+                <small>I would like the garden, if available. Dinner only and subject to confirmation.</small>
               </span>
             </span>
             <img src="/zone-giardino.jpg?v=20260829" alt="Garden area tables" loading="lazy">
@@ -228,6 +257,6 @@
         </section>
       </section>
     </main>
-    <script src="/prenota.js?v=15" type="module"></script>
+    <script src="/prenota.js?v=16" type="module"></script>
   </body>
 </html>

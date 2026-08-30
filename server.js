@@ -1282,21 +1282,25 @@ function validatePublicBooking(input) {
   const consumption = sanitizeText(input.consumption, 20).toLowerCase();
   const language = normalizeLanguage(input.language);
   const gardenRequested = input.gardenRequested === true || input.gardenRequested === "on" || input.gardenRequested === "true";
+  const indoorRequested = input.indoorRequested === true || input.indoorRequested === "on" || input.indoorRequested === "true";
   const privacyAccepted = input.privacyAccepted === true || input.privacyAccepted === "on" || input.privacyAccepted === "true";
   const feedbackConsent = input.feedbackConsent === true || input.feedbackConsent === "on" || input.feedbackConsent === "true";
   const customerNotes = sanitizeText(input.notes, 220);
   const voucherCode = normalizeVoucherCode(input.voucherCode);
-  const allowedConsumptions = new Set(["cena", "aperitivo"]);
+  const allowedConsumptions = new Set(["pranzo", "cena", "aperitivo"]);
   if (!privacyAccepted) return language === "en" ? "You must read and accept the privacy notice." : "Devi leggere e accettare l'informativa privacy.";
-  if (!allowedConsumptions.has(consumption)) return language === "en" ? "Choose lunch/dinner or aperitif." : "Scegli pranzo/cena o aperitivo.";
-  if (gardenRequested && consumption !== "cena") return language === "en" ? "The garden can only be requested for lunch/dinner." : "Il giardino si puo richiedere solo per pranzo/cena.";
+  if (!allowedConsumptions.has(consumption)) return language === "en" ? "Choose lunch, dinner or aperitif." : "Scegli pranzo, cena o aperitivo.";
+  if (gardenRequested && consumption !== "cena") return language === "en" ? "The garden can only be requested for dinner." : "Il giardino si puo richiedere solo per cena.";
+  if (indoorRequested && consumption === "aperitivo") return language === "en" ? "The indoor room is available for lunch or dinner." : "La sala interna e disponibile per pranzo o cena.";
+  if (gardenRequested && indoorRequested) return language === "en" ? "Choose either the garden or the indoor room." : "Scegli il giardino oppure la sala interna.";
   if (!sanitizeText(input.email, 120)) return language === "en" ? "Enter an email address to receive confirmation." : "Inserisci un indirizzo email per ricevere la conferma.";
 
-  const room = consumption === "aperitivo" ? "Bar" : gardenRequested ? "Giardino" : RESTAURANT_ROOM;
+  const room = consumption === "aperitivo" ? "Bar" : gardenRequested ? "Giardino" : indoorRequested ? "Interno" : RESTAURANT_ROOM;
   const notes = [
     "Richiesta dal modulo online.",
     `Consumazione prevista: ${consumption}.`,
     gardenRequested ? "Richiesta giardino: da confermare." : "",
+    indoorRequested ? "Richiesta sala interna: da confermare." : "",
     input.date === SPECIAL_EVENT_DATE ? `Data evento ${SPECIAL_EVENT_NAME}: cena in musica ore ${SPECIAL_EVENT_TIME}, musica dal vivo con Nataly, ${SPECIAL_EVENT_PRICE}.` : "",
     customerNotes
   ].filter(Boolean).join(" ");
@@ -1316,17 +1320,17 @@ function validatePublicBooking(input) {
     notes,
     customerNotes
   });
-  return typeof booking === "string" ? publicValidationError(booking, language) : { ...booking, feedbackConsent };
+  return typeof booking === "string" ? publicValidationError(booking, language) : { ...booking, consumption, feedbackConsent };
 }
 
 function validateEmployeeReferralBooking(input) {
   const consumption = sanitizeText(input.consumption, 20).toLowerCase();
   const gardenRequested = input.gardenRequested === true || input.gardenRequested === "on" || input.gardenRequested === "true";
   const privacyAccepted = input.employeePrivacyAccepted === true || input.employeePrivacyAccepted === "on" || input.employeePrivacyAccepted === "true";
-  const allowedConsumptions = new Set(["cena", "aperitivo"]);
+  const allowedConsumptions = new Set(["pranzo", "cena", "aperitivo"]);
   if (!privacyAccepted) return "Conferma di aver informato il cliente sulla privacy.";
-  if (!allowedConsumptions.has(consumption)) return "Scegli pranzo/cena o aperitivo.";
-  if (gardenRequested && consumption !== "cena") return "Il giardino si puo richiedere solo per pranzo/cena.";
+  if (!allowedConsumptions.has(consumption)) return "Scegli pranzo, cena o aperitivo.";
+  if (gardenRequested && consumption !== "cena") return "Il giardino si puo richiedere solo per cena.";
   if (!sanitizeText(input.phone, 40) && !sanitizeText(input.email, 120)) return "Inserisci almeno telefono o email del cliente.";
 
   const room = consumption === "aperitivo" ? "Bar" : gardenRequested ? "Giardino" : RESTAURANT_ROOM;
@@ -1351,7 +1355,7 @@ function validateEmployeeReferralBooking(input) {
     notes,
     feedbackConsent: input.feedbackConsent
   });
-  return typeof booking === "string" ? booking : booking;
+  return typeof booking === "string" ? booking : { ...booking, consumption };
 }
 
 function employeeRewards(bookings, month) {
@@ -1419,9 +1423,14 @@ function minutesToClockTime(minutes) {
 }
 
 function publicSlotTimes(consumption) {
-  const windows = sanitizeText(consumption, 20).toLowerCase() === "aperitivo"
+  const type = sanitizeText(consumption, 20).toLowerCase();
+  const windows = type === "aperitivo"
     ? [PUBLIC_SLOT_WINDOWS.aperitivo]
-    : [PUBLIC_SLOT_WINDOWS.lunch, PUBLIC_SLOT_WINDOWS.dinner];
+    : type === "pranzo"
+      ? [PUBLIC_SLOT_WINDOWS.lunch]
+      : type === "cena"
+        ? [PUBLIC_SLOT_WINDOWS.dinner]
+        : [PUBLIC_SLOT_WINDOWS.lunch, PUBLIC_SLOT_WINDOWS.dinner];
   return windows.flatMap((window) => {
     const start = clockTimeToMinutes(window.start);
     const end = clockTimeToMinutes(window.end);
@@ -1541,7 +1550,8 @@ function publicSlotError(booking, bookings) {
   if (booking.date < now.date || (booking.date === now.date && bookingMinutes !== null && bookingMinutes <= now.minutes)) {
     return language === "en" ? "Choose a future time slot." : "Scegli una fascia oraria futura.";
   }
-  const consumption = booking.room === "Bar" ? "aperitivo" : "cena";
+  const consumption = sanitizeText(booking.consumption, 20).toLowerCase()
+    || (booking.room === "Bar" ? "aperitivo" : mealPeriod(booking.time) === "day" ? "pranzo" : "cena");
   const allowedTimes = new Set(publicSlotTimes(consumption));
   if (!allowedTimes.has(booking.time)) {
     return language === "en" ? "Choose one of the available time slots." : "Scegli una delle fasce orarie disponibili.";
@@ -1574,18 +1584,21 @@ async function publicBookingSlots(input, bookings) {
   const people = Number(input.people || 0);
   const consumption = sanitizeText(input.consumption, 20).toLowerCase();
   const gardenRequested = input.gardenRequested === true || input.gardenRequested === "on" || input.gardenRequested === "true";
-  const allowedConsumptions = new Set(["cena", "aperitivo"]);
+  const indoorRequested = input.indoorRequested === true || input.indoorRequested === "on" || input.indoorRequested === "true";
+  const allowedConsumptions = new Set(["pranzo", "cena", "aperitivo"]);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !allowedConsumptions.has(consumption) || !Number.isInteger(people) || people < 1 || people > 40) {
     return { ok: false, error: language === "en" ? "Enter date, type of visit and number of guests." : "Inserisci data, tipo di consumazione e numero di persone." };
   }
   if (gardenRequested && consumption !== "cena") {
-    return { ok: false, error: language === "en" ? "The garden can only be requested for lunch/dinner." : "Il giardino si puo richiedere solo per pranzo/cena." };
+    return { ok: false, error: language === "en" ? "The garden can only be requested for dinner." : "Il giardino si puo richiedere solo per cena." };
   }
+  if (indoorRequested && consumption === "aperitivo") return { ok: false, error: language === "en" ? "The indoor room is available for lunch or dinner." : "La sala interna e disponibile per pranzo o cena." };
+  if (gardenRequested && indoorRequested) return { ok: false, error: language === "en" ? "Choose either the garden or the indoor room." : "Scegli il giardino oppure la sala interna." };
 
-  const room = consumption === "aperitivo" ? "Bar" : gardenRequested ? "Giardino" : RESTAURANT_ROOM;
+  const room = consumption === "aperitivo" ? "Bar" : gardenRequested ? "Giardino" : indoorRequested ? "Interno" : RESTAURANT_ROOM;
   const slots = [];
   for (const time of publicSlotTimes(consumption)) {
-    const draft = { date, time, people, room, language };
+    const draft = { date, time, people, room, language, consumption };
     const zoneError = await publicZoneError(draft, bookings);
     const slotError = publicSlotError(draft, bookings);
     if (!zoneError && !slotError) slots.push({ time });
@@ -2918,6 +2931,7 @@ async function handleApi(req, res) {
       date: url.searchParams.get("date"),
       consumption: url.searchParams.get("consumption"),
       gardenRequested: url.searchParams.get("gardenRequested"),
+      indoorRequested: url.searchParams.get("indoorRequested"),
       people: url.searchParams.get("people"),
       language: url.searchParams.get("language")
     }, bookings);

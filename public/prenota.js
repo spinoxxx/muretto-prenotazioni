@@ -3,6 +3,7 @@ const bookingDate = document.querySelector("#publicBookingDate");
 const bookingDateDisplay = document.querySelector("#publicBookingDateDisplay");
 const message = document.querySelector("#publicBookingMessage");
 const gardenRequest = document.querySelector("#gardenRequest");
+const restaurantPreference = document.querySelector("#restaurantPreference");
 const eventBookingNotice = document.querySelector("#eventBookingNotice");
 const publicEventCard = document.querySelector("#publicEventCard");
 const publicTimeSlots = document.querySelector("#publicTimeSlots");
@@ -125,6 +126,7 @@ function toPayload() {
   const data = Object.fromEntries(new FormData(bookingForm).entries());
   data.language = pageLanguage;
   data.gardenRequested = bookingForm.elements.gardenRequested?.checked || false;
+  data.indoorRequested = bookingForm.elements.roomPreference?.value === "interno" && !data.gardenRequested;
   data.privacyAccepted = bookingForm.elements.privacyAccepted.checked;
   return data;
 }
@@ -138,6 +140,7 @@ function slotParams() {
     date: bookingDate.value,
     consumption: activeConsumption(),
     gardenRequested: bookingForm.elements.gardenRequested.checked ? "true" : "false",
+    indoorRequested: bookingForm.elements.roomPreference?.value === "interno" ? "true" : "false",
     people: bookingForm.elements.people.value || "2",
     language: pageLanguage
   });
@@ -151,6 +154,9 @@ function activeConsumption() {
 function syncGardenRequest() {
   if (isSpecialRequest()) return;
   const isDinner = activeConsumption() === "cena";
+  const isRestaurantService = activeConsumption() !== "aperitivo";
+  restaurantPreference.hidden = !isRestaurantService;
+  if (!isRestaurantService) bookingForm.elements.roomPreference.value = "esterno";
   gardenRequest.hidden = !isDinner;
   if (!isDinner) bookingForm.elements.gardenRequested.checked = false;
   syncZonePreview();
@@ -287,7 +293,17 @@ bookingForm.querySelectorAll("input[name='requestType']").forEach((input) => {
 });
 
 bookingForm.elements.gardenRequested.addEventListener("change", syncZonePreview);
-bookingForm.elements.gardenRequested.addEventListener("change", loadTimeSlots);
+bookingForm.elements.gardenRequested.addEventListener("change", () => {
+  if (bookingForm.elements.gardenRequested.checked) bookingForm.elements.roomPreference.value = "esterno";
+  syncGardenRequest();
+});
+
+bookingForm.querySelectorAll("input[name='roomPreference']").forEach((input) => {
+  input.addEventListener("change", () => {
+    if (bookingForm.elements.roomPreference.value === "interno") bookingForm.elements.gardenRequested.checked = false;
+    syncGardenRequest();
+  });
+});
 
 bookingForm.addEventListener("submit", async (event) => {
   event.preventDefault();

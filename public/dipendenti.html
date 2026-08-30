@@ -88,13 +88,21 @@
             <legend>Tipo di consumazione</legend>
             <label class="choice-card">
               <span class="choice-card-head">
-                <input name="consumption" type="radio" value="cena" checked>
+                <input name="consumption" type="radio" value="pranzo">
                 <span>
-                  <strong>Pranzo/Cena</strong>
-                  <small>Zona ristorante esterno</small>
+                  <strong>Pranzo</strong>
+                  <small>Servizio ristorante</small>
                 </span>
               </span>
-              <img src="/zone-ristorante-esterno.jpg?v=20260829" alt="Tavoli della zona Ristorante Esterno" loading="lazy">
+            </label>
+            <label class="choice-card">
+              <span class="choice-card-head">
+                <input name="consumption" type="radio" value="cena" checked>
+                <span>
+                  <strong>Cena</strong>
+                  <small>Servizio ristorante</small>
+                </span>
+              </span>
             </label>
             <label class="choice-card">
               <span class="choice-card-head">
@@ -113,7 +121,7 @@
               <input name="gardenRequested" type="checkbox">
               <span>
                 <strong>Giardino</strong>
-                <small>Se disponibile. Solo per pranzo/cena.</small>
+                <small>Se disponibile. Solo per cena.</small>
               </span>
             </span>
             <img src="/zone-giardino.jpg?v=20260829" alt="Tavoli della zona Giardino" loading="lazy">
@@ -148,6 +156,6 @@
         </form>
       </section>
     </main>
-    <script src="/dipendenti.js?v=1" type="module"></script>
+    <script src="/dipendenti.js?v=2" type="module"></script>
   </body>
 </html>
