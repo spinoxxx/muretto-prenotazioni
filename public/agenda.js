@@ -273,7 +273,9 @@ function bookingRowClasses(booking) {
 }
 
 function roomDisplayName(room) {
-  return roomStatKey(room) === "ristorante" ? "Ristorante Esterno" : String(room || "");
+  if (roomStatKey(room) === "ristorante") return "Ristorante Esterno";
+  if (String(room || "") === "Interno") return "Sala Interna";
+  return String(room || "");
 }
 
 function renderRoomFilterState() {

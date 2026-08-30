@@ -70,15 +70,15 @@ function updateDateDisplay() {
 }
 
 function syncGardenRequest() {
-  const isDinner = activeConsumption() === "cena";
-  gardenRequest.hidden = !isDinner;
-  if (!isDinner) referralForm.elements.gardenRequested.checked = false;
+  const isRestaurantService = activeConsumption() !== "aperitivo";
+  gardenRequest.hidden = !isRestaurantService;
+  if (!isRestaurantService) referralForm.elements.gardenRequested.checked = false;
   syncZonePreview();
   loadTimeSlots();
 }
 
 function syncZonePreview() {
-  const selectedZone = referralForm.elements.gardenRequested.checked && activeConsumption() === "cena" ? "garden" : "";
+  const selectedZone = referralForm.elements.gardenRequested.checked && activeConsumption() !== "aperitivo" ? "garden" : "";
   zonePreviewCards.forEach((card) => {
     const selected = card.dataset.zonePreview === selectedZone;
     card.classList.toggle("is-selected", selected);

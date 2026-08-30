@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Book a Table</title>
-    <link rel="stylesheet" href="/styles.css?v=29">
+    <link rel="stylesheet" href="/styles.css?v=30">
   </head>
   <body>
     <main class="shell public-shell">
@@ -150,7 +150,7 @@
             <legend>Type of visit</legend>
             <label class="choice-card">
               <span class="choice-card-head">
-                <input name="consumption" type="radio" value="pranzo">
+                <input name="consumption" type="radio" value="pranzo" required>
                 <span>
                   <strong>Lunch</strong>
                   <small>Restaurant service</small>
@@ -159,7 +159,7 @@
             </label>
             <label class="choice-card">
               <span class="choice-card-head">
-                <input name="consumption" type="radio" value="cena" checked>
+                <input name="consumption" type="radio" value="cena">
                 <span>
                   <strong>Dinner</strong>
                   <small>Restaurant service</small>
@@ -174,11 +174,18 @@
                   <small>Bar area</small>
                 </span>
               </span>
-              <img src="/zone-bar-aperitivi.jpg?v=20260829b" alt="Bar aperitif area tables" loading="lazy">
             </label>
           </fieldset>
 
-          <fieldset id="restaurantPreference" class="request-type-group" data-standard-fields>
+          <section id="barPreview" class="zone-photo-card zone-preview-card" data-standard-fields hidden>
+            <div>
+              <strong>Aperitif</strong>
+              <small>Bar area</small>
+            </div>
+            <img src="/zone-bar-aperitivi.jpg?v=20260829b" alt="Bar aperitif area tables" loading="lazy">
+          </section>
+
+          <fieldset id="restaurantPreference" class="request-type-group" data-standard-fields hidden>
             <legend>Lunch/dinner area</legend>
             <label class="zone-photo-card">
               <span class="zone-photo-head">
@@ -194,17 +201,18 @@
               <input name="roomPreference" type="radio" value="interno">
               <span>
                 <strong>Indoor room</strong>
-                <small>Request subject to staff confirmation.</small>
+                <small>Available for up to 20 guests.</small>
               </span>
+              <img src="/zone-interno.jpg?v=20260830" alt="Tables in the indoor room" loading="lazy">
             </label>
           </fieldset>
 
-          <label id="gardenRequest" class="zone-photo-card" data-zone-preview="garden" data-standard-fields>
+          <label id="gardenRequest" class="zone-photo-card" data-zone-preview="garden" data-standard-fields hidden>
             <span class="zone-photo-head">
               <input name="gardenRequested" type="checkbox">
               <span>
                 <strong>Garden</strong>
-                <small>I would like the garden, if available. Dinner only and subject to confirmation.</small>
+                <small>I would like the garden, if available. Lunch/dinner only and subject to confirmation.</small>
               </span>
             </span>
             <img src="/zone-giardino.jpg?v=20260829" alt="Garden area tables" loading="lazy">
@@ -257,6 +265,6 @@
         </section>
       </section>
     </main>
-    <script src="/prenota.js?v=16" type="module"></script>
+    <script src="/prenota.js?v=17" type="module"></script>
   </body>
 </html>

@@ -35,12 +35,13 @@ const FEEDBACK_CHECK_INTERVAL_MS = 1000 * 60 * 10;
 const VENUE_TIME_ZONE = "Europe/Rome";
 const RESTAURANT_ROOM = "Ristorante Esterno";
 const LEGACY_RESTAURANT_ROOM = "Ristorante";
-const ZONE_ROOMS = [RESTAURANT_ROOM, "Bar", "Giardino"];
+const ZONE_ROOMS = [RESTAURANT_ROOM, "Bar", "Giardino", "Interno"];
 const ZONE_PERIODS = ["day", "evening"];
 const DEFAULT_ZONE_LIMITS = {
   [RESTAURANT_ROOM]: 40,
   Bar: 40,
-  Giardino: 18
+  Giardino: 18,
+  Interno: 20
 };
 const SPECIAL_REQUEST_TYPES = new Set(["gruppo", "evento", "compleanno", "azienda", "privato", "altro"]);
 const SPECIAL_REQUEST_STATUSES = new Set(["nuova", "in trattativa", "confermata", "persa", "annullata"]);
@@ -1290,7 +1291,7 @@ function validatePublicBooking(input) {
   const allowedConsumptions = new Set(["pranzo", "cena", "aperitivo"]);
   if (!privacyAccepted) return language === "en" ? "You must read and accept the privacy notice." : "Devi leggere e accettare l'informativa privacy.";
   if (!allowedConsumptions.has(consumption)) return language === "en" ? "Choose lunch, dinner or aperitif." : "Scegli pranzo, cena o aperitivo.";
-  if (gardenRequested && consumption !== "cena") return language === "en" ? "The garden can only be requested for dinner." : "Il giardino si puo richiedere solo per cena.";
+  if (gardenRequested && consumption === "aperitivo") return language === "en" ? "The garden is available for lunch or dinner." : "Il giardino e disponibile per pranzo o cena.";
   if (indoorRequested && consumption === "aperitivo") return language === "en" ? "The indoor room is available for lunch or dinner." : "La sala interna e disponibile per pranzo o cena.";
   if (gardenRequested && indoorRequested) return language === "en" ? "Choose either the garden or the indoor room." : "Scegli il giardino oppure la sala interna.";
   if (!sanitizeText(input.email, 120)) return language === "en" ? "Enter an email address to receive confirmation." : "Inserisci un indirizzo email per ricevere la conferma.";
@@ -1330,7 +1331,7 @@ function validateEmployeeReferralBooking(input) {
   const allowedConsumptions = new Set(["pranzo", "cena", "aperitivo"]);
   if (!privacyAccepted) return "Conferma di aver informato il cliente sulla privacy.";
   if (!allowedConsumptions.has(consumption)) return "Scegli pranzo, cena o aperitivo.";
-  if (gardenRequested && consumption !== "cena") return "Il giardino si puo richiedere solo per cena.";
+  if (gardenRequested && consumption === "aperitivo") return "Il giardino e disponibile per pranzo o cena.";
   if (!sanitizeText(input.phone, 40) && !sanitizeText(input.email, 120)) return "Inserisci almeno telefono o email del cliente.";
 
   const room = consumption === "aperitivo" ? "Bar" : gardenRequested ? "Giardino" : RESTAURANT_ROOM;
@@ -1589,8 +1590,8 @@ async function publicBookingSlots(input, bookings) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !allowedConsumptions.has(consumption) || !Number.isInteger(people) || people < 1 || people > 40) {
     return { ok: false, error: language === "en" ? "Enter date, type of visit and number of guests." : "Inserisci data, tipo di consumazione e numero di persone." };
   }
-  if (gardenRequested && consumption !== "cena") {
-    return { ok: false, error: language === "en" ? "The garden can only be requested for dinner." : "Il giardino si puo richiedere solo per cena." };
+  if (gardenRequested && consumption === "aperitivo") {
+    return { ok: false, error: language === "en" ? "The garden is available for lunch or dinner." : "Il giardino e disponibile per pranzo o cena." };
   }
   if (indoorRequested && consumption === "aperitivo") return { ok: false, error: language === "en" ? "The indoor room is available for lunch or dinner." : "La sala interna e disponibile per pranzo o cena." };
   if (gardenRequested && indoorRequested) return { ok: false, error: language === "en" ? "Choose either the garden or the indoor room." : "Scegli il giardino oppure la sala interna." };
@@ -1684,7 +1685,7 @@ function publicClientKey(req) {
 }
 
 function emailRoomName(room, language) {
-  if (language !== "en") return room;
+  if (language !== "en") return room === "Interno" ? "Interna" : room;
   if (room === RESTAURANT_ROOM || room === LEGACY_RESTAURANT_ROOM) return "Outdoor Restaurant";
   if (room === "Giardino") return "Garden";
   if (room === "Interno") return "Indoor";

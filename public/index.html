@@ -471,6 +471,26 @@
                         <span>Blocca serale</span>
                       </label>
                     </section>
+
+                    <section class="zone-setting-card">
+                      <h3>Sala Interna</h3>
+                      <label>
+                        Diurno coperti max
+                        <input type="number" min="0" max="999" inputmode="numeric" data-zone="Interno" data-period="day" data-field="limit">
+                      </label>
+                      <label class="check-row compact-check">
+                        <input type="checkbox" data-zone="Interno" data-period="day" data-field="blocked">
+                        <span>Blocca diurno</span>
+                      </label>
+                      <label>
+                        Serale coperti max
+                        <input type="number" min="0" max="999" inputmode="numeric" data-zone="Interno" data-period="evening" data-field="limit">
+                      </label>
+                      <label class="check-row compact-check">
+                        <input type="checkbox" data-zone="Interno" data-period="evening" data-field="blocked">
+                        <span>Blocca serale</span>
+                      </label>
+                    </section>
                   </div>
                   <button type="submit">Salva limiti</button>
                   <p id="zoneSettingsMessage" class="message" role="status"></p>
@@ -563,6 +583,6 @@
       </form>
     </dialog>
     <section id="weeklyPrintArea" class="weekly-print-area" aria-hidden="true"></section>
-    <script src="/app.js?v=51" type="module"></script>
+    <script src="/app.js?v=52" type="module"></script>
   </body>
 </html>

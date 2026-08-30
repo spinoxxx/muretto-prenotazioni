@@ -4,6 +4,7 @@ const bookingDateDisplay = document.querySelector("#publicBookingDateDisplay");
 const message = document.querySelector("#publicBookingMessage");
 const gardenRequest = document.querySelector("#gardenRequest");
 const restaurantPreference = document.querySelector("#restaurantPreference");
+const barPreview = document.querySelector("#barPreview");
 const eventBookingNotice = document.querySelector("#eventBookingNotice");
 const publicEventCard = document.querySelector("#publicEventCard");
 const publicTimeSlots = document.querySelector("#publicTimeSlots");
@@ -23,6 +24,7 @@ const copy = {
     selectDate: "Seleziona data",
     loadingSlots: "Carico fasce disponibili...",
     noSlots: "Nessuna fascia disponibile per questa scelta.",
+    chooseService: "Seleziona prima il tipo di servizio.",
     chooseSlot: "Scegli una fascia oraria.",
     gardenPending: "Giardino richiesto, da confermare",
     proposedRoom: "Zona proposta",
@@ -46,6 +48,7 @@ const copy = {
     selectDate: "Select date",
     loadingSlots: "Loading available time slots...",
     noSlots: "No time slots available for this selection.",
+    chooseService: "Choose a type of visit first.",
     chooseSlot: "Choose a time slot.",
     gardenPending: "Garden requested, to be confirmed",
     proposedRoom: "Suggested area",
@@ -148,23 +151,24 @@ function slotParams() {
 }
 
 function activeConsumption() {
-  return bookingForm.elements.consumption.value;
+  return bookingForm.querySelector("input[name='consumption']:checked")?.value || "";
 }
 
 function syncGardenRequest() {
   if (isSpecialRequest()) return;
-  const isDinner = activeConsumption() === "cena";
-  const isRestaurantService = activeConsumption() !== "aperitivo";
+  const consumption = activeConsumption();
+  const isRestaurantService = consumption === "pranzo" || consumption === "cena";
   restaurantPreference.hidden = !isRestaurantService;
+  barPreview.hidden = consumption !== "aperitivo";
   if (!isRestaurantService) bookingForm.elements.roomPreference.value = "esterno";
-  gardenRequest.hidden = !isDinner;
-  if (!isDinner) bookingForm.elements.gardenRequested.checked = false;
+  gardenRequest.hidden = !isRestaurantService;
+  if (!isRestaurantService) bookingForm.elements.gardenRequested.checked = false;
   syncZonePreview();
   loadTimeSlots();
 }
 
 function syncZonePreview() {
-  const selectedZone = bookingForm.elements.gardenRequested.checked && activeConsumption() === "cena" ? "garden" : "";
+  const selectedZone = bookingForm.elements.gardenRequested.checked && activeConsumption() !== "aperitivo" ? "garden" : "";
   zonePreviewCards.forEach((card) => {
     const selected = card.dataset.zonePreview === selectedZone;
     card.classList.toggle("is-selected", selected);
@@ -201,10 +205,10 @@ function syncPublicEventCard() {
 }
 
 function roomLabel(room) {
-  if (pageLanguage !== "en") return room;
+  if (pageLanguage !== "en") return room === "Interno" ? "Sala Interna" : room;
   if (room === "Ristorante Esterno" || room === "Ristorante") return "Outdoor Restaurant";
   if (room === "Giardino") return "Garden";
-  if (room === "Interno") return "Indoor";
+  if (room === "Interno") return "Indoor room";
   return room;
 }
 
@@ -221,6 +225,12 @@ async function loadTimeSlots() {
   if (isSpecialRequest()) {
     bookingForm.elements.time.value = "";
     publicTimeSlots.textContent = "";
+    return;
+  }
+  if (!activeConsumption()) {
+    bookingForm.elements.time.value = "";
+    publicTimeSlots.classList.remove("is-loading");
+    publicTimeSlots.textContent = copy.chooseService;
     return;
   }
   const requestId = ++timeSlotRequestId;
@@ -260,6 +270,9 @@ function syncRequestType() {
   specialRequestFields.hidden = !special;
   bookingForm.elements.time.required = !special;
   bookingForm.elements.voucherCode.disabled = special;
+  bookingForm.querySelectorAll("input[name='consumption'], input[name='roomPreference']").forEach((input) => {
+    input.disabled = special;
+  });
   bookingForm.elements.specialType.required = special;
   bookingForm.elements.specialTimeWindow.required = special;
   bookingForm.elements.specialType.disabled = !special;
@@ -307,6 +320,10 @@ bookingForm.querySelectorAll("input[name='roomPreference']").forEach((input) => 
 
 bookingForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (!isSpecialRequest() && !activeConsumption()) {
+    showResult("error", copy.failedTitle, copy.chooseService);
+    return;
+  }
   if (!isSpecialRequest() && !bookingForm.elements.time.value) {
     showResult("error", copy.failedTitle, copy.chooseSlot);
     return;

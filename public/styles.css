@@ -1489,6 +1489,14 @@ label {
   font-size: 0.84rem;
 }
 
+.request-type-card img {
+  grid-column: 1 / -1;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
 .request-type-card:has(input:checked) {
   border-color: var(--accent-dark);
   background: #edf5f1;
@@ -1681,6 +1689,11 @@ label {
 
 .zone-photo-card strong {
   display: block;
+}
+
+.zone-preview-card > div {
+  display: grid;
+  gap: 3px;
 }
 
 .zone-photo-card.is-selected {
