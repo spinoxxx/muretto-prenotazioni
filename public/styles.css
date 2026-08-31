@@ -1378,6 +1378,12 @@ label {
   font-weight: 750;
 }
 
+.lunch-menu-link {
+  justify-self: start;
+  min-height: 38px;
+  padding: 8px 12px;
+}
+
 .event-booking-notice {
   display: grid;
   gap: 6px;

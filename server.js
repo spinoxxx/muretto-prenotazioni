@@ -716,6 +716,7 @@ async function serveStatic(req, res) {
       ".jpg": "image/jpeg",
       ".jpeg": "image/jpeg",
       ".png": "image/png",
+      ".pdf": "application/pdf",
       ".svg": "image/svg+xml"
     };
     res.writeHead(200, {
