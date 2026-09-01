@@ -63,6 +63,14 @@ const roomStats = {
     day: document.querySelector("#gardenDay"),
     evening: document.querySelector("#gardenEvening"),
     warning: document.querySelector("#gardenLimitWarning")
+  },
+  interno: {
+    card: document.querySelector("[data-room-filter='interno']"),
+    people: document.querySelector("#indoorPeople"),
+    bookings: document.querySelector("#indoorBookings"),
+    day: document.querySelector("#indoorDay"),
+    evening: document.querySelector("#indoorEvening"),
+    warning: document.querySelector("#indoorLimitWarning")
   }
 };
 const staffPanel = document.querySelector("#staffPanel");
@@ -298,7 +306,8 @@ function renderRoomStats() {
   const stats = {
     ristorante: createRoomStat(),
     bar: createRoomStat(),
-    giardino: createRoomStat()
+    giardino: createRoomStat(),
+    interno: createRoomStat()
   };
 
   for (const booking of bookings) {
@@ -345,7 +354,8 @@ function roomSettingName(room) {
   return {
     ristorante: "Ristorante Esterno",
     bar: "Bar",
-    giardino: "Giardino"
+    giardino: "Giardino",
+    interno: "Interno"
   }[room] || "";
 }
 
@@ -442,6 +452,7 @@ function roomFilterLabel(room) {
     ristorante: "Ristorante Esterno",
     bar: "Bar",
     giardino: "Giardino",
+    interno: "Sala Interna",
     esterni: "Ristorante Esterno + Giardino"
   };
   return labels[room] || room;
