@@ -529,21 +529,51 @@ async function loadDeleteLogs() {
 
 async function loadReceivedBookings() {
   if (currentEmployee?.role !== "admin") return;
-  const payload = await api("/api/received-bookings");
-  renderReceivedBookings(payload.bookings);
+  try {
+    const payload = await api("/api/received-bookings");
+    renderReceivedBookings(payload.bookings);
+  } catch (error) {
+    receivedBookingsList.innerHTML = `<p class="empty compact-empty">Errore prenotazioni ricevute: ${escapeHtml(error.message)}</p>`;
+    throw error;
+  }
 }
 
 async function loadSpecialRequests() {
   if (!["admin", "staff"].includes(currentEmployee?.role)) return;
-  const payload = await api("/api/admin/special-requests");
-  specialRequests = payload.requests || [];
-  renderSpecialRequests();
+  try {
+    const payload = await api("/api/admin/special-requests");
+    specialRequests = payload.requests || [];
+    renderSpecialRequests();
+  } catch (error) {
+    specialRequests = [];
+    specialRequestsList.innerHTML = `<p class="empty compact-empty">Errore richieste speciali: ${escapeHtml(error.message)}</p>`;
+    throw error;
+  }
 }
 
 async function loadFeedbackSubmissions() {
   if (currentEmployee?.role !== "admin") return;
-  const payload = await api("/api/feedback-submissions");
-  renderFeedbackSubmissions(payload.feedback);
+  try {
+    const payload = await api("/api/feedback-submissions");
+    renderFeedbackSubmissions(payload.feedback);
+  } catch (error) {
+    feedbackList.innerHTML = `<p class="empty compact-empty">Errore valutazioni clienti: ${escapeHtml(error.message)}</p>`;
+    throw error;
+  }
+}
+
+async function loadAdminPanels() {
+  await Promise.allSettled([
+    loadReceivedBookings(),
+    loadSpecialRequests(),
+    loadFeedbackSubmissions(),
+    loadEmployeeRewards(),
+    loadVouchers(),
+    loadEmployees(),
+    loadZoneSettings(),
+    loadBackups(),
+    loadDeleteLogs()
+  ]);
 }
 
 async function loadEmployeeRewards() {
@@ -636,13 +666,15 @@ function updateDateDisplay(input, display) {
 }
 
 function formatDateTime(value) {
+  const date = new Date(value);
+  if (!value || Number.isNaN(date.getTime())) return "data non disponibile";
   return new Intl.DateTimeFormat("it-IT", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit"
-  }).format(new Date(value));
+  }).format(date);
 }
 
 function formatFileSize(bytes) {
@@ -1201,15 +1233,7 @@ loginForm.addEventListener("submit", async (event) => {
     }
     showApp(payload.employee);
     await loadBookings();
-    await loadReceivedBookings();
-    await loadSpecialRequests();
-    await loadFeedbackSubmissions();
-    await loadEmployeeRewards();
-    await loadVouchers();
-    await loadEmployees();
-    await loadZoneSettings();
-    await loadBackups();
-    await loadDeleteLogs();
+    await loadAdminPanels();
     resetSpecialRequestForm();
   } catch (error) {
     loginError.textContent = error.message;
@@ -1653,15 +1677,7 @@ if (me.employee) {
   } else {
     showApp(me.employee);
     await loadBookings();
-    await loadReceivedBookings();
-    await loadSpecialRequests();
-    await loadFeedbackSubmissions();
-    await loadEmployeeRewards();
-    await loadVouchers();
-    await loadEmployees();
-    await loadZoneSettings();
-    await loadBackups();
-    await loadDeleteLogs();
+    await loadAdminPanels();
     resetSpecialRequestForm();
   }
 } else {
