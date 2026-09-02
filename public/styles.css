@@ -588,6 +588,10 @@ label {
   gap: 16px;
 }
 
+#specialRequestsPanel {
+  order: -1;
+}
+
 .booking-form {
   display: grid;
   gap: 15px;
