@@ -3466,9 +3466,6 @@ async function handleApi(req, res) {
         assignedTo: item.assignedTo || "",
         notes: item.notes || "",
         internalNotes: item.internalNotes || "",
-        createdAt: item.createdAt || "",
-        updatedAt: item.updatedAt || "",
-        updatedBy: item.updatedBy || "",
         email: item.email || "",
         phone: item.phone || ""
       }));

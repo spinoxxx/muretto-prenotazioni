@@ -535,16 +535,9 @@ async function loadReceivedBookings() {
 
 async function loadSpecialRequests() {
   if (!["admin", "staff"].includes(currentEmployee?.role)) return;
-  try {
-    const payload = await api("/api/bookings?from=2020-01-01&to=2035-12-31");
-    specialRequests = (payload.bookings || [])
-      .filter((booking) => booking.requestType === "special")
-      .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
-    renderSpecialRequests();
-  } catch (error) {
-    specialRequests = [];
-    specialRequestsList.innerHTML = `<p class="empty compact-empty">Impossibile caricare le richieste speciali. Riprova tra poco.</p>`;
-  }
+  const payload = await api("/api/special-requests");
+  specialRequests = payload.requests || [];
+  renderSpecialRequests();
 }
 
 async function loadFeedbackSubmissions() {
@@ -1208,8 +1201,8 @@ loginForm.addEventListener("submit", async (event) => {
     }
     showApp(payload.employee);
     await loadBookings();
-    await loadSpecialRequests();
     await loadReceivedBookings();
+    await loadSpecialRequests();
     await loadFeedbackSubmissions();
     await loadEmployeeRewards();
     await loadVouchers();
@@ -1660,8 +1653,8 @@ if (me.employee) {
   } else {
     showApp(me.employee);
     await loadBookings();
-    await loadSpecialRequests();
     await loadReceivedBookings();
+    await loadSpecialRequests();
     await loadFeedbackSubmissions();
     await loadEmployeeRewards();
     await loadVouchers();
