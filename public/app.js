@@ -535,7 +535,7 @@ async function loadReceivedBookings() {
 
 async function loadSpecialRequests() {
   if (!["admin", "staff"].includes(currentEmployee?.role)) return;
-  const payload = await api("/api/special-requests");
+  const payload = await api("/api/admin/special-requests");
   specialRequests = payload.requests || [];
   renderSpecialRequests();
 }

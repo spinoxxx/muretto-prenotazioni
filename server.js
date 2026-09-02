@@ -3322,14 +3322,39 @@ async function handleApi(req, res) {
     return;
   }
 
-  if (url.pathname === "/api/special-requests" && req.method === "GET") {
+  if (url.pathname === "/api/admin/special-requests" && req.method === "GET") {
     if (!requireBookingEditor(session, res)) return;
     const bookings = await readJson(bookingsFile, []);
-    const requests = bookings
-      .filter((item) => (item.requestType || "standard") === "special")
-      .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
-      .slice(0, 200)
-      .map(publicSpecialRequest);
+    const requests = [];
+
+    for (const item of Array.isArray(bookings) ? bookings : []) {
+      if (!item || typeof item !== "object" || item.requestType !== "special") continue;
+      requests.push({
+        id: item.id || "",
+        requestType: "special",
+        guestName: item.guestName || "",
+        phone: item.phone || "",
+        email: item.email || "",
+        date: item.date || "",
+        time: item.time || "",
+        people: Number(item.people || 0),
+        room: item.room || "",
+        tableNumber: item.tableNumber || "",
+        status: item.status || "da verificare",
+        notes: item.notes || "",
+        customerNotes: item.customerNotes || "",
+        specialType: item.specialType || "altro",
+        specialStatus: item.specialStatus || "nuova",
+        specialTimeWindow: item.specialTimeWindow || "",
+        assignedTo: item.assignedTo || "",
+        internalNotes: item.internalNotes || "",
+        createdAt: item.createdAt || "",
+        updatedAt: item.updatedAt || "",
+        updatedBy: item.updatedBy || ""
+      });
+    }
+
+    requests.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
     sendJson(res, 200, { requests });
     return;
   }
