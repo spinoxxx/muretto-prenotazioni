@@ -536,19 +536,14 @@ async function loadReceivedBookings() {
 async function loadSpecialRequests() {
   if (!["admin", "staff"].includes(currentEmployee?.role)) return;
   try {
-    const payload = await api("/api/special-requests");
-    specialRequests = payload.requests || [];
+    const payload = await api("/api/bookings?from=2020-01-01&to=2035-12-31");
+    specialRequests = (payload.bookings || [])
+      .filter((booking) => booking.requestType === "special")
+      .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
     renderSpecialRequests();
   } catch (error) {
-    try {
-      const fallback = await api("/api/calendar?from=2020-01-01&to=2035-12-31");
-      specialRequests = (fallback.items || []).filter((item) => item.requestType === "special");
-      renderSpecialRequests();
-      specialRequestMessage.textContent = "Lista recuperata dal calendario.";
-    } catch {
-      specialRequests = [];
-      specialRequestsList.innerHTML = `<p class="empty compact-empty">Impossibile caricare le richieste speciali. Riprova tra poco.</p>`;
-    }
+    specialRequests = [];
+    specialRequestsList.innerHTML = `<p class="empty compact-empty">Impossibile caricare le richieste speciali. Riprova tra poco.</p>`;
   }
 }
 
