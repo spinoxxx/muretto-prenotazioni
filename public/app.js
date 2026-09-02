@@ -535,9 +535,14 @@ async function loadReceivedBookings() {
 
 async function loadSpecialRequests() {
   if (!["admin", "staff"].includes(currentEmployee?.role)) return;
-  const payload = await api("/api/special-requests");
-  specialRequests = payload.requests || [];
-  renderSpecialRequests();
+  try {
+    const payload = await api("/api/special-requests");
+    specialRequests = payload.requests || [];
+    renderSpecialRequests();
+  } catch (error) {
+    specialRequests = [];
+    specialRequestsList.innerHTML = `<p class="empty compact-empty">Impossibile caricare le richieste speciali. Ricarica la pagina.</p>`;
+  }
 }
 
 async function loadFeedbackSubmissions() {
@@ -1201,8 +1206,8 @@ loginForm.addEventListener("submit", async (event) => {
     }
     showApp(payload.employee);
     await loadBookings();
-    await loadReceivedBookings();
     await loadSpecialRequests();
+    await loadReceivedBookings();
     await loadFeedbackSubmissions();
     await loadEmployeeRewards();
     await loadVouchers();
@@ -1653,8 +1658,8 @@ if (me.employee) {
   } else {
     showApp(me.employee);
     await loadBookings();
-    await loadReceivedBookings();
     await loadSpecialRequests();
+    await loadReceivedBookings();
     await loadFeedbackSubmissions();
     await loadEmployeeRewards();
     await loadVouchers();
