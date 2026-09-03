@@ -261,11 +261,11 @@ function publicSpecialRequest(item) {
 }
 
 function employeeCanViewCalendar(employee) {
-  return employee.role === "admin" || employee.role === "calendario" || employee.calendarAccess === true;
+  return ["admin", "staff", "calendario"].includes(employee.role) || employee.calendarAccess === true;
 }
 
 function sessionCanViewCalendar(session) {
-  return session.role === "admin" || session.role === "calendario" || session.calendarAccess === true;
+  return ["admin", "staff", "calendario"].includes(session.role) || session.calendarAccess === true;
 }
 
 function sanitizePublicText(value, fallback, max = 120) {

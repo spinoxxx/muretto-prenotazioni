@@ -60,7 +60,7 @@ function setText(selector, value) {
 }
 
 function canViewCalendar(employee) {
-  return employee?.role === "admin" || employee?.role === "calendario" || employee?.calendarAccess === true;
+  return ["admin", "staff", "calendario"].includes(employee?.role) || employee?.calendarAccess === true;
 }
 
 function showLogin() {
