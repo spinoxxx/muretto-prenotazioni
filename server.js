@@ -3432,9 +3432,38 @@ async function handleApi(req, res) {
       sendJson(res, 400, { error: result });
       return;
     }
-    bookings[index] = result;
+    bookings[index] = {
+      ...previous,
+      ...result,
+      id: previous.id,
+      createdAt: previous.createdAt,
+      createdBy: previous.createdBy,
+      updatedAt: updated.updatedAt,
+      updatedBy: updated.updatedBy
+    };
     await writeJson(bookingsFile, bookings);
     sendJson(res, 200, { request: publicSpecialRequest(bookings[index]) });
+    return;
+  }
+
+  if (url.pathname === "/api/admin/repair-booking-integrity" && req.method === "POST") {
+    if (!requireAdmin(session, res)) return;
+    const bookings = await readJson(bookingsFile, []);
+    const now = new Date().toISOString();
+    const repaired = [];
+
+    for (const booking of bookings) {
+      if (booking?.id) continue;
+      booking.id = crypto.randomUUID();
+      booking.createdAt = booking.createdAt || booking.updatedAt || now;
+      booking.createdBy = booking.createdBy || "dato recuperato";
+      booking.updatedAt = now;
+      booking.updatedBy = session.employeeName;
+      repaired.push({ id: booking.id, guestName: booking.guestName || "", requestType: booking.requestType || "standard" });
+    }
+
+    if (repaired.length) await writeJson(bookingsFile, bookings);
+    sendJson(res, 200, { repaired });
     return;
   }
 
