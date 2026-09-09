@@ -44,14 +44,14 @@ def main():
     center_text(pdf, "DAILY MENU", 725, "Times-Roman", 27, GREEN)
 
     center_text(pdf, "FIRST COURSE OF YOUR CHOICE", 643, "Times-Roman", 17, GREEN)
-    fit_centered_text(pdf, "PENNE WITH TOMATO SAUCE, FRESH BUFFALO MOZZARELLA AND BASIL  (1, 7)", 604, "Helvetica", 10.5, 520)
-    center_text(pdf, "PENNE ALLA NORMA  (1, 7)", 574, "Helvetica", 10.5)
-    center_text(pdf, "VENERE RICE SALAD WITH TUNA, OLIVES AND CAPERS", 544, "Helvetica", 10.5)
+    center_text(pdf, "GRANDMA'S LASAGNA  (1, 7, 9)", 604, "Helvetica", 10.5)
+    center_text(pdf, "PESTO PASTA  (1, 7)", 574, "Helvetica", 10.5)
+    center_text(pdf, "PEARL BARLEY SALAD WITH MIXED VEGETABLES  (1)", 544, "Helvetica", 10.5)
 
     center_text(pdf, "MAIN COURSE OF YOUR CHOICE", 482, "Times-Roman", 17, GREEN)
-    center_text(pdf, "LEMON ESCALOPES WITH A SIDE DISH  (1)", 439, "Helvetica", 10.5)
-    center_text(pdf, "OVEN-BAKED SALMON WITH A SIDE DISH", 409, "Helvetica", 10.5)
-    center_text(pdf, "POLENTA WITH SAUSAGE", 379, "Helvetica", 10.5)
+    center_text(pdf, "MEATBALLS IN TOMATO SAUCE WITH A SIDE DISH  (1, 7)", 439, "Helvetica", 10.5)
+    center_text(pdf, "EGG ROLL WITH HAM AND CHEESE  (7)", 409, "Helvetica", 10.5)
+    fit_centered_text(pdf, "COD WITH TOMATO, OLIVES AND CAPERS WITH A SIDE DISH  (4)", 379, "Helvetica", 10.5, 520)
 
     pdf.setFillColor(TEXT)
     pdf.setFont("Helvetica", 9.5)
