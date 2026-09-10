@@ -1313,7 +1313,6 @@ label {
 .lunch-menu-date {
   display: grid;
   align-content: center;
-  gap: 5px;
   padding: 22px;
   background: #1f563f;
   color: #fff;
@@ -1326,9 +1325,9 @@ label {
 }
 
 .lunch-menu-date strong {
-  font-family: Georgia, serif;
-  font-size: clamp(1.65rem, 5vw, 2.7rem);
-  line-height: 0.95;
+  font-size: clamp(1.1rem, 3vw, 1.5rem);
+  font-weight: 800;
+  line-height: 1.2;
 }
 
 .lunch-menu-content {
@@ -1979,7 +1978,7 @@ label {
   }
 
   .lunch-menu-date {
-    grid-template-columns: auto 1fr;
+    grid-template-columns: 1fr;
     align-items: center;
   }
 
