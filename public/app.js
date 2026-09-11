@@ -737,6 +737,7 @@ function renderDeleteLogs(logs) {
       <div class="delete-log-row ${erased ? "is-erased" : ""}">
         <div>
           <strong>${escapeHtml(booking.guestName || "Prenotazione senza nome")}</strong>
+          ${booking.deletionType ? `<span>${escapeHtml(booking.deletionType)}</span>` : ""}
           <span>${formatDate(booking.date)} · ${escapeHtml(booking.time || "")} · ${Number(booking.people || 0)} persone</span>
           <span>${seat}</span>
           ${erased ? `<span>Dati personali rimossi il ${formatDateTime(log.personalDataErasedAt)}</span>` : ""}
@@ -800,6 +801,7 @@ function renderSpecialRequests() {
         <span class="status ${statusClass(request.specialStatus || "da verificare")}">${escapeHtml(request.specialStatus || "nuova")}</span>
         <button class="ghost compact" type="button" data-special-action="edit" data-special-id="${request.id}">Modifica</button>
         <button class="compact" type="button" data-special-action="convert" data-special-id="${request.id}">Converti</button>
+        ${currentEmployee?.role === "admin" ? `<button class="delete compact" type="button" data-special-action="delete" data-special-id="${request.id}">Elimina</button>` : ""}
       </div>
     </div>
   `).join("");
@@ -1614,6 +1616,24 @@ specialRequestsList.addEventListener("click", async (event) => {
       await loadSpecialRequests();
       await loadBookings();
       await loadEmployeeRewards();
+    } catch (error) {
+      specialRequestMessage.textContent = error.message;
+      button.disabled = false;
+    }
+    return;
+  }
+
+  if (button.dataset.specialAction === "delete") {
+    const ok = confirm(`Eliminare definitivamente la richiesta speciale di ${request.guestName}? La cancellazione resterà nel registro.`);
+    if (!ok) return;
+    button.disabled = true;
+    try {
+      await api(`/api/special-requests/${request.id}`, { method: "DELETE" });
+      specialRequestMessage.textContent = "Richiesta speciale eliminata.";
+      resetSpecialRequestForm();
+      await loadSpecialRequests();
+      await loadDeleteLogs();
+      await loadBookings();
     } catch (error) {
       specialRequestMessage.textContent = error.message;
       button.disabled = false;

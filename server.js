@@ -3446,6 +3446,35 @@ async function handleApi(req, res) {
     return;
   }
 
+  if (specialRequestMatch && req.method === "DELETE") {
+    if (!requireAdmin(session, res)) return;
+    const bookings = await readJson(bookingsFile, []);
+    const index = bookings.findIndex((item) => item.id === specialRequestMatch[1] && item.requestType === "special");
+    if (index === -1) {
+      sendJson(res, 404, { error: "Richiesta speciale non trovata" });
+      return;
+    }
+
+    const request = bookings[index];
+    await createBackup("prima eliminazione richiesta speciale", session.employeeName);
+    const logs = await readJson(deletedBookingsFile, []);
+    logs.push({
+      id: crypto.randomUUID(),
+      bookingId: request.id,
+      deletedAt: new Date().toISOString(),
+      deletedBy: session.employeeName,
+      booking: {
+        ...request,
+        deletionType: "richiesta speciale"
+      }
+    });
+    bookings.splice(index, 1);
+    await writeJson(bookingsFile, bookings);
+    await writeJson(deletedBookingsFile, logs);
+    sendJson(res, 200, { ok: true });
+    return;
+  }
+
   if (url.pathname === "/api/admin/repair-booking-integrity" && req.method === "POST") {
     if (!requireAdmin(session, res)) return;
     const bookings = await readJson(bookingsFile, []);
