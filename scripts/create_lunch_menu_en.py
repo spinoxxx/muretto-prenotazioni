@@ -1,8 +1,7 @@
 from pathlib import Path
 
 from reportlab.lib.colors import HexColor, white
-from reportlab.lib.pagesizes import portrait
-from reportlab.lib.units import inch
+from reportlab.lib.pagesizes import A4
 from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen import canvas
 
@@ -11,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "output" / "pdf" / "menu-del-pranzo-en.pdf"
 LOGO = ROOT / "public" / "muretto-logo.png"
 
-PAGE_WIDTH, PAGE_HEIGHT = 679, 925
+PAGE_WIDTH, PAGE_HEIGHT = A4
 GREEN = HexColor("#536763")
 TEXT = HexColor("#333333")
 MUTED = HexColor("#5d5d5d")
@@ -39,59 +38,47 @@ def main():
     pdf.rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT, fill=1, stroke=0)
 
     if LOGO.exists():
-        pdf.drawImage(str(LOGO), 261, 786, width=157, height=43, mask="auto", preserveAspectRatio=True, anchor="c")
-    center_text(pdf, "TASTE THE MOMENT.", 777, "Helvetica", 5.5, MUTED)
-    center_text(pdf, "DAILY MENU", 725, "Times-Roman", 27, GREEN)
+        pdf.drawImage(str(LOGO), 220, 730, width=155, height=43, mask="auto", preserveAspectRatio=True, anchor="c")
+    center_text(pdf, "TASTE THE MOMENT.", 721, "Helvetica", 5.5, MUTED)
+    center_text(pdf, "DAILY MENU", 670, "Times-Roman", 25, GREEN)
 
-    center_text(pdf, "FIRST COURSE OF YOUR CHOICE", 643, "Times-Roman", 17, GREEN)
-    center_text(pdf, "GRANDMA'S LASAGNA  (1, 7, 9)", 604, "Helvetica", 10.5)
-    center_text(pdf, "PESTO PASTA  (1, 7)", 574, "Helvetica", 10.5)
-    center_text(pdf, "PEARL BARLEY SALAD WITH MIXED VEGETABLES  (1)", 544, "Helvetica", 10.5)
+    center_text(pdf, "FIRST COURSE OF YOUR CHOICE", 590, "Times-Roman", 15, GREEN)
+    center_text(pdf, "AMATRICIANA PASTA", 552, "Helvetica", 9.5)
+    center_text(pdf, "PASTA WITH TUNA, CHERRY TOMATOES, CAPERS AND OLIVES", 520, "Helvetica", 9.5)
+    center_text(pdf, "ARRABBIATA PASTA", 488, "Helvetica", 9.5)
 
-    center_text(pdf, "MAIN COURSE OF YOUR CHOICE", 482, "Times-Roman", 17, GREEN)
-    center_text(pdf, "MEATBALLS IN TOMATO SAUCE WITH A SIDE DISH  (1, 7)", 439, "Helvetica", 10.5)
-    center_text(pdf, "EGG ROLL WITH HAM AND CHEESE  (7)", 409, "Helvetica", 10.5)
-    fit_centered_text(pdf, "COD WITH TOMATO, OLIVES AND CAPERS WITH A SIDE DISH  (4)", 379, "Helvetica", 10.5, 520)
+    center_text(pdf, "MAIN COURSE OF YOUR CHOICE", 435, "Times-Roman", 15, GREEN)
+    center_text(pdf, "CUTLET WITH POTATOES", 397, "Helvetica", 9.5)
+    center_text(pdf, "FRIED MEATBALLS", 365, "Helvetica", 9.5)
+    center_text(pdf, "COD IN TOMATO SAUCE", 333, "Helvetica", 9.5)
 
     pdf.setFillColor(TEXT)
-    pdf.setFont("Helvetica", 9.5)
-    pdf.drawString(94, 334, "SIDE DISHES OF YOUR CHOICE:")
-    pdf.drawString(94, 320, "OVEN-BAKED POTATOES OR VEGETABLE RATATOUILLE")
+    pdf.setFont("Helvetica", 8.5)
+    pdf.drawString(80, 278, "SIDE DISHES OF YOUR CHOICE:")
+    pdf.drawString(80, 264, "BOILED VEGETABLES, OVEN-BAKED POTATOES OR SAUTEED SPINACH")
 
     pdf.setFillColor(GREEN)
-    pdf.rect(99, 160, 481, 122, fill=1, stroke=0)
-    center_text(pdf, "ONE COURSE", 238, "Times-Roman", 17, white)
-    center_text(pdf, "TWO COURSES", 197, "Times-Roman", 17, white)
-    pdf.setFont("Times-Bold", 15)
+    pdf.rect(80, 120, 435, 115, fill=1, stroke=0)
+    center_text(pdf, "ONE COURSE", 194, "Times-Roman", 15, white)
+    center_text(pdf, "TWO COURSES", 156, "Times-Roman", 15, white)
+    pdf.setFont("Times-Bold", 13)
     pdf.setFillColor(white)
-    pdf.drawString(424, 238, "€14")
-    pdf.drawString(424, 197, "€20")
-    pdf.setFont("Helvetica", 8.5)
-    pdf.drawString(224, 175, "water, coffee and cover charge included")
+    pdf.drawString(405, 194, "€14")
+    pdf.drawString(405, 156, "€20")
+    pdf.setFont("Helvetica", 7.5)
+    pdf.drawString(215, 134, "water, coffee and cover charge included")
 
     pdf.setFillColor(MUTED)
-    pdf.setFont("Helvetica", 7.2)
+    pdf.setFont("Helvetica", 6.8)
     footer_left = [
-        "* Products marked with an asterisk may have been previously frozen",
-        "after blast chilling. Dishes may contain traces of allergens",
-        "due to cross-contamination.",
+        "* For information about ingredients and allergens,",
+        "please ask our staff.",
     ]
     for index, line in enumerate(footer_left):
-        pdf.drawString(99, 83 - index * 10, line)
-    pdf.setFont("Helvetica", 7)
-    allergens = [
-        "1 gluten · 2 crustaceans", "9 celery · 10 mustard",
-        "3 eggs · 4 fish", "11 sesame seeds",
-        "5 peanuts · 6 soy", "12 sulphur dioxide",
-        "7 milk · 8 nuts", "13 lupin · 14 molluscs",
-    ]
-    for index, line in enumerate(allergens):
-        x = 420 if index % 2 == 0 else 530
-        y = 83 - (index // 2) * 10
-        pdf.drawString(x, y, line)
+        pdf.drawString(80, 62 - index * 9, line)
 
     if LOGO.exists():
-        pdf.drawImage(str(LOGO), 300, 43, width=80, height=25, mask="auto", preserveAspectRatio=True, anchor="c")
+        pdf.drawImage(str(LOGO), 258, 43, width=80, height=25, mask="auto", preserveAspectRatio=True, anchor="c")
     pdf.showPage()
     pdf.save()
 
