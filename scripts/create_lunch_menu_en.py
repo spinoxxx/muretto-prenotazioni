@@ -43,19 +43,19 @@ def main():
     center_text(pdf, "DAILY MENU", 670, "Times-Roman", 25, GREEN)
 
     center_text(pdf, "FIRST COURSE OF YOUR CHOICE", 590, "Times-Roman", 15, GREEN)
-    center_text(pdf, "AMATRICIANA PASTA", 552, "Helvetica", 9.5)
-    center_text(pdf, "PASTA WITH TUNA, CHERRY TOMATOES, CAPERS AND OLIVES", 520, "Helvetica", 9.5)
-    center_text(pdf, "ARRABBIATA PASTA", 488, "Helvetica", 9.5)
+    center_text(pdf, "PASTA WITH SCAMPI SAUCE", 552, "Helvetica", 9.5)
+    center_text(pdf, "PARMESAN RISOTTO", 520, "Helvetica", 9.5)
+    center_text(pdf, "PASTA WITH ZUCCHINI AND SPECK", 488, "Helvetica", 9.5)
 
     center_text(pdf, "MAIN COURSE OF YOUR CHOICE", 435, "Times-Roman", 15, GREEN)
-    center_text(pdf, "CUTLET WITH POTATOES", 397, "Helvetica", 9.5)
-    center_text(pdf, "FRIED MEATBALLS", 365, "Helvetica", 9.5)
-    center_text(pdf, "COD IN TOMATO SAUCE", 333, "Helvetica", 9.5)
+    center_text(pdf, "OMELETTE WITH HAM AND MOZZARELLA", 397, "Helvetica", 9.5)
+    center_text(pdf, "WHITE WINE ESCALOPES", 365, "Helvetica", 9.5)
+    center_text(pdf, "OSSO BUCO", 333, "Helvetica", 9.5)
 
     pdf.setFillColor(TEXT)
     pdf.setFont("Helvetica", 8.5)
     pdf.drawString(80, 278, "SIDE DISHES OF YOUR CHOICE:")
-    pdf.drawString(80, 264, "BOILED VEGETABLES, OVEN-BAKED POTATOES OR SAUTEED SPINACH")
+    pdf.drawString(80, 264, "OVEN-BAKED POTATOES OR VEGETABLE RATATOUILLE")
 
     pdf.setFillColor(GREEN)
     pdf.rect(80, 120, 435, 115, fill=1, stroke=0)
@@ -71,11 +71,25 @@ def main():
     pdf.setFillColor(MUTED)
     pdf.setFont("Helvetica", 6.8)
     footer_left = [
-        "* For information about ingredients and allergens,",
-        "please ask our staff.",
+        "* Products marked with an asterisk may have",
+        "been previously frozen after blast chilling.",
+        "Dishes may contain traces of allergens due to",
+        "cross-contamination.",
     ]
     for index, line in enumerate(footer_left):
         pdf.drawString(80, 62 - index * 9, line)
+
+    pdf.setFont("Helvetica", 5.8)
+    allergens = [
+        "1 gluten - 2 crustaceans", "9 celery - 10 mustard",
+        "3 eggs - 4 fish", "11 sesame seeds",
+        "5 peanuts - 6 soy", "12 sulphur dioxide",
+        "7 milk - 8 nuts", "13 lupin - 14 molluscs",
+    ]
+    for index, line in enumerate(allergens):
+        x = 365 if index % 2 == 0 else 470
+        y = 62 - (index // 2) * 9
+        pdf.drawString(x, y, line)
 
     if LOGO.exists():
         pdf.drawImage(str(LOGO), 258, 43, width=80, height=25, mask="auto", preserveAspectRatio=True, anchor="c")
