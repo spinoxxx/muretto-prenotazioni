@@ -14,10 +14,10 @@ const deletedBookingsFile = path.join(dataDir, "deleted-bookings.json");
 const zoneSettingsFile = path.join(dataDir, "zone-settings.json");
 const voiceCallbacksFile = path.join(dataDir, "voice-callbacks.json");
 const vouchersFile = path.join(dataDir, "vouchers.json");
-const dinnerPromotion = Object.freeze({
+const polishFriendsPromotion = Object.freeze({
   id: "polscy-przyjaciele-10",
   code: "POLSCYPRZYJACIELE10",
-  description: "10% di sconto sulla cena — amici polacchi",
+  description: "10% di sconto su cena e aperitivo — amici polacchi",
   reusable: true,
   discountPercent: 10
 });
@@ -212,7 +212,7 @@ function normalizeVoucherCode(value) {
 function findVoucherByCode(vouchers, code) {
   const normalized = normalizeVoucherCode(code);
   if (!normalized) return null;
-  if (normalized === dinnerPromotion.code) return dinnerPromotion;
+  if (normalized === polishFriendsPromotion.code) return polishFriendsPromotion;
   return vouchers.find((voucher) => normalizeVoucherCode(voucher.code) === normalized) || null;
 }
 
@@ -1297,10 +1297,10 @@ function validatePublicBooking(input) {
   const feedbackConsent = input.feedbackConsent === true || input.feedbackConsent === "on" || input.feedbackConsent === "true";
   const customerNotes = sanitizeText(input.notes, 220);
   const voucherCode = normalizeVoucherCode(input.voucherCode);
-  if (voucherCode === dinnerPromotion.code && consumption !== "cena") {
+  if (voucherCode === polishFriendsPromotion.code && !["cena", "aperitivo"].includes(consumption)) {
     return language === "en"
-      ? "This promotional code is valid for dinner only."
-      : "Questo codice promozionale è valido solo per la cena.";
+      ? "This promotional code is valid for dinner and aperitif only."
+      : "Questo codice promozionale è valido solo per cena e aperitivo.";
   }
   const allowedConsumptions = new Set(["pranzo", "cena", "aperitivo"]);
   if (!privacyAccepted) return language === "en" ? "You must read and accept the privacy notice." : "Devi leggere e accettare l'informativa privacy.";
@@ -1317,7 +1317,7 @@ function validatePublicBooking(input) {
     gardenRequested ? "Richiesta giardino: da confermare." : "",
     indoorRequested ? "Richiesta sala interna: da confermare." : "",
     input.date === SPECIAL_EVENT_DATE ? `Data evento ${SPECIAL_EVENT_NAME}: cena in musica ore ${SPECIAL_EVENT_TIME}, musica dal vivo con Nataly, ${SPECIAL_EVENT_PRICE}.` : "",
-    voucherCode === dinnerPromotion.code ? `Promozione ${dinnerPromotion.code}: applicare 10% di sconto sulla cena.` : "",
+    voucherCode === polishFriendsPromotion.code ? `Promozione ${polishFriendsPromotion.code}: applicare ${polishFriendsPromotion.discountPercent}% di sconto sul conto.` : "",
     customerNotes
   ].filter(Boolean).join(" ");
 
@@ -1748,6 +1748,18 @@ function shouldSendCancellationEmail(booking, now = new Date()) {
   return now.getTime() - bookingTime < 2 * 60 * 60 * 1000;
 }
 
+function bookingCodeEmailLine(booking, language = normalizeLanguage(booking.language)) {
+  if (!booking.voucherCode) return "";
+  if (Number(booking.discountPercent) > 0) {
+    return language === "en"
+      ? `Promotion code: ${booking.voucherCode} - ${Number(booking.discountPercent)}% discount`
+      : `Codice promozionale: ${booking.voucherCode} - sconto ${Number(booking.discountPercent)}%`;
+  }
+  return language === "en"
+    ? `Voucher code: ${booking.voucherCode}`
+    : `Codice voucher: ${booking.voucherCode}`;
+}
+
 function bookingCancellationText(booking) {
   const language = normalizeLanguage(booking.language);
   const seat = emailSeatLine(booking, language);
@@ -1761,7 +1773,7 @@ function bookingCancellationText(booking) {
       `Time: ${booking.time}`,
       `Guests: ${booking.people}`,
       seat ? `Area: ${seat}` : "",
-      booking.voucherCode ? `Voucher code: ${booking.voucherCode}` : "",
+      bookingCodeEmailLine(booking, language),
       "",
       "For any questions or new requests, you can reply to this email.",
       "",
@@ -1777,7 +1789,7 @@ function bookingCancellationText(booking) {
     `Ora: ${booking.time}`,
     `Persone: ${booking.people}`,
     seat ? `Zona: ${seat}` : "",
-    booking.voucherCode ? `Codice voucher: ${booking.voucherCode}` : "",
+    bookingCodeEmailLine(booking, language),
     "",
     "Per qualsiasi domanda o nuova richiesta puoi rispondere a questa email.",
     "",
@@ -1803,7 +1815,7 @@ function bookingReminderText(booking) {
       `Time: ${booking.time}`,
       `Guests: ${booking.people}`,
       seat ? `Area: ${seat}` : "",
-      booking.voucherCode ? `Voucher code: ${booking.voucherCode}` : "",
+      bookingCodeEmailLine(booking, language),
       `Address: ${VENUE_ADDRESS}`,
       `Map: ${VENUE_MAP_URL}`,
       "",
@@ -1821,7 +1833,7 @@ function bookingReminderText(booking) {
     `Ora: ${booking.time}`,
     `Persone: ${booking.people}`,
     seat ? `Zona: ${seat}` : "",
-    booking.voucherCode ? `Codice voucher: ${booking.voucherCode}` : "",
+    bookingCodeEmailLine(booking, language),
     `Indirizzo: ${VENUE_ADDRESS}`,
     `Mappa: ${VENUE_MAP_URL}`,
     "",
@@ -1865,7 +1877,7 @@ async function markBookingReminderIfNeeded(booking, actor, now = new Date()) {
 }
 
 async function syncVoucherArrival(booking, arriving, actor, now = new Date().toISOString()) {
-  if (!booking.voucherCode || normalizeVoucherCode(booking.voucherCode) === dinnerPromotion.code) return booking;
+  if (!booking.voucherCode || normalizeVoucherCode(booking.voucherCode) === polishFriendsPromotion.code) return booking;
   const vouchers = await readJson(vouchersFile, []);
   const index = vouchers.findIndex((voucher) => normalizeVoucherCode(voucher.code) === normalizeVoucherCode(booking.voucherCode));
   if (index === -1) return booking;
@@ -1980,7 +1992,7 @@ function bookingConfirmationText(booking) {
       `Time: ${booking.time}`,
       `Guests: ${booking.people}`,
       seat ? `Area: ${seat}` : "",
-      booking.voucherCode ? `Voucher code: ${booking.voucherCode}` : "",
+      bookingCodeEmailLine(booking, language),
       `Address: ${VENUE_ADDRESS}`,
       `Map: ${VENUE_MAP_URL}`,
       ...eventLines,
@@ -2006,7 +2018,7 @@ function bookingConfirmationText(booking) {
     `Ora: ${booking.time}`,
     `Persone: ${booking.people}`,
     seat ? `Zona: ${seat}` : "",
-    booking.voucherCode ? `Codice voucher: ${booking.voucherCode}` : "",
+    bookingCodeEmailLine(booking, language),
     `Indirizzo: ${VENUE_ADDRESS}`,
     `Mappa: ${VENUE_MAP_URL}`,
     ...eventLines,
@@ -3302,6 +3314,8 @@ async function handleApi(req, res) {
         specialType: item.specialType || "",
         occupiesSeats: bookingOccupiesSeats(item),
         voucherCode: item.voucherCode || "",
+        promotionCode: item.promotionCode || "",
+        discountPercent: Number(item.discountPercent || 0),
         notes: item.notes || "",
         referredByEmployeeName: item.referredByEmployeeName || ""
       }));
@@ -3329,6 +3343,8 @@ async function handleApi(req, res) {
         tableNumber: item.tableNumber || "",
         status: item.status,
         voucherCode: item.voucherCode || "",
+        promotionCode: item.promotionCode || "",
+        discountPercent: Number(item.discountPercent || 0),
         notes: item.notes || "",
         referredByEmployeeName: item.referredByEmployeeName || "",
         language: normalizeLanguage(item.language),

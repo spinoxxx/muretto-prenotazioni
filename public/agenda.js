@@ -128,7 +128,7 @@ function renderAgenda(bookings, date) {
         ${(booking.requestType || "standard") === "special" ? `<p class="booking-referral">Gruppo/evento · posti bloccati</p>` : ""}
         <p>${seatLine(booking)}</p>
         ${booking.referredByEmployeeName ? `<p class="booking-referral">Portata da: ${escapeHtml(booking.referredByEmployeeName)}</p>` : ""}
-        ${booking.voucherCode ? `<p class="booking-voucher"><strong>Voucher</strong> ${escapeHtml(booking.voucherCode)}</p>` : ""}
+        ${booking.voucherCode ? `<p class="booking-voucher"><strong>${Number(booking.discountPercent) > 0 ? `Promozione ${escapeHtml(booking.voucherCode)} · sconto ${Number(booking.discountPercent)}%` : `Voucher ${escapeHtml(booking.voucherCode)}`}</strong></p>` : ""}
         ${booking.notes ? `<p class="agenda-notes"><strong>Note</strong> ${escapeHtml(booking.notes)}</p>` : ""}
         <p><span class="status ${statusClass(booking.status)}">${escapeHtml(booking.status)}</span></p>
         <form class="table-assignment" data-booking-id="${booking.id}">
