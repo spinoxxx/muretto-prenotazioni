@@ -14,6 +14,13 @@ const deletedBookingsFile = path.join(dataDir, "deleted-bookings.json");
 const zoneSettingsFile = path.join(dataDir, "zone-settings.json");
 const voiceCallbacksFile = path.join(dataDir, "voice-callbacks.json");
 const vouchersFile = path.join(dataDir, "vouchers.json");
+const dinnerPromotion = Object.freeze({
+  id: "polscy-przyjaciele-10",
+  code: "POLSCYPRZYJACIELE10",
+  description: "10% di sconto sulla cena — amici polacchi",
+  reusable: true,
+  discountPercent: 10
+});
 const backupsDir = path.join(dataDir, "backups");
 const sessions = new Map();
 const publicBookingAttempts = new Map();
@@ -205,6 +212,7 @@ function normalizeVoucherCode(value) {
 function findVoucherByCode(vouchers, code) {
   const normalized = normalizeVoucherCode(code);
   if (!normalized) return null;
+  if (normalized === dinnerPromotion.code) return dinnerPromotion;
   return vouchers.find((voucher) => normalizeVoucherCode(voucher.code) === normalized) || null;
 }
 
@@ -1289,6 +1297,11 @@ function validatePublicBooking(input) {
   const feedbackConsent = input.feedbackConsent === true || input.feedbackConsent === "on" || input.feedbackConsent === "true";
   const customerNotes = sanitizeText(input.notes, 220);
   const voucherCode = normalizeVoucherCode(input.voucherCode);
+  if (voucherCode === dinnerPromotion.code && consumption !== "cena") {
+    return language === "en"
+      ? "This promotional code is valid for dinner only."
+      : "Questo codice promozionale è valido solo per la cena.";
+  }
   const allowedConsumptions = new Set(["pranzo", "cena", "aperitivo"]);
   if (!privacyAccepted) return language === "en" ? "You must read and accept the privacy notice." : "Devi leggere e accettare l'informativa privacy.";
   if (!allowedConsumptions.has(consumption)) return language === "en" ? "Choose lunch, dinner or aperitif." : "Scegli pranzo, cena o aperitivo.";
@@ -1304,6 +1317,7 @@ function validatePublicBooking(input) {
     gardenRequested ? "Richiesta giardino: da confermare." : "",
     indoorRequested ? "Richiesta sala interna: da confermare." : "",
     input.date === SPECIAL_EVENT_DATE ? `Data evento ${SPECIAL_EVENT_NAME}: cena in musica ore ${SPECIAL_EVENT_TIME}, musica dal vivo con Nataly, ${SPECIAL_EVENT_PRICE}.` : "",
+    voucherCode === dinnerPromotion.code ? `Promozione ${dinnerPromotion.code}: applicare 10% di sconto sulla cena.` : "",
     customerNotes
   ].filter(Boolean).join(" ");
 
@@ -1851,7 +1865,7 @@ async function markBookingReminderIfNeeded(booking, actor, now = new Date()) {
 }
 
 async function syncVoucherArrival(booking, arriving, actor, now = new Date().toISOString()) {
-  if (!booking.voucherCode) return booking;
+  if (!booking.voucherCode || normalizeVoucherCode(booking.voucherCode) === dinnerPromotion.code) return booking;
   const vouchers = await readJson(vouchersFile, []);
   const index = vouchers.findIndex((voucher) => normalizeVoucherCode(voucher.code) === normalizeVoucherCode(booking.voucherCode));
   if (index === -1) return booking;
@@ -3000,7 +3014,7 @@ async function handleApi(req, res) {
     const bookings = await readJson(bookingsFile, []);
     const vouchers = await readJson(vouchersFile, []);
     const voucher = findVoucherByCode(vouchers, result.voucherCode);
-    if (voucher?.usedAt) {
+    if (voucher?.usedAt && !voucher.reusable) {
       sendJson(res, 409, {
         error: normalizeLanguage(result.language) === "en"
           ? "This voucher code has already been used. Contact us if you think this is a mistake."
@@ -3035,6 +3049,10 @@ async function handleApi(req, res) {
     if (booking.voucherCode) {
       booking.voucherStatus = voucher ? "registrato" : "non registrato";
       if (voucher) booking.voucherId = voucher.id;
+      if (voucher?.reusable) {
+        booking.promotionCode = voucher.code;
+        booking.discountPercent = voucher.discountPercent;
+      }
     }
     booking = await publicBookingAutomation(booking, bookings);
     bookings.push(booking);
