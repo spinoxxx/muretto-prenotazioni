@@ -1441,6 +1441,12 @@ function minutesToClockTime(minutes) {
   return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
 }
 
+function isBrunchDate(date) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ""))) return false;
+  const weekday = new Date(`${date}T12:00:00Z`).getUTCDay();
+  return weekday === 5 || weekday === 6 || weekday === 0;
+}
+
 function publicSlotTimes(consumption) {
   const type = sanitizeText(consumption, 20).toLowerCase();
   const windows = type === "brunch"
@@ -1574,6 +1580,9 @@ function publicSlotError(booking, bookings) {
   }
   const consumption = sanitizeText(booking.consumption, 20).toLowerCase()
     || (booking.room === "Bar" ? "aperitivo" : mealPeriod(booking.time) === "day" ? "pranzo" : "cena");
+  if (consumption === "brunch" && !isBrunchDate(booking.date)) {
+    return language === "en" ? "Brunch is available from Friday to Sunday." : "Il Brunch è disponibile da venerdì a domenica.";
+  }
   const allowedTimes = new Set(publicSlotTimes(consumption));
   if (!allowedTimes.has(booking.time)) {
     return language === "en" ? "Choose one of the available time slots." : "Scegli una delle fasce orarie disponibili.";
@@ -1610,6 +1619,9 @@ async function publicBookingSlots(input, bookings) {
   const allowedConsumptions = new Set(["brunch", "pranzo", "cena", "aperitivo"]);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !allowedConsumptions.has(consumption) || !Number.isInteger(people) || people < 1 || people > 40) {
     return { ok: false, error: language === "en" ? "Enter date, type of visit and number of guests." : "Inserisci data, tipo di consumazione e numero di persone." };
+  }
+  if (consumption === "brunch" && !isBrunchDate(date)) {
+    return { ok: false, error: language === "en" ? "Brunch is available from Friday to Sunday." : "Il Brunch è disponibile da venerdì a domenica." };
   }
   if (gardenRequested && ["aperitivo", "brunch"].includes(consumption)) {
     return { ok: false, error: language === "en" ? "The garden is available for lunch or dinner." : "Il giardino e disponibile per pranzo o cena." };
