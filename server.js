@@ -53,6 +53,7 @@ const DEFAULT_ZONE_LIMITS = {
 const SPECIAL_REQUEST_TYPES = new Set(["gruppo", "evento", "compleanno", "azienda", "privato", "altro"]);
 const SPECIAL_REQUEST_STATUSES = new Set(["nuova", "in trattativa", "confermata", "persa", "annullata"]);
 const SPECIAL_TIME_WINDOWS = {
+  brunch: "10:00",
   pranzo: "13:00",
   aperitivo: "18:30",
   cena: "20:00",
@@ -71,8 +72,10 @@ const PUBLIC_AUTO_CONFIRM_LIMIT_RATIO = 0.85;
 const PUBLIC_SLOT_INTERVAL_MINUTES = 15;
 const PUBLIC_SLOT_MAX_BOOKINGS = 3;
 const PUBLIC_SLOT_WINDOWS = {
+  brunch: { start: "10:00", end: "12:00" },
   lunch: { start: "12:00", end: "14:30" },
-  aperitivo: { start: "18:00", end: "20:30" },
+  aperitivoDay: { start: "10:00", end: "13:00" },
+  aperitivoEvening: { start: "18:00", end: "20:30" },
   dinner: { start: "19:00", end: "22:00" }
 };
 const PUBLIC_BASE_URL = sanitizePublicText(process.env.MURETTO_PUBLIC_URL, "https://muretto-prenotazioni.onrender.com", 220).replace(/\/+$/, "");
@@ -1302,15 +1305,15 @@ function validatePublicBooking(input) {
       ? "This promotional code is valid for dinner and aperitif only."
       : "Questo codice promozionale è valido solo per cena e aperitivo.";
   }
-  const allowedConsumptions = new Set(["pranzo", "cena", "aperitivo"]);
+  const allowedConsumptions = new Set(["brunch", "pranzo", "cena", "aperitivo"]);
   if (!privacyAccepted) return language === "en" ? "You must read and accept the privacy notice." : "Devi leggere e accettare l'informativa privacy.";
-  if (!allowedConsumptions.has(consumption)) return language === "en" ? "Choose lunch, dinner or aperitif." : "Scegli pranzo, cena o aperitivo.";
-  if (gardenRequested && consumption === "aperitivo") return language === "en" ? "The garden is available for lunch or dinner." : "Il giardino e disponibile per pranzo o cena.";
-  if (indoorRequested && consumption === "aperitivo") return language === "en" ? "The indoor room is available for lunch or dinner." : "La sala interna e disponibile per pranzo o cena.";
+  if (!allowedConsumptions.has(consumption)) return language === "en" ? "Choose brunch, lunch, dinner or aperitif." : "Scegli brunch, pranzo, cena o aperitivo.";
+  if (gardenRequested && ["aperitivo", "brunch"].includes(consumption)) return language === "en" ? "The garden is available for lunch or dinner." : "Il giardino e disponibile per pranzo o cena.";
+  if (indoorRequested && ["aperitivo", "brunch"].includes(consumption)) return language === "en" ? "The indoor room is available for lunch or dinner." : "La sala interna e disponibile per pranzo o cena.";
   if (gardenRequested && indoorRequested) return language === "en" ? "Choose either the garden or the indoor room." : "Scegli il giardino oppure la sala interna.";
   if (!sanitizeText(input.email, 120)) return language === "en" ? "Enter an email address to receive confirmation." : "Inserisci un indirizzo email per ricevere la conferma.";
 
-  const room = consumption === "aperitivo" ? "Bar" : gardenRequested ? "Giardino" : indoorRequested ? "Interno" : RESTAURANT_ROOM;
+  const room = ["aperitivo", "brunch"].includes(consumption) ? "Bar" : gardenRequested ? "Giardino" : indoorRequested ? "Interno" : RESTAURANT_ROOM;
   const notes = [
     "Richiesta dal modulo online.",
     `Consumazione prevista: ${consumption}.`,
@@ -1343,13 +1346,13 @@ function validateEmployeeReferralBooking(input) {
   const consumption = sanitizeText(input.consumption, 20).toLowerCase();
   const gardenRequested = input.gardenRequested === true || input.gardenRequested === "on" || input.gardenRequested === "true";
   const privacyAccepted = input.employeePrivacyAccepted === true || input.employeePrivacyAccepted === "on" || input.employeePrivacyAccepted === "true";
-  const allowedConsumptions = new Set(["pranzo", "cena", "aperitivo"]);
+  const allowedConsumptions = new Set(["brunch", "pranzo", "cena", "aperitivo"]);
   if (!privacyAccepted) return "Conferma di aver informato il cliente sulla privacy.";
-  if (!allowedConsumptions.has(consumption)) return "Scegli pranzo, cena o aperitivo.";
-  if (gardenRequested && consumption === "aperitivo") return "Il giardino e disponibile per pranzo o cena.";
+  if (!allowedConsumptions.has(consumption)) return "Scegli brunch, pranzo, cena o aperitivo.";
+  if (gardenRequested && ["aperitivo", "brunch"].includes(consumption)) return "Il giardino e disponibile per pranzo o cena.";
   if (!sanitizeText(input.phone, 40) && !sanitizeText(input.email, 120)) return "Inserisci almeno telefono o email del cliente.";
 
-  const room = consumption === "aperitivo" ? "Bar" : gardenRequested ? "Giardino" : RESTAURANT_ROOM;
+  const room = ["aperitivo", "brunch"].includes(consumption) ? "Bar" : gardenRequested ? "Giardino" : RESTAURANT_ROOM;
   const notes = [
     "Prenotazione amico inserita da dipendente.",
     `Consumazione prevista: ${consumption}.`,
@@ -1440,8 +1443,10 @@ function minutesToClockTime(minutes) {
 
 function publicSlotTimes(consumption) {
   const type = sanitizeText(consumption, 20).toLowerCase();
-  const windows = type === "aperitivo"
-    ? [PUBLIC_SLOT_WINDOWS.aperitivo]
+  const windows = type === "brunch"
+    ? [PUBLIC_SLOT_WINDOWS.brunch]
+    : type === "aperitivo"
+    ? [PUBLIC_SLOT_WINDOWS.aperitivoDay, PUBLIC_SLOT_WINDOWS.aperitivoEvening]
     : type === "pranzo"
       ? [PUBLIC_SLOT_WINDOWS.lunch]
       : type === "cena"
@@ -1553,6 +1558,7 @@ function bookingOccupiesSeats(booking) {
 }
 
 function specialTimeWindowFromBooking(booking) {
+  if (sanitizeText(booking.consumption, 20).toLowerCase() === "brunch") return "brunch";
   if (booking.room === "Bar") return "aperitivo";
   const minutes = clockTimeToMinutes(booking.time);
   if (minutes !== null && minutes < 17 * 60) return "pranzo";
@@ -1601,17 +1607,17 @@ async function publicBookingSlots(input, bookings) {
   const consumption = sanitizeText(input.consumption, 20).toLowerCase();
   const gardenRequested = input.gardenRequested === true || input.gardenRequested === "on" || input.gardenRequested === "true";
   const indoorRequested = input.indoorRequested === true || input.indoorRequested === "on" || input.indoorRequested === "true";
-  const allowedConsumptions = new Set(["pranzo", "cena", "aperitivo"]);
+  const allowedConsumptions = new Set(["brunch", "pranzo", "cena", "aperitivo"]);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !allowedConsumptions.has(consumption) || !Number.isInteger(people) || people < 1 || people > 40) {
     return { ok: false, error: language === "en" ? "Enter date, type of visit and number of guests." : "Inserisci data, tipo di consumazione e numero di persone." };
   }
-  if (gardenRequested && consumption === "aperitivo") {
+  if (gardenRequested && ["aperitivo", "brunch"].includes(consumption)) {
     return { ok: false, error: language === "en" ? "The garden is available for lunch or dinner." : "Il giardino e disponibile per pranzo o cena." };
   }
-  if (indoorRequested && consumption === "aperitivo") return { ok: false, error: language === "en" ? "The indoor room is available for lunch or dinner." : "La sala interna e disponibile per pranzo o cena." };
+  if (indoorRequested && ["aperitivo", "brunch"].includes(consumption)) return { ok: false, error: language === "en" ? "The indoor room is available for lunch or dinner." : "La sala interna e disponibile per pranzo o cena." };
   if (gardenRequested && indoorRequested) return { ok: false, error: language === "en" ? "Choose either the garden or the indoor room." : "Scegli il giardino oppure la sala interna." };
 
-  const room = consumption === "aperitivo" ? "Bar" : gardenRequested ? "Giardino" : indoorRequested ? "Interno" : RESTAURANT_ROOM;
+  const room = ["aperitivo", "brunch"].includes(consumption) ? "Bar" : gardenRequested ? "Giardino" : indoorRequested ? "Interno" : RESTAURANT_ROOM;
   const slots = [];
   for (const time of publicSlotTimes(consumption)) {
     const draft = { date, time, people, room, language, consumption };
@@ -1991,6 +1997,7 @@ function bookingConfirmationText(booking) {
       `Date: ${booking.date}`,
       `Time: ${booking.time}`,
       `Guests: ${booking.people}`,
+      booking.consumption === "brunch" ? "Service: Brunch" : "",
       seat ? `Area: ${seat}` : "",
       bookingCodeEmailLine(booking, language),
       `Address: ${VENUE_ADDRESS}`,
@@ -2017,6 +2024,7 @@ function bookingConfirmationText(booking) {
     `Data: ${booking.date}`,
     `Ora: ${booking.time}`,
     `Persone: ${booking.people}`,
+    booking.consumption === "brunch" ? "Servizio: Brunch" : "",
     seat ? `Zona: ${seat}` : "",
     bookingCodeEmailLine(booking, language),
     `Indirizzo: ${VENUE_ADDRESS}`,

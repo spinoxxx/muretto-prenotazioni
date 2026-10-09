@@ -65,7 +65,7 @@
               <input name="requestType" type="radio" value="standard" checked>
               <span>
                 <strong>Prenotazione normale</strong>
-                <small>Tavolo per pranzo, cena o aperitivo.</small>
+                <small>Tavolo per brunch, pranzo, cena o aperitivo.</small>
               </span>
             </label>
             <label class="request-type-card">
@@ -136,6 +136,7 @@
                 Fascia oraria desiderata
                 <select name="specialTimeWindow">
                   <option value="">Seleziona</option>
+                  <option value="brunch">Brunch</option>
                   <option value="pranzo">Pranzo</option>
                   <option value="aperitivo">Aperitivo</option>
                   <option value="cena">Cena</option>
@@ -150,7 +151,16 @@
             <legend>Tipo di consumazione</legend>
             <label class="choice-card">
               <span class="choice-card-head">
-                <input name="consumption" type="radio" value="pranzo" required>
+                <input name="consumption" type="radio" value="brunch" required>
+                <span>
+                  <strong>Brunch</strong>
+                  <small>Zona bar · dalle 10:00 alle 12:00</small>
+                </span>
+              </span>
+            </label>
+            <label class="choice-card">
+              <span class="choice-card-head">
+                <input name="consumption" type="radio" value="pranzo">
                 <span>
                   <strong>Pranzo</strong>
                   <small>Servizio ristorante</small>
@@ -171,11 +181,20 @@
                 <input name="consumption" type="radio" value="aperitivo">
                 <span>
                   <strong>Aperitivo</strong>
-                  <small>Zona bar</small>
+                  <small>Zona bar · 10:00–13:00 e 18:00–20:30</small>
                 </span>
               </span>
             </label>
           </fieldset>
+
+          <section id="brunchPreview" class="zone-photo-card zone-preview-card" data-standard-fields hidden>
+            <div>
+              <strong>Brunch</strong>
+              <small>Zona bar · dalle 10:00 alle 12:00</small>
+              <a class="ghost-link lunch-menu-link" href="/menu-brunch.pdf?v=20261009" target="_blank" rel="noopener">Apri il menù Brunch</a>
+            </div>
+            <img src="/zone-bar-aperitivi.jpg?v=20260829b" alt="Tavoli della zona Bar per il brunch" loading="lazy">
+          </section>
 
           <section id="barPreview" class="zone-photo-card zone-preview-card" data-standard-fields hidden>
             <div>
@@ -265,6 +284,6 @@
         </section>
       </section>
     </main>
-    <script src="/prenota.js?v=17" type="module"></script>
+    <script src="/prenota.js?v=18" type="module"></script>
   </body>
 </html>

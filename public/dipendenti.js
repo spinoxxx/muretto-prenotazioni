@@ -70,7 +70,7 @@ function updateDateDisplay() {
 }
 
 function syncGardenRequest() {
-  const isRestaurantService = activeConsumption() !== "aperitivo";
+  const isRestaurantService = !["aperitivo", "brunch"].includes(activeConsumption());
   gardenRequest.hidden = !isRestaurantService;
   if (!isRestaurantService) referralForm.elements.gardenRequested.checked = false;
   syncZonePreview();
@@ -78,7 +78,7 @@ function syncGardenRequest() {
 }
 
 function syncZonePreview() {
-  const selectedZone = referralForm.elements.gardenRequested.checked && activeConsumption() !== "aperitivo" ? "garden" : "";
+  const selectedZone = referralForm.elements.gardenRequested.checked && !["aperitivo", "brunch"].includes(activeConsumption()) ? "garden" : "";
   zonePreviewCards.forEach((card) => {
     const selected = card.dataset.zonePreview === selectedZone;
     card.classList.toggle("is-selected", selected);

@@ -5,6 +5,7 @@ const message = document.querySelector("#publicBookingMessage");
 const gardenRequest = document.querySelector("#gardenRequest");
 const restaurantPreference = document.querySelector("#restaurantPreference");
 const barPreview = document.querySelector("#barPreview");
+const brunchPreview = document.querySelector("#brunchPreview");
 const eventBookingNotice = document.querySelector("#eventBookingNotice");
 const publicEventCard = document.querySelector("#publicEventCard");
 const publicTimeSlots = document.querySelector("#publicTimeSlots");
@@ -160,6 +161,7 @@ function syncGardenRequest() {
   const isRestaurantService = consumption === "pranzo" || consumption === "cena";
   restaurantPreference.hidden = !isRestaurantService;
   barPreview.hidden = consumption !== "aperitivo";
+  brunchPreview.hidden = consumption !== "brunch";
   if (!isRestaurantService) bookingForm.elements.roomPreference.value = "esterno";
   gardenRequest.hidden = !isRestaurantService;
   if (!isRestaurantService) bookingForm.elements.gardenRequested.checked = false;
@@ -168,7 +170,7 @@ function syncGardenRequest() {
 }
 
 function syncZonePreview() {
-  const selectedZone = bookingForm.elements.gardenRequested.checked && activeConsumption() !== "aperitivo" ? "garden" : "";
+  const selectedZone = bookingForm.elements.gardenRequested.checked && !["aperitivo", "brunch"].includes(activeConsumption()) ? "garden" : "";
   zonePreviewCards.forEach((card) => {
     const selected = card.dataset.zonePreview === selectedZone;
     card.classList.toggle("is-selected", selected);
