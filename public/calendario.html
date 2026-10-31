@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Calendario Muretto</title>
-    <link rel="stylesheet" href="/styles.css?v=28">
+    <link rel="stylesheet" href="/styles.css?v=29">
   </head>
   <body>
     <main class="shell calendar-shell">
@@ -98,9 +98,54 @@
               <option value="">Tutti</option>
               <option value="standard">Prenotazioni</option>
               <option value="special">Gruppi / eventi</option>
+              <option value="event">Eventi Muretto</option>
             </select>
           </label>
         </section>
+
+        <details id="calendarEventManager" class="calendar-event-manager" hidden>
+          <summary>Gestisci eventi Muretto</summary>
+          <div class="calendar-event-manager-body">
+            <form id="calendarEventForm" class="calendar-event-form">
+              <label>
+                Titolo evento
+                <input name="title" type="text" maxlength="100" required placeholder="Es. Serata jazz">
+              </label>
+              <label>
+                Prima data
+                <input name="date" type="date" required>
+              </label>
+              <label>
+                Ora facoltativa
+                <input name="time" type="time">
+              </label>
+              <label>
+                Sala facoltativa
+                <select name="room">
+                  <option value="">Tutto il locale</option>
+                  <option value="Ristorante Esterno">Ristorante Esterno</option>
+                  <option value="Bar">Bar</option>
+                  <option value="Giardino">Giardino</option>
+                  <option value="Interno">Interno</option>
+                </select>
+              </label>
+              <label>
+                Ripetizione
+                <select name="recurrence">
+                  <option value="none">Una sola volta</option>
+                  <option value="weekly">Ogni settimana</option>
+                </select>
+              </label>
+              <label class="calendar-event-notes">
+                Note
+                <input name="notes" type="text" maxlength="800" placeholder="Dettagli interni facoltativi">
+              </label>
+              <button type="submit">Aggiungi evento</button>
+              <p id="calendarEventError" class="error" role="alert"></p>
+            </form>
+            <div id="calendarEventList" class="calendar-event-list"></div>
+          </div>
+        </details>
 
         <section class="calendar-layout">
           <div id="calendarGrid" class="calendar-grid" aria-live="polite"></div>
@@ -110,6 +155,6 @@
         </section>
       </section>
     </main>
-    <script src="/calendario.js?v=3" type="module"></script>
+    <script src="/calendario.js?v=4" type="module"></script>
   </body>
 </html>

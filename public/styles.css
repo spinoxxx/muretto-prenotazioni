@@ -1807,6 +1807,67 @@ label {
   grid-template-columns: repeat(3, minmax(150px, 1fr));
 }
 
+.calendar-event-manager {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.calendar-event-manager summary {
+  padding: 14px 16px;
+  color: var(--ink);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.calendar-event-manager-body {
+  display: grid;
+  gap: 16px;
+  border-top: 1px solid var(--line);
+  padding: 16px;
+}
+
+.calendar-event-form {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(130px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.calendar-event-form .calendar-event-notes {
+  grid-column: span 3;
+}
+
+.calendar-event-form .error {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.calendar-event-list {
+  display: grid;
+  gap: 8px;
+}
+
+.calendar-event-list-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+.calendar-event-list-row div,
+.calendar-event-list-row small {
+  display: grid;
+  gap: 3px;
+}
+
+.calendar-event-list-row small {
+  color: var(--muted);
+  font-weight: 750;
+}
+
 .calendar-layout {
   display: grid;
   grid-template-columns: 1fr 320px;
@@ -1954,6 +2015,16 @@ label {
   background: #fff6df;
 }
 
+.calendar-event.is-venue-event {
+  border-color: #c7b5df;
+  border-left-color: #76559b;
+  background: #f3edf9;
+}
+
+.calendar-event.is-venue-event:hover {
+  background: #e8dcf3;
+}
+
 .calendar-event.is-bar-room {
   border-color: #afd2e9;
   border-left-color: #3b85ad;
@@ -2050,6 +2121,14 @@ label {
     grid-template-columns: 1fr;
   }
 
+  .calendar-event-form {
+    grid-template-columns: repeat(2, minmax(130px, 1fr));
+  }
+
+  .calendar-event-form .calendar-event-notes {
+    grid-column: span 2;
+  }
+
   .calendar-detail {
     position: static;
   }
@@ -2084,6 +2163,17 @@ label {
   .calendar-toolbar,
   .calendar-filters {
     grid-template-columns: 1fr;
+  }
+
+  .calendar-event-form,
+  .calendar-event-form .calendar-event-notes {
+    grid-template-columns: 1fr;
+    grid-column: auto;
+  }
+
+  .calendar-event-list-row {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .stats,

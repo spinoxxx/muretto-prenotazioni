@@ -14,6 +14,7 @@ const deletedBookingsFile = path.join(dataDir, "deleted-bookings.json");
 const zoneSettingsFile = path.join(dataDir, "zone-settings.json");
 const voiceCallbacksFile = path.join(dataDir, "voice-callbacks.json");
 const vouchersFile = path.join(dataDir, "vouchers.json");
+const calendarEventsFile = path.join(dataDir, "calendar-events.json");
 const polishFriendsPromotion = Object.freeze({
   id: "polscy-przyjaciele-10",
   code: "POLSCYPRZYJACIELE10",
@@ -526,6 +527,38 @@ async function ensureDataFiles() {
   } catch {
     await writeJson(vouchersFile, []);
   }
+
+  try {
+    await fs.access(calendarEventsFile);
+  } catch {
+    const now = new Date().toISOString();
+    await writeJson(calendarEventsFile, [
+      {
+        id: crypto.randomUUID(),
+        title: "Festa Halloween",
+        date: "2026-10-31",
+        time: "",
+        room: "",
+        notes: "Evento organizzato dal Muretto.",
+        recurrence: "none",
+        active: true,
+        createdAt: now,
+        createdBy: "system"
+      },
+      {
+        id: crypto.randomUUID(),
+        title: "MercoleGin",
+        date: "2026-11-04",
+        time: "",
+        room: "Bar",
+        notes: "Appuntamento del mercoledi.",
+        recurrence: "weekly",
+        active: true,
+        createdAt: now,
+        createdBy: "system"
+      }
+    ]);
+  }
 }
 
 async function readJson(file, fallback) {
@@ -584,7 +617,8 @@ async function createBackup(reason = "manuale", actor = "system") {
       deletedBookings: await readJson(deletedBookingsFile, []),
       zoneSettings: await readJson(zoneSettingsFile, {}),
       voiceCallbacks: await readJson(voiceCallbacksFile, []),
-      vouchers: await readJson(vouchersFile, [])
+      vouchers: await readJson(vouchersFile, []),
+      calendarEvents: await readJson(calendarEventsFile, [])
     }
   };
   const name = backupFileName(new Date(createdAt));
@@ -2845,6 +2879,42 @@ function requireAdmin(session, res) {
   return true;
 }
 
+function calendarEventOccurrences(events, from, to) {
+  const occurrences = [];
+  for (const event of Array.isArray(events) ? events : []) {
+    if (!event?.active || !event.date || event.date > to) continue;
+    const dates = [];
+    if (event.recurrence === "weekly") {
+      let occurrenceDate = event.date;
+      while (occurrenceDate < from) occurrenceDate = addDaysIso(occurrenceDate, 7);
+      while (occurrenceDate <= to) {
+        dates.push(occurrenceDate);
+        occurrenceDate = addDaysIso(occurrenceDate, 7);
+      }
+    } else if (event.date >= from && event.date <= to) {
+      dates.push(event.date);
+    }
+
+    for (const date of dates) {
+      occurrences.push({
+        id: `event-${event.id}-${date}`,
+        sourceEventId: event.id,
+        requestType: "event",
+        title: event.title,
+        guestName: event.title,
+        date,
+        time: event.time || "",
+        people: 0,
+        room: event.room || "",
+        status: "evento",
+        notes: event.notes || "",
+        recurrence: event.recurrence || "none"
+      });
+    }
+  }
+  return occurrences;
+}
+
 function requireBookingEditor(session, res) {
   if (!["admin", "staff"].includes(session.role)) {
     sendJson(res, 403, { error: "Questo accesso puo consultare solo l'agenda" });
@@ -3575,6 +3645,79 @@ async function handleApi(req, res) {
     return;
   }
 
+  if (url.pathname === "/api/calendar-events" && req.method === "GET") {
+    if (!requireAdmin(session, res)) return;
+    const events = await readJson(calendarEventsFile, []);
+    sendJson(res, 200, {
+      events: events
+        .filter((event) => event?.active)
+        .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`))
+    });
+    return;
+  }
+
+  if (url.pathname === "/api/calendar-events" && req.method === "POST") {
+    if (!requireAdmin(session, res)) return;
+    const body = await readBody(req);
+    const title = sanitizeText(body.title, 100);
+    const date = normalizeDate(body.date);
+    const time = body.time ? normalizeClockTime(body.time) : "";
+    const recurrence = body.recurrence === "weekly" ? "weekly" : "none";
+    const room = sanitizeText(body.room, 30);
+    if (!title || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      sendJson(res, 400, { error: "Inserisci titolo e data dell'evento" });
+      return;
+    }
+    if (body.time && !time) {
+      sendJson(res, 400, { error: "Orario non valido" });
+      return;
+    }
+    if (room && !ZONE_ROOMS.includes(room)) {
+      sendJson(res, 400, { error: "Sala non valida" });
+      return;
+    }
+    const now = new Date().toISOString();
+    const event = {
+      id: crypto.randomUUID(),
+      title,
+      date,
+      time,
+      room,
+      notes: sanitizeMessageText(body.notes, 800),
+      recurrence,
+      active: true,
+      createdAt: now,
+      createdBy: session.employeeName,
+      updatedAt: now,
+      updatedBy: session.employeeName
+    };
+    const events = await readJson(calendarEventsFile, []);
+    events.push(event);
+    await writeJson(calendarEventsFile, events);
+    sendJson(res, 201, { event });
+    return;
+  }
+
+  const calendarEventMatch = url.pathname.match(/^\/api\/calendar-events\/([a-f0-9-]+)$/i);
+  if (calendarEventMatch && req.method === "DELETE") {
+    if (!requireAdmin(session, res)) return;
+    const events = await readJson(calendarEventsFile, []);
+    const index = events.findIndex((event) => event.id === calendarEventMatch[1] && event.active);
+    if (index === -1) {
+      sendJson(res, 404, { error: "Evento non trovato" });
+      return;
+    }
+    events[index] = {
+      ...events[index],
+      active: false,
+      updatedAt: new Date().toISOString(),
+      updatedBy: session.employeeName
+    };
+    await writeJson(calendarEventsFile, events);
+    sendJson(res, 200, { ok: true });
+    return;
+  }
+
   if (url.pathname === "/api/calendar" && req.method === "GET") {
     if (!requireCalendarViewer(session, res)) return;
     const from = normalizeDate(url.searchParams.get("from"));
@@ -3584,7 +3727,7 @@ async function handleApi(req, res) {
       return;
     }
     const bookings = await readJson(bookingsFile, []);
-    const items = bookings
+    const bookingItems = bookings
       .filter((item) => item.date >= from && item.date <= to)
       .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`))
       .map((item) => ({
@@ -3606,6 +3749,9 @@ async function handleApi(req, res) {
         email: item.email || "",
         phone: item.phone || ""
       }));
+    const events = await readJson(calendarEventsFile, []);
+    const items = [...bookingItems, ...calendarEventOccurrences(events, from, to)]
+      .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
     sendJson(res, 200, { from, to, items });
     return;
   }

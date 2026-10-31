@@ -15,12 +15,17 @@ const typeFilter = document.querySelector("#calendarTypeFilter");
 const rangeLabel = document.querySelector("#calendarRangeLabel");
 const calendarGrid = document.querySelector("#calendarGrid");
 const calendarDetail = document.querySelector("#calendarDetail");
+const eventManager = document.querySelector("#calendarEventManager");
+const eventForm = document.querySelector("#calendarEventForm");
+const eventError = document.querySelector("#calendarEventError");
+const eventList = document.querySelector("#calendarEventList");
 
 let csrfToken = "";
 let currentEmployee = null;
 let calendarItems = [];
 const today = new Date().toISOString().slice(0, 10);
 dateInput.value = today;
+eventForm.elements.date.value = today;
 
 async function api(path, options = {}) {
   const response = await fetch(path, {
@@ -74,6 +79,8 @@ function showCalendar(employee) {
   employeeName.textContent = employee.name;
   loginView.hidden = true;
   calendarView.hidden = false;
+  eventManager.hidden = employee.role !== "admin";
+  if (employee.role === "admin") loadEventDefinitions();
 }
 
 function addDays(value, days) {
@@ -122,6 +129,7 @@ function formatDate(value, opts = {}) {
 }
 
 function statusValue(item) {
+  if (item.requestType === "event") return "evento";
   return item.requestType === "special" ? item.specialStatus || "nuova" : item.status;
 }
 
@@ -136,7 +144,7 @@ function visibleItems() {
 
 function itemClass(item) {
   const classes = ["calendar-event"];
-  classes.push(item.requestType === "special" ? "is-special" : "is-standard");
+  classes.push(item.requestType === "event" ? "is-venue-event" : item.requestType === "special" ? "is-special" : "is-standard");
   if (item.status === "annullata" || item.specialStatus === "annullata") classes.push("is-cancelled");
   if (item.status === "in attesa") classes.push("is-waiting");
   if (item.room === "Bar") classes.push("is-bar-room");
@@ -179,6 +187,16 @@ function renderCalendar() {
 }
 
 function renderCalendarEvent(item) {
+  if (item.requestType === "event") {
+    return `
+      <button class="${itemClass(item)}" type="button" data-calendar-id="${item.id}">
+        <span>${escapeHtml(item.time || "Evento")}</span>
+        <strong>${escapeHtml(item.title || item.guestName || "Evento Muretto")}</strong>
+        <small>${escapeHtml(item.room || "Tutto il locale")}</small>
+        ${item.recurrence === "weekly" ? `<small>Ogni settimana</small>` : ""}
+      </button>
+    `;
+  }
   const label = item.requestType === "special" ? `${item.specialType || "speciale"} · ${statusValue(item)}` : item.status;
   return `
     <button class="${itemClass(item)}" type="button" data-calendar-id="${item.id}">
@@ -191,6 +209,20 @@ function renderCalendarEvent(item) {
 }
 
 function renderDetail(item) {
+  if (item.requestType === "event") {
+    calendarDetail.innerHTML = `
+      <div class="calendar-detail-card">
+        <p class="eyebrow">Evento Muretto</p>
+        <h2>${escapeHtml(item.title || item.guestName)}</h2>
+        <p>${formatDate(item.date)}${item.time ? ` · ${escapeHtml(item.time)}` : " · Orario non indicato"}</p>
+        <p>${escapeHtml(item.room || "Tutto il locale")}</p>
+        ${item.recurrence === "weekly" ? `<p><strong>Ricorrenza:</strong> ogni settimana</p>` : ""}
+        ${item.notes ? `<p>${escapeHtml(item.notes)}</p>` : ""}
+        ${currentEmployee?.role === "admin" ? `<button class="danger ghost" type="button" data-delete-calendar-event="${item.sourceEventId}">Elimina evento${item.recurrence === "weekly" ? " ricorrente" : ""}</button>` : ""}
+      </div>
+    `;
+    return;
+  }
   calendarDetail.innerHTML = `
     <div class="calendar-detail-card">
       <p class="eyebrow">${item.requestType === "special" ? "Richiesta speciale" : "Prenotazione"}</p>
@@ -206,6 +238,32 @@ function renderDetail(item) {
       ${currentEmployee?.role === "admin" || currentEmployee?.role === "staff" ? `<a class="ghost-link" href="/">Apri pannello</a>` : ""}
     </div>
   `;
+}
+
+function formatEventDefinition(event) {
+  const date = formatDate(event.date);
+  const time = event.time ? ` · ${event.time}` : "";
+  const recurrence = event.recurrence === "weekly" ? " · ogni settimana" : "";
+  return `${date}${time}${recurrence}`;
+}
+
+async function loadEventDefinitions() {
+  if (currentEmployee?.role !== "admin") return;
+  try {
+    const payload = await api("/api/calendar-events");
+    const events = payload.events || [];
+    eventList.innerHTML = events.length ? events.map((event) => `
+      <div class="calendar-event-list-row">
+        <div>
+          <strong>${escapeHtml(event.title)}</strong>
+          <small>${escapeHtml(formatEventDefinition(event))}${event.room ? ` · ${escapeHtml(event.room)}` : ""}</small>
+        </div>
+        <button class="danger ghost" type="button" data-delete-calendar-event="${event.id}">Elimina</button>
+      </div>
+    `).join("") : `<p class="empty compact-empty">Nessun evento inserito.</p>`;
+  } catch (error) {
+    eventList.innerHTML = `<p class="error">${escapeHtml(error.message)}</p>`;
+  }
 }
 
 function statusClass(status) {
@@ -286,6 +344,35 @@ calendarGrid.addEventListener("click", (event) => {
   if (!button) return;
   const item = calendarItems.find((entry) => entry.id === button.dataset.calendarId);
   if (item) renderDetail(item);
+});
+
+eventForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  eventError.textContent = "";
+  try {
+    const data = Object.fromEntries(new FormData(eventForm).entries());
+    await api("/api/calendar-events", { method: "POST", body: JSON.stringify(data) });
+    eventForm.reset();
+    eventForm.elements.date.value = dateInput.value;
+    await Promise.all([loadEventDefinitions(), loadCalendar()]);
+  } catch (error) {
+    eventError.textContent = error.message;
+  }
+});
+
+async function deleteCalendarEvent(id) {
+  if (!id || !window.confirm("Eliminare questo evento dal calendario?")) return;
+  await api(`/api/calendar-events/${id}`, { method: "DELETE" });
+  calendarDetail.innerHTML = `<p class="empty">Seleziona un blocco per vedere il dettaglio.</p>`;
+  await Promise.all([loadEventDefinitions(), loadCalendar()]);
+}
+
+document.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-delete-calendar-event]");
+  if (!button) return;
+  deleteCalendarEvent(button.dataset.deleteCalendarEvent).catch((error) => {
+    eventError.textContent = error.message;
+  });
 });
 
 await loadBrandConfig();
