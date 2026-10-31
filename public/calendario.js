@@ -69,6 +69,10 @@ function canViewCalendar(employee) {
   return ["admin", "staff", "calendario"].includes(employee?.role) || employee?.calendarAccess === true;
 }
 
+function canManageCalendarEvents(employee) {
+  return employee?.role === "admin" || employee?.calendarEventAccess === true;
+}
+
 function showLogin() {
   loginView.hidden = false;
   calendarView.hidden = true;
@@ -80,9 +84,10 @@ function showCalendar(employee) {
   employeeName.textContent = employee.name;
   loginView.hidden = true;
   calendarView.hidden = false;
-  eventManager.hidden = employee.role !== "admin";
-  openEventManagerButton.hidden = employee.role !== "admin";
-  if (employee.role === "admin") {
+  const canManageEvents = canManageCalendarEvents(employee);
+  eventManager.hidden = !canManageEvents;
+  openEventManagerButton.hidden = !canManageEvents;
+  if (canManageEvents) {
     loadEventDefinitions();
     if (new URLSearchParams(window.location.search).get("gestione") === "eventi") openEventManager();
   }
@@ -229,7 +234,7 @@ function renderDetail(item) {
         <p>${escapeHtml(item.room || "Tutto il locale")}</p>
         ${item.recurrence === "weekly" ? `<p><strong>Ricorrenza:</strong> ogni settimana</p>` : ""}
         ${item.notes ? `<p>${escapeHtml(item.notes)}</p>` : ""}
-        ${currentEmployee?.role === "admin" ? `<button class="danger ghost" type="button" data-delete-calendar-event="${item.sourceEventId}">Elimina evento${item.recurrence === "weekly" ? " ricorrente" : ""}</button>` : ""}
+        ${canManageCalendarEvents(currentEmployee) ? `<button class="danger ghost" type="button" data-delete-calendar-event="${item.sourceEventId}">Elimina evento${item.recurrence === "weekly" ? " ricorrente" : ""}</button>` : ""}
       </div>
     `;
     return;
@@ -259,7 +264,7 @@ function formatEventDefinition(event) {
 }
 
 async function loadEventDefinitions() {
-  if (currentEmployee?.role !== "admin") return;
+  if (!canManageCalendarEvents(currentEmployee)) return;
   try {
     const payload = await api("/api/calendar-events");
     const events = payload.events || [];

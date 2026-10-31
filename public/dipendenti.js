@@ -4,6 +4,7 @@ const loginForm = document.querySelector("#employeeReferralLoginForm");
 const loginError = document.querySelector("#employeeReferralLoginError");
 const referralForm = document.querySelector("#employeeReferralForm");
 const employeeName = document.querySelector("#employeeReferralName");
+const calendarEventsLink = document.querySelector("#employeeCalendarEventsLink");
 const logoutButton = document.querySelector("#employeeReferralLogoutButton");
 const bookingDate = document.querySelector("#employeeReferralDate");
 const bookingDateDisplay = document.querySelector("#employeeReferralDateDisplay");
@@ -43,6 +44,7 @@ function showLogin() {
 
 function showReferral(employee) {
   employeeName.textContent = employee.name;
+  calendarEventsLink.hidden = employee.calendarEventAccess !== true && employee.role !== "admin";
   loginView.hidden = true;
   loginView.style.display = "none";
   referralView.hidden = false;

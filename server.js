@@ -89,6 +89,7 @@ const DEFAULT_EMPLOYEE_PIN = process.env.MURETTO_ADMIN_PIN || "123456";
 const SYNC_ADMIN_PIN = process.env.MURETTO_SYNC_ADMIN_PIN === "true";
 const TURNI_EMPLOYEE_DEFAULT_PIN = process.env.MURETTO_TURNI_EMPLOYEE_PIN || "1234";
 const TURNI_EMPLOYEE_PIN_VERSION = "2026-07-27-1234";
+const CALENDAR_EVENT_MANAGER_NAMES = new Set(["sarah"]);
 const TURNI_EMPLOYEE_NAMES = [
   "Ilenia",
   "Erika",
@@ -273,11 +274,19 @@ function publicSpecialRequest(item) {
 }
 
 function employeeCanViewCalendar(employee) {
-  return ["admin", "staff", "calendario"].includes(employee.role) || employee.calendarAccess === true;
+  return ["admin", "staff", "calendario"].includes(employee.role) || employee.calendarAccess === true || employee.calendarEventAccess === true;
 }
 
 function sessionCanViewCalendar(session) {
-  return ["admin", "staff", "calendario"].includes(session.role) || session.calendarAccess === true;
+  return ["admin", "staff", "calendario"].includes(session.role) || session.calendarAccess === true || session.calendarEventAccess === true;
+}
+
+function employeeCanManageCalendarEvents(employee) {
+  return employee.role === "admin" || employee.calendarEventAccess === true;
+}
+
+function sessionCanManageCalendarEvents(session) {
+  return session.role === "admin" || session.calendarEventAccess === true;
 }
 
 function sanitizePublicText(value, fallback, max = 120) {
@@ -496,6 +505,22 @@ async function ensureDataFiles() {
       await writeJson(employeesFile, employees);
       console.log(`Import turni: ${created} dipendenti creati, ${updated} PIN aggiornati.`);
     }
+  }
+
+  {
+    const employees = await readJson(employeesFile, []);
+    let permissionsUpdated = false;
+    for (const employee of employees) {
+      const shouldManageEvents = CALENDAR_EVENT_MANAGER_NAMES.has(normalizeName(employee.name).toLowerCase());
+      if (shouldManageEvents && employee.calendarEventAccess !== true) {
+        employee.calendarEventAccess = true;
+        employee.calendarAccess = true;
+        employee.updatedAt = new Date().toISOString();
+        employee.updatedBy = "permesso gestione eventi";
+        permissionsUpdated = true;
+      }
+    }
+    if (permissionsUpdated) await writeJson(employeesFile, employees);
   }
 
   try {
@@ -2879,6 +2904,14 @@ function requireAdmin(session, res) {
   return true;
 }
 
+function requireCalendarEventManager(session, res) {
+  if (!sessionCanManageCalendarEvents(session)) {
+    sendJson(res, 403, { error: "Non hai il permesso di gestire gli eventi" });
+    return false;
+  }
+  return true;
+}
+
 function calendarEventOccurrences(events, from, to) {
   const occurrences = [];
   for (const event of Array.isArray(events) ? events : []) {
@@ -2964,6 +2997,7 @@ async function handleApi(req, res) {
       employeeName: employee.name,
       role: employee.role,
       calendarAccess: employeeCanViewCalendar(employee),
+      calendarEventAccess: employeeCanManageCalendarEvents(employee),
       csrfToken: randomToken(24),
       expiresAt: Date.now() + SESSION_TTL_MS
     };
@@ -2977,7 +3011,8 @@ async function handleApi(req, res) {
       employee: {
         name: employee.name,
         role: employee.role,
-        calendarAccess: employeeCanViewCalendar(employee)
+        calendarAccess: employeeCanViewCalendar(employee),
+        calendarEventAccess: employeeCanManageCalendarEvents(employee)
       },
       csrfToken: session.csrfToken
     }));
@@ -3002,7 +3037,8 @@ async function handleApi(req, res) {
       employee: {
         name: session.employeeName,
         role: session.role,
-        calendarAccess: sessionCanViewCalendar(session)
+        calendarAccess: sessionCanViewCalendar(session),
+        calendarEventAccess: sessionCanManageCalendarEvents(session)
       },
       csrfToken: session.csrfToken
     });
@@ -3646,7 +3682,7 @@ async function handleApi(req, res) {
   }
 
   if (url.pathname === "/api/calendar-events" && req.method === "GET") {
-    if (!requireAdmin(session, res)) return;
+    if (!requireCalendarEventManager(session, res)) return;
     const events = await readJson(calendarEventsFile, []);
     sendJson(res, 200, {
       events: events
@@ -3657,7 +3693,7 @@ async function handleApi(req, res) {
   }
 
   if (url.pathname === "/api/calendar-events" && req.method === "POST") {
-    if (!requireAdmin(session, res)) return;
+    if (!requireCalendarEventManager(session, res)) return;
     const body = await readBody(req);
     const title = sanitizeText(body.title, 100);
     const date = normalizeDate(body.date);
@@ -3700,7 +3736,7 @@ async function handleApi(req, res) {
 
   const calendarEventMatch = url.pathname.match(/^\/api\/calendar-events\/([a-f0-9-]+)$/i);
   if (calendarEventMatch && req.method === "DELETE") {
-    if (!requireAdmin(session, res)) return;
+    if (!requireCalendarEventManager(session, res)) return;
     const events = await readJson(calendarEventsFile, []);
     const index = events.findIndex((event) => event.id === calendarEventMatch[1] && event.active);
     if (index === -1) {
