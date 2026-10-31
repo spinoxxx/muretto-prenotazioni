@@ -4,6 +4,7 @@ const loginForm = document.querySelector("#calendarLoginForm");
 const loginError = document.querySelector("#calendarLoginError");
 const employeeName = document.querySelector("#calendarEmployeeName");
 const logoutButton = document.querySelector("#calendarLogoutButton");
+const openEventManagerButton = document.querySelector("#openCalendarEventManager");
 const dateInput = document.querySelector("#calendarDate");
 const prevButton = document.querySelector("#calendarPrevButton");
 const nextButton = document.querySelector("#calendarNextButton");
@@ -80,7 +81,17 @@ function showCalendar(employee) {
   loginView.hidden = true;
   calendarView.hidden = false;
   eventManager.hidden = employee.role !== "admin";
-  if (employee.role === "admin") loadEventDefinitions();
+  openEventManagerButton.hidden = employee.role !== "admin";
+  if (employee.role === "admin") {
+    loadEventDefinitions();
+    if (new URLSearchParams(window.location.search).get("gestione") === "eventi") openEventManager();
+  }
+}
+
+function openEventManager() {
+  eventManager.open = true;
+  eventManager.scrollIntoView({ behavior: "smooth", block: "start" });
+  window.setTimeout(() => eventForm.elements.title.focus(), 350);
 }
 
 function addDays(value, days) {
@@ -326,6 +337,8 @@ logoutButton.addEventListener("click", async () => {
   loginForm.reset();
   showLogin();
 });
+
+openEventManagerButton.addEventListener("click", openEventManager);
 
 prevButton.addEventListener("click", () => movePeriod(-1));
 nextButton.addEventListener("click", () => movePeriod(1));
