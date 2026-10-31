@@ -1825,6 +1825,59 @@ label {
   grid-template-columns: 1fr;
 }
 
+.calendar-grid.is-month-view {
+  grid-template-columns: repeat(7, minmax(130px, 1fr));
+  gap: 1px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--line);
+}
+
+.calendar-grid.is-month-view .calendar-day {
+  min-width: 130px;
+  min-height: 190px;
+  border: 0;
+  border-radius: 0;
+}
+
+.calendar-grid.is-month-view .calendar-day header {
+  padding: 8px 9px;
+}
+
+.calendar-grid.is-month-view .calendar-day-body {
+  gap: 5px;
+  padding: 7px;
+}
+
+.calendar-grid.is-month-view .calendar-event {
+  min-height: 0;
+  gap: 1px;
+  padding: 6px 7px;
+}
+
+.calendar-grid.is-month-view .calendar-event strong {
+  font-size: 0.8rem;
+}
+
+.calendar-grid.is-month-view .calendar-event span,
+.calendar-grid.is-month-view .calendar-event small {
+  font-size: 0.7rem;
+}
+
+.calendar-grid.is-month-view .calendar-day.is-outside-month {
+  background: #f3f5f2;
+}
+
+.calendar-grid.is-month-view .calendar-day.is-outside-month header,
+.calendar-grid.is-month-view .calendar-day.is-outside-month .calendar-day-body {
+  opacity: 0.58;
+}
+
+.calendar-grid.is-month-view .calendar-day.is-today header {
+  box-shadow: inset 4px 0 0 var(--accent);
+  background: #e8f2ed;
+}
+
 .calendar-day {
   min-width: 145px;
   min-height: 560px;

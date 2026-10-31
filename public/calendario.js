@@ -89,8 +89,27 @@ function startOfWeek(value) {
   return date.toISOString().slice(0, 10);
 }
 
+function startOfMonth(value) {
+  return `${value.slice(0, 7)}-01`;
+}
+
+function endOfMonth(value) {
+  const date = new Date(`${startOfMonth(value)}T12:00:00`);
+  date.setMonth(date.getMonth() + 1);
+  date.setDate(0);
+  return date.toISOString().slice(0, 10);
+}
+
+function monthGridRange(value) {
+  const from = startOfWeek(startOfMonth(value));
+  const lastDay = endOfMonth(value);
+  const lastWeekStart = startOfWeek(lastDay);
+  return { from, to: addDays(lastWeekStart, 6) };
+}
+
 function rangeForView() {
   if (viewMode.value === "day") return { from: dateInput.value, to: dateInput.value };
+  if (viewMode.value === "month") return monthGridRange(dateInput.value);
   const from = startOfWeek(dateInput.value);
   return { from, to: addDays(from, 6) };
 }
@@ -126,19 +145,27 @@ function itemClass(item) {
 
 function renderCalendar() {
   const { from, to } = rangeForView();
+  const isMonth = viewMode.value === "month";
   rangeLabel.textContent = viewMode.value === "day"
     ? formatDate(from)
-    : `${formatDate(from)} - ${formatDate(to)}`;
+    : isMonth
+      ? new Intl.DateTimeFormat("it-IT", { month: "long", year: "numeric" }).format(new Date(`${dateInput.value}T12:00:00`))
+      : `${formatDate(from)} - ${formatDate(to)}`;
   const days = viewMode.value === "day"
     ? [dateInput.value]
-    : Array.from({ length: 7 }, (_, index) => addDays(startOfWeek(dateInput.value), index));
+    : isMonth
+      ? Array.from({ length: Math.round((new Date(`${to}T12:00:00`) - new Date(`${from}T12:00:00`)) / 86400000) + 1 }, (_, index) => addDays(from, index))
+      : Array.from({ length: 7 }, (_, index) => addDays(startOfWeek(dateInput.value), index));
   const items = visibleItems();
 
   calendarGrid.classList.toggle("is-day-view", viewMode.value === "day");
+  calendarGrid.classList.toggle("is-month-view", isMonth);
   calendarGrid.innerHTML = days.map((day) => {
     const dayItems = items.filter((item) => item.date === day);
+    const outsideMonth = isMonth && day.slice(0, 7) !== dateInput.value.slice(0, 7);
+    const isToday = day === today;
     return `
-      <section class="calendar-day">
+      <section class="calendar-day${outsideMonth ? " is-outside-month" : ""}${isToday ? " is-today" : ""}">
         <header>
           <strong>${formatDate(day, { dayOnly: true })}</strong>
           <span>${dayItems.length} blocchi</span>
@@ -204,8 +231,15 @@ async function loadCalendar() {
 }
 
 async function movePeriod(direction) {
-  const delta = viewMode.value === "day" ? direction : direction * 7;
-  dateInput.value = addDays(dateInput.value, delta);
+  if (viewMode.value === "month") {
+    const date = new Date(`${dateInput.value}T12:00:00`);
+    date.setDate(1);
+    date.setMonth(date.getMonth() + direction);
+    dateInput.value = date.toISOString().slice(0, 10);
+  } else {
+    const delta = viewMode.value === "day" ? direction : direction * 7;
+    dateInput.value = addDays(dateInput.value, delta);
+  }
   await loadCalendar();
 }
 
