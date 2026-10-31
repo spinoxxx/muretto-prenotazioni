@@ -399,8 +399,7 @@ function renderLimitWarning(room, values) {
 
 function renderBookings() {
   const term = searchInput.value.trim();
-  const sourceBookings = (term ? mergeBookings(bookings, searchBookings) : bookings)
-    .filter((booking) => booking.occupiesSeats);
+  const sourceBookings = term ? mergeBookings(bookings, searchBookings) : bookings;
   const filtered = sourceBookings.filter((booking) => matchesSearch(booking, term) && matchesRoomFilter(booking) && matchesStatusFilter(booking));
   renderedBookings = filtered;
   const filterApiDate = toApiDate(filterDate.value);
@@ -423,6 +422,7 @@ function renderBookings() {
         ${booking.date !== filterApiDate ? `<p class="other-date-alert">Attenzione: prenotazione del ${formatDate(booking.date)}</p>` : ""}
         <h3>${escapeHtml(booking.guestName)} · ${Number(booking.people)} persone</h3>
         ${(booking.requestType || "standard") === "special" ? `<p class="booking-referral">Gruppo/evento · accordi in gestione</p>` : ""}
+        ${!booking.occupiesSeats ? `<p class="booking-capacity-note">Richiesta visibile ma non ancora conteggiata nei coperti.</p>` : ""}
         <p class="booking-details">${formatDate(booking.date)} · ${seatLine(booking)} · ${contactLine(booking)}</p>
         ${referralLine(booking) ? `<p class="booking-referral">${referralLine(booking)}</p>` : ""}
         ${booking.voucherCode ? `<p class="booking-voucher"><strong>${bookingCodeLabel(booking)}</strong></p>` : ""}

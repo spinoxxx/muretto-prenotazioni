@@ -1655,6 +1655,16 @@ label {
   font-weight: 850;
 }
 
+.booking-capacity-note {
+  margin: 5px 0 0;
+  border-left: 4px solid var(--warm);
+  padding: 6px 9px;
+  background: #fff6df;
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
 .reward-row span {
   display: block;
 }
