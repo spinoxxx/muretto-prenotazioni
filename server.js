@@ -584,6 +584,20 @@ async function ensureDataFiles() {
       }
     ]);
   }
+
+  {
+    const calendarEvents = await readJson(calendarEventsFile, []);
+    let cancelledEventRemoved = false;
+    for (const event of calendarEvents) {
+      if (event?.active && /monzio|compagnoni/i.test(event.title || "")) {
+        event.active = false;
+        event.updatedAt = new Date().toISOString();
+        event.updatedBy = "evento annullato";
+        cancelledEventRemoved = true;
+      }
+    }
+    if (cancelledEventRemoved) await writeJson(calendarEventsFile, calendarEvents);
+  }
 }
 
 async function readJson(file, fallback) {
@@ -599,6 +613,32 @@ async function writeJson(file, data) {
   const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
   await fs.writeFile(tmp, JSON.stringify(data, null, 2), { mode: 0o600 });
   await fs.rename(tmp, file);
+}
+
+async function removeCancelledMonzioEvent() {
+  const pages = ["prenota.html", "prenota-en.html"];
+  for (const page of pages) {
+    const file = path.join(publicDir, page);
+    let html = await fs.readFile(file, "utf8");
+    const original = html;
+    html = html.replace(/\s*<section id="publicEventCard"[\s\S]*?<\/section>/i, (section) =>
+      /monzio|compagnoni/i.test(section) ? "" : section
+    );
+    html = html.replace(/\s*<form id="monzioBookingForm"[\s\S]*?<\/form>/i, "");
+    html = html.replace(/\s*<section id="eventBookingNotice"[\s\S]*?<\/section>/i, (section) =>
+      /monzio|compagnoni/i.test(section) ? "" : section
+    );
+    html = html.replace(/\s*<script[^>]+src="\/monzio-booking\.js[^>]*><\/script>/i, "");
+    if (html !== original) await fs.writeFile(file, html, { mode: 0o600 });
+  }
+  await Promise.all([
+    fs.unlink(path.join(publicDir, "monzio-booking.js")).catch((error) => {
+      if (error.code !== "ENOENT") throw error;
+    }),
+    fs.unlink(path.join(publicDir, "monzio-2026-11-03.jpg")).catch((error) => {
+      if (error.code !== "ENOENT") throw error;
+    })
+  ]);
 }
 
 function backupFileName(date = new Date()) {
@@ -4464,6 +4504,7 @@ function pruneSessions() {
   }
 }
 
+await removeCancelledMonzioEvent();
 await ensureDataFiles();
 createBackup("avvio", "system").catch((error) => console.error("Backup iniziale non riuscito", error));
 setInterval(pruneSessions, 1000 * 60 * 10).unref();
