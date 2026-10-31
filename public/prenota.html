@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Prenota</title>
-    <link rel="stylesheet" href="/styles.css?v=31">
+    <link rel="stylesheet" href="/styles.css?v=32">
   </head>
   <body>
     <main class="shell public-shell">
@@ -39,18 +39,12 @@
           </div>
         </section>
 
-        <section id="publicEventCard" class="public-event-card" aria-label="Evento speciale">
-          <img src="/note-dagrumi-2026-08-16.jpg" alt="Note d'Agrumi, cena in musica, domenica 16 agosto 2026 ore 20">
-          <div>
-            <p class="eyebrow">Evento speciale</p>
-            <h2>Note d'Agrumi</h2>
-            <p>Cena in musica, domenica 16 agosto alle 20:00, con musica dal vivo con Nataly. Menu evento a 45€ a persona, bevande escluse.</p>
-            <p class="event-menu">Tartare di tonno, risotto al profumo di agrumi e battuta di scampo, lemon curd e tartelletta al limone. Opzione vegetariana disponibile.</p>
-          </div>
-        </section>
+        <section id="publicEvents" class="public-events" aria-label="Eventi Muretto" hidden></section>
 
         <form id="publicBookingForm" class="public-booking-form" autocomplete="on">
           <input name="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
+          <input name="calendarEventId" type="hidden">
+          <input name="calendarEventTitle" type="hidden">
 
           <div class="form-head">
             <div>
@@ -113,10 +107,7 @@
             </label>
           </div>
 
-          <section id="eventBookingNotice" class="event-booking-notice" data-standard-fields hidden aria-live="polite">
-            <strong>Stai prenotando per Note d'Agrumi.</strong>
-            <span>Il 16 agosto la serata è Cena in musica dalle 20:00, con musica dal vivo con Nataly e menu evento a 45€ a persona, bevande escluse. Opzione vegetariana disponibile.</span>
-          </section>
+          <section id="eventBookingNotice" class="event-booking-notice" data-standard-fields hidden aria-live="polite"></section>
 
           <section id="specialRequestFields" class="special-request-fields" hidden>
             <div class="grid-2">
@@ -284,6 +275,6 @@
         </section>
       </section>
     </main>
-    <script src="/prenota.js?v=18" type="module"></script>
+    <script src="/prenota.js?v=19" type="module"></script>
   </body>
 </html>

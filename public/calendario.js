@@ -20,6 +20,8 @@ const eventManager = document.querySelector("#calendarEventManager");
 const eventForm = document.querySelector("#calendarEventForm");
 const eventError = document.querySelector("#calendarEventError");
 const eventList = document.querySelector("#calendarEventList");
+const publicEventFields = document.querySelector("[data-public-event-fields]");
+let eventDefinitions = [];
 
 let csrfToken = "";
 let currentEmployee = null;
@@ -263,18 +265,57 @@ function formatEventDefinition(event) {
   return `${date}${time}${recurrence}`;
 }
 
+function syncPublicEventFields() {
+  publicEventFields.hidden = !eventForm.elements.publicEnabled.checked;
+}
+
+function resetEventForm() {
+  eventForm.reset();
+  eventForm.elements.id.value = "";
+  eventForm.elements.date.value = dateInput.value;
+  eventForm.elements.publishDaysBefore.value = "14";
+  eventForm.elements.menuLabel.value = "Apri il menu";
+  eventForm.elements.bookingEnabled.checked = true;
+  syncPublicEventFields();
+}
+
+function editEventDefinition(item) {
+  resetEventForm();
+  for (const name of ["id", "title", "date", "time", "room", "recurrence", "notes", "publicDescription", "publicDescriptionEn", "priceLabel", "priceLabelEn", "publishDaysBefore", "menuLabel"]) {
+    if (eventForm.elements[name]) eventForm.elements[name].value = item[name] ?? "";
+  }
+  eventForm.elements.publicEnabled.checked = item.publicEnabled === true;
+  eventForm.elements.bookingEnabled.checked = item.bookingEnabled === true;
+  syncPublicEventFields();
+  openEventManager();
+}
+
+function fileAsDataUrl(file) {
+  if (!file) return Promise.resolve("");
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("Impossibile leggere l'allegato"));
+    reader.readAsDataURL(file);
+  });
+}
+
 async function loadEventDefinitions() {
   if (!canManageCalendarEvents(currentEmployee)) return;
   try {
     const payload = await api("/api/calendar-events");
-    const events = payload.events || [];
-    eventList.innerHTML = events.length ? events.map((event) => `
+    eventDefinitions = payload.events || [];
+    eventList.innerHTML = eventDefinitions.length ? eventDefinitions.map((event) => `
       <div class="calendar-event-list-row">
         <div>
           <strong>${escapeHtml(event.title)}</strong>
           <small>${escapeHtml(formatEventDefinition(event))}${event.room ? ` · ${escapeHtml(event.room)}` : ""}</small>
         </div>
-        <button class="danger ghost" type="button" data-delete-calendar-event="${event.id}">Elimina</button>
+        <div class="calendar-event-list-actions">
+          ${event.publicEnabled ? `<small class="public-event-badge">Pubblicato ${event.publishDaysBefore || 0} giorni prima</small>` : ""}
+          <button class="ghost" type="button" data-edit-calendar-event="${event.id}">Modifica</button>
+          <button class="danger ghost" type="button" data-delete-calendar-event="${event.id}">Elimina</button>
+        </div>
       </div>
     `).join("") : `<p class="empty compact-empty">Nessun evento inserito.</p>`;
   } catch (error) {
@@ -368,10 +409,18 @@ eventForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   eventError.textContent = "";
   try {
-    const data = Object.fromEntries(new FormData(eventForm).entries());
-    await api("/api/calendar-events", { method: "POST", body: JSON.stringify(data) });
-    eventForm.reset();
-    eventForm.elements.date.value = dateInput.value;
+    const formData = new FormData(eventForm);
+    const data = Object.fromEntries(formData.entries());
+    data.publicEnabled = eventForm.elements.publicEnabled.checked;
+    data.bookingEnabled = eventForm.elements.bookingEnabled.checked;
+    data.posterData = await fileAsDataUrl(eventForm.elements.posterFile.files[0]);
+    data.menuData = await fileAsDataUrl(eventForm.elements.menuFile.files[0]);
+    delete data.posterFile;
+    delete data.menuFile;
+    const id = data.id;
+    delete data.id;
+    await api(id ? `/api/calendar-events/${id}` : "/api/calendar-events", { method: id ? "PATCH" : "POST", body: JSON.stringify(data) });
+    resetEventForm();
     await Promise.all([loadEventDefinitions(), loadCalendar()]);
   } catch (error) {
     eventError.textContent = error.message;
@@ -386,12 +435,21 @@ async function deleteCalendarEvent(id) {
 }
 
 document.addEventListener("click", (event) => {
+  const editButton = event.target.closest("[data-edit-calendar-event]");
+  if (editButton) {
+    const item = eventDefinitions.find((entry) => entry.id === editButton.dataset.editCalendarEvent);
+    if (item) editEventDefinition(item);
+    return;
+  }
   const button = event.target.closest("[data-delete-calendar-event]");
   if (!button) return;
   deleteCalendarEvent(button.dataset.deleteCalendarEvent).catch((error) => {
     eventError.textContent = error.message;
   });
 });
+
+eventForm.elements.publicEnabled.addEventListener("change", syncPublicEventFields);
+document.querySelector("[data-reset-calendar-event]").addEventListener("click", resetEventForm);
 
 await loadBrandConfig();
 const me = await api("/api/me").catch(() => ({ employee: null }));

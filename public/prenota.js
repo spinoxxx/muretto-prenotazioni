@@ -7,14 +7,14 @@ const restaurantPreference = document.querySelector("#restaurantPreference");
 const barPreview = document.querySelector("#barPreview");
 const brunchPreview = document.querySelector("#brunchPreview");
 const eventBookingNotice = document.querySelector("#eventBookingNotice");
-const publicEventCard = document.querySelector("#publicEventCard");
+const publicEvents = document.querySelector("#publicEvents");
 const publicTimeSlots = document.querySelector("#publicTimeSlots");
 const zonePreviewCards = document.querySelectorAll("[data-zone-preview]");
 const standardFields = document.querySelectorAll("[data-standard-fields]");
 const specialRequestFields = document.querySelector("#specialRequestFields");
-const SPECIAL_EVENT_DATE = "2026-08-16";
 const pageLanguage = document.documentElement.lang === "en" ? "en" : "it";
 let timeSlotRequestId = 0;
+let selectedPublicEvent = null;
 const copy = {
   it: {
     apiError: "Operazione non riuscita",
@@ -72,7 +72,6 @@ bookingDate.value = today;
 bookingForm.elements.time.value = "";
 updateDateDisplay(bookingDate, bookingDateDisplay);
 syncSpecialEventNotice();
-syncPublicEventCard();
 
 async function api(path, options = {}) {
   const response = await fetch(path, {
@@ -198,12 +197,60 @@ function updateDateDisplay(input, display) {
 
 function syncSpecialEventNotice() {
   if (!eventBookingNotice) return;
-  eventBookingNotice.hidden = isSpecialRequest() || bookingDate.value !== SPECIAL_EVENT_DATE;
+  const visible = !isSpecialRequest() && selectedPublicEvent?.date === bookingDate.value;
+  eventBookingNotice.hidden = !visible;
+  if (visible) {
+    const intro = pageLanguage === "en" ? "You are booking for" : "Stai prenotando per";
+    const detail = [formatDate(selectedPublicEvent.date), selectedPublicEvent.time, selectedPublicEvent.priceLabel].filter(Boolean).join(" · ");
+    eventBookingNotice.innerHTML = `<strong>${escapeHtml(intro)} ${escapeHtml(selectedPublicEvent.title)}.</strong><span>${escapeHtml(detail)}</span>`;
+  }
 }
 
-function syncPublicEventCard() {
-  if (!publicEventCard) return;
-  publicEventCard.hidden = today > SPECIAL_EVENT_DATE;
+async function loadPublicEvents() {
+  if (!publicEvents) return;
+  try {
+    const payload = await api("/api/public-events");
+    const events = payload.events || [];
+    publicEvents.hidden = !events.length;
+    publicEvents.innerHTML = events.map((item) => {
+      const description = pageLanguage === "en" ? (item.descriptionEn || item.description) : item.description;
+      const price = pageLanguage === "en" ? (item.priceLabelEn || item.priceLabel) : item.priceLabel;
+      const menuLabel = pageLanguage === "en" ? item.menuLabelEn : item.menuLabel;
+      return `<article class="public-event-card">
+        ${item.posterUrl ? `<img src="${escapeHtml(item.posterUrl)}" alt="${escapeHtml(item.title)}" loading="lazy">` : ""}
+        <div>
+          <p class="eyebrow">${pageLanguage === "en" ? "Special event" : "Evento speciale"}</p>
+          <h2>${escapeHtml(item.title)}</h2>
+          <p><strong>${escapeHtml(formatDate(item.date))}${item.time ? ` · ${escapeHtml(item.time)}` : ""}</strong></p>
+          ${description ? `<p>${escapeHtml(description)}</p>` : ""}
+          ${price ? `<p class="event-price">${escapeHtml(price)}</p>` : ""}
+          <div class="public-event-actions">
+            ${item.menuUrl ? `<a class="ghost-link" href="${escapeHtml(item.menuUrl)}" target="_blank" rel="noopener">${escapeHtml(menuLabel)}</a>` : ""}
+            ${item.bookingEnabled ? `<button type="button" data-book-public-event="${escapeHtml(item.id)}">${pageLanguage === "en" ? "Book this event" : "Prenota l'evento"}</button>` : ""}
+          </div>
+        </div>
+      </article>`;
+    }).join("");
+    publicEvents.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-book-public-event]");
+      if (!button) return;
+      const item = events.find((entry) => entry.id === button.dataset.bookPublicEvent);
+      if (!item) return;
+      selectedPublicEvent = item;
+      bookingForm.elements.calendarEventId.value = item.id;
+      bookingForm.elements.calendarEventTitle.value = item.title;
+      bookingDate.value = item.date;
+      updateDateDisplay(bookingDate, bookingDateDisplay);
+      const consumption = item.room === "Bar" ? "aperitivo" : ((Number(item.time?.slice(0, 2)) || 20) < 17 ? "pranzo" : "cena");
+      const option = bookingForm.querySelector(`input[name='consumption'][value='${consumption}']`);
+      if (option) option.checked = true;
+      syncGardenRequest();
+      syncSpecialEventNotice();
+      bookingForm.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  } catch {
+    publicEvents.hidden = true;
+  }
 }
 
 function roomLabel(room) {
@@ -292,6 +339,11 @@ function syncRequestType() {
 
 bookingDate.addEventListener("change", () => {
   clearResult();
+  if (selectedPublicEvent?.date !== bookingDate.value) {
+    selectedPublicEvent = null;
+    bookingForm.elements.calendarEventId.value = "";
+    bookingForm.elements.calendarEventTitle.value = "";
+  }
   updateDateDisplay(bookingDate, bookingDateDisplay);
   syncSpecialEventNotice();
   loadTimeSlots();
@@ -352,6 +404,7 @@ bookingForm.addEventListener("submit", async (event) => {
       : copy.success(formatDate(payload.booking.date), payload.booking.time, roomText, emailText);
     showResult("success", isConfirmed ? copy.confirmedTitle : copy.sentTitle, resultText);
     bookingForm.reset();
+    selectedPublicEvent = null;
     bookingDate.value = today;
     bookingForm.elements.time.value = "";
     bookingForm.elements.people.value = 2;
@@ -367,6 +420,7 @@ bookingForm.addEventListener("submit", async (event) => {
 
 syncRequestType();
 await loadBrandConfig();
+await loadPublicEvents();
 
 function escapeHtml(value) {
   return String(value || "").replace(/[&<>"']/g, (char) => ({

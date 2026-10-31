@@ -1241,6 +1241,15 @@ label {
   box-shadow: var(--shadow);
 }
 
+.public-events {
+  display: grid;
+  gap: 16px;
+}
+
+.public-events[hidden] {
+  display: none;
+}
+
 .public-location-card {
   align-items: center;
   justify-content: space-between;
@@ -1298,6 +1307,20 @@ label {
   color: var(--muted);
   font-size: 0.92rem;
   font-weight: 750;
+}
+
+.public-event-card .event-price {
+  color: var(--accent-dark);
+  font-weight: 900;
+}
+
+.public-event-actions,
+.calendar-event-form-actions,
+.calendar-event-list-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
 }
 
 .lunch-menu-card {
@@ -1848,6 +1871,45 @@ label {
   grid-column: span 3;
 }
 
+.calendar-event-public-toggle {
+  display: flex;
+  flex-direction: row;
+  gap: 9px;
+  align-items: center;
+}
+
+.calendar-event-public-toggle input {
+  width: auto;
+}
+
+.calendar-event-public-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(160px, 1fr));
+  grid-column: 1 / -1;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: #fffaf0;
+}
+
+.calendar-event-public-fields[hidden] {
+  display: none;
+}
+
+.calendar-event-public-fields textarea {
+  min-height: 110px;
+}
+
+.calendar-event-form-actions,
+.calendar-event-form .field-help {
+  grid-column: 1 / -1;
+}
+
+.public-event-badge {
+  color: var(--accent-dark) !important;
+}
+
 .calendar-event-form .error {
   grid-column: 1 / -1;
   margin: 0;
@@ -2139,6 +2201,10 @@ label {
     grid-column: span 2;
   }
 
+  .calendar-event-public-fields {
+    grid-template-columns: repeat(2, minmax(140px, 1fr));
+  }
+
   .calendar-detail {
     position: static;
   }
@@ -2179,6 +2245,10 @@ label {
   .calendar-event-form .calendar-event-notes {
     grid-template-columns: 1fr;
     grid-column: auto;
+  }
+
+  .calendar-event-public-fields {
+    grid-template-columns: 1fr;
   }
 
   .calendar-event-list-row {

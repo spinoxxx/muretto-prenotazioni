@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Calendario Muretto</title>
-    <link rel="stylesheet" href="/styles.css?v=29">
+    <link rel="stylesheet" href="/styles.css?v=32">
   </head>
   <body>
     <main class="shell calendar-shell">
@@ -108,6 +108,7 @@
           <summary>Gestisci eventi Muretto</summary>
           <div class="calendar-event-manager-body">
             <form id="calendarEventForm" class="calendar-event-form">
+              <input name="id" type="hidden">
               <label>
                 Titolo evento
                 <input name="title" type="text" maxlength="100" required placeholder="Es. Serata jazz">
@@ -141,7 +142,53 @@
                 Note
                 <input name="notes" type="text" maxlength="800" placeholder="Dettagli interni facoltativi">
               </label>
-              <button type="submit">Aggiungi evento</button>
+              <label class="calendar-event-public-toggle">
+                <input name="publicEnabled" type="checkbox">
+                Pubblica sul modulo prenotazioni
+              </label>
+              <div class="calendar-event-public-fields" data-public-event-fields hidden>
+                <label>
+                  Descrizione pubblica
+                  <textarea name="publicDescription" maxlength="1200" rows="4" placeholder="Programma e dettagli dell'evento"></textarea>
+                </label>
+                <label>
+                  Descrizione inglese facoltativa
+                  <textarea name="publicDescriptionEn" maxlength="1200" rows="4"></textarea>
+                </label>
+                <label>
+                  Prezzo / formula
+                  <input name="priceLabel" type="text" maxlength="100" placeholder="Es. 45€ a persona, bevande escluse">
+                </label>
+                <label>
+                  Prezzo in inglese facoltativo
+                  <input name="priceLabelEn" type="text" maxlength="100">
+                </label>
+                <label>
+                  Pubblica quanti giorni prima
+                  <input name="publishDaysBefore" type="number" min="0" max="180" value="14">
+                </label>
+                <label>
+                  Locandina JPG, PNG o WebP
+                  <input name="posterFile" type="file" accept="image/jpeg,image/png,image/webp">
+                </label>
+                <label>
+                  Menu PDF facoltativo
+                  <input name="menuFile" type="file" accept="application/pdf">
+                </label>
+                <label>
+                  Testo pulsante menu
+                  <input name="menuLabel" type="text" maxlength="80" value="Apri il menu">
+                </label>
+                <label class="calendar-event-public-toggle">
+                  <input name="bookingEnabled" type="checkbox" checked>
+                  Mostra il pulsante “Prenota l'evento”
+                </label>
+                <p class="field-help">Locandina e menu diventano pubblici solo quando attivi la pubblicazione.</p>
+              </div>
+              <div class="calendar-event-form-actions">
+                <button type="submit">Salva evento</button>
+                <button class="ghost" type="button" data-reset-calendar-event>Pulisci</button>
+              </div>
               <p id="calendarEventError" class="error" role="alert"></p>
             </form>
             <div id="calendarEventList" class="calendar-event-list"></div>
@@ -156,6 +203,6 @@
         </section>
       </section>
     </main>
-    <script src="/calendario.js?v=6" type="module"></script>
+    <script src="/calendario.js?v=7" type="module"></script>
   </body>
 </html>

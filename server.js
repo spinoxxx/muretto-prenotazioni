@@ -15,6 +15,7 @@ const zoneSettingsFile = path.join(dataDir, "zone-settings.json");
 const voiceCallbacksFile = path.join(dataDir, "voice-callbacks.json");
 const vouchersFile = path.join(dataDir, "vouchers.json");
 const calendarEventsFile = path.join(dataDir, "calendar-events.json");
+const eventAssetsDir = path.join(dataDir, "event-assets");
 const polishFriendsPromotion = Object.freeze({
   id: "polscy-przyjaciele-10",
   code: "POLSCYPRZYJACIELE10",
@@ -32,6 +33,7 @@ const PORT = Number(process.env.PORT || 4220);
 const HOST = process.env.HOST || "127.0.0.1";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 8;
 const MAX_BODY_BYTES = 32 * 1024;
+const MAX_EVENT_BODY_BYTES = 16 * 1024 * 1024;
 const BACKUP_INTERVAL_MS = Number(process.env.MURETTO_BACKUP_INTERVAL_MS || 1000 * 60 * 60 * 24);
 const BACKUP_RETENTION = Number(process.env.MURETTO_BACKUP_RETENTION || 30);
 const PUBLIC_BOOKING_WINDOW_MS = 1000 * 60 * 10;
@@ -427,6 +429,7 @@ async function verifyPin(pin, employee) {
 async function ensureDataFiles() {
   await fs.mkdir(dataDir, { recursive: true, mode: 0o700 });
   await fs.mkdir(backupsDir, { recursive: true, mode: 0o700 });
+  await fs.mkdir(eventAssetsDir, { recursive: true, mode: 0o700 });
   try {
     await fs.access(employeesFile);
   } catch {
@@ -756,12 +759,12 @@ function parseCookies(req) {
   );
 }
 
-async function readBody(req) {
+async function readBody(req, maxBytes = MAX_BODY_BYTES) {
   const chunks = [];
   let size = 0;
   for await (const chunk of req) {
     size += chunk.length;
-    if (size > MAX_BODY_BYTES) {
+    if (size > maxBytes) {
       const error = new Error("Payload troppo grande");
       error.status = 413;
       throw error;
@@ -808,6 +811,25 @@ function clearSessionCookie() {
 
 async function serveStatic(req, res) {
   const requested = decodeURIComponent(new URL(req.url, `http://${req.headers.host}`).pathname);
+  if (requested.startsWith("/event-assets/")) {
+    const name = path.basename(requested);
+    if (!/^[a-f0-9-]+\.(?:jpg|png|webp|pdf)$/i.test(name)) {
+      res.writeHead(404, securityHeaders);
+      res.end("Not found");
+      return;
+    }
+    try {
+      const content = await fs.readFile(path.join(eventAssetsDir, name));
+      const ext = path.extname(name).toLowerCase();
+      const type = { ".jpg": "image/jpeg", ".png": "image/png", ".webp": "image/webp", ".pdf": "application/pdf" }[ext];
+      res.writeHead(200, { ...securityHeaders, "content-type": type, "cache-control": "public, max-age=86400" });
+      res.end(content);
+    } catch {
+      res.writeHead(404, securityHeaders);
+      res.end("Not found");
+    }
+    return;
+  }
   const safePath = requested === "/" ? "/index.html" : requested;
   const filePath = path.normalize(path.join(publicDir, safePath));
   if (!filePath.startsWith(publicDir)) {
@@ -1398,6 +1420,7 @@ function validatePublicBooking(input) {
   const privacyAccepted = input.privacyAccepted === true || input.privacyAccepted === "on" || input.privacyAccepted === "true";
   const feedbackConsent = input.feedbackConsent === true || input.feedbackConsent === "on" || input.feedbackConsent === "true";
   const customerNotes = sanitizeText(input.notes, 220);
+  const calendarEventTitle = sanitizeText(input.calendarEventTitle, 100);
   const voucherCode = normalizeVoucherCode(input.voucherCode);
   if (voucherCode === polishFriendsPromotion.code && !["cena", "aperitivo"].includes(consumption)) {
     return language === "en"
@@ -1418,7 +1441,7 @@ function validatePublicBooking(input) {
     `Consumazione prevista: ${consumption}.`,
     gardenRequested ? "Richiesta giardino: da confermare." : "",
     indoorRequested ? "Richiesta sala interna: da confermare." : "",
-    input.date === SPECIAL_EVENT_DATE ? `Data evento ${SPECIAL_EVENT_NAME}: cena in musica ore ${SPECIAL_EVENT_TIME}, musica dal vivo con Nataly, ${SPECIAL_EVENT_PRICE}.` : "",
+    calendarEventTitle ? `Prenotazione collegata all'evento: ${calendarEventTitle}.` : "",
     voucherCode === polishFriendsPromotion.code ? `Promozione ${polishFriendsPromotion.code}: applicare ${polishFriendsPromotion.discountPercent}% di sconto sul conto.` : "",
     customerNotes
   ].filter(Boolean).join(" ");
@@ -2952,6 +2975,72 @@ function requireCalendarEventManager(session, res) {
   return true;
 }
 
+async function saveEventAsset(dataUrl, kind) {
+  if (!dataUrl) return "";
+  const allowed = kind === "menu"
+    ? { "application/pdf": "pdf" }
+    : { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
+  const match = String(dataUrl).match(/^data:([^;,]+);base64,([A-Za-z0-9+/=]+)$/);
+  const extension = match && allowed[match[1]];
+  if (!extension) throw Object.assign(new Error(kind === "menu" ? "Il menu deve essere un PDF" : "La locandina deve essere JPG, PNG o WebP"), { status: 400 });
+  const content = Buffer.from(match[2], "base64");
+  const limit = kind === "menu" ? 8 * 1024 * 1024 : 6 * 1024 * 1024;
+  if (!content.length || content.length > limit) throw Object.assign(new Error("Allegato troppo grande"), { status: 413 });
+  const name = `${crypto.randomUUID()}.${extension}`;
+  await fs.writeFile(path.join(eventAssetsDir, name), content, { mode: 0o600 });
+  return `/event-assets/${name}`;
+}
+
+function calendarEventPublicFields(body, previous = {}) {
+  return {
+    publicEnabled: body.publicEnabled === true || body.publicEnabled === "on",
+    publicDescription: sanitizeMessageText(body.publicDescription, 1200),
+    publicDescriptionEn: sanitizeMessageText(body.publicDescriptionEn, 1200),
+    priceLabel: sanitizeText(body.priceLabel, 100),
+    priceLabelEn: sanitizeText(body.priceLabelEn, 100),
+    publishDaysBefore: Math.min(180, Math.max(0, Number.parseInt(body.publishDaysBefore, 10) || 0)),
+    bookingEnabled: body.bookingEnabled === true || body.bookingEnabled === "on",
+    posterUrl: previous.posterUrl || "",
+    menuUrl: previous.menuUrl || "",
+    menuLabel: sanitizeText(body.menuLabel, 80) || "Apri il menu",
+    menuLabelEn: sanitizeText(body.menuLabelEn, 80) || "View the menu"
+  };
+}
+
+function nextPublicEventDate(event, today) {
+  if (event.recurrence !== "weekly") return event.date >= today ? event.date : "";
+  let date = event.date;
+  while (date < today) date = addDaysIso(date, 7);
+  return date;
+}
+
+function publicCalendarEvents(events) {
+  const today = romeNowParts().date;
+  return events.flatMap((event) => {
+    if (!event?.active || !event.publicEnabled || !event.date) return [];
+    const date = nextPublicEventDate(event, today);
+    if (!date) return [];
+    const visibleFrom = addDaysIso(date, -Math.min(180, Math.max(0, Number(event.publishDaysBefore) || 0)));
+    if (today < visibleFrom || today > date) return [];
+    return [{
+      id: event.id,
+      title: event.title,
+      date,
+      time: event.time || "",
+      room: event.room || "",
+      description: event.publicDescription || "",
+      descriptionEn: event.publicDescriptionEn || "",
+      priceLabel: event.priceLabel || "",
+      priceLabelEn: event.priceLabelEn || "",
+      bookingEnabled: event.bookingEnabled === true,
+      posterUrl: event.posterUrl || "",
+      menuUrl: event.menuUrl || "",
+      menuLabel: event.menuLabel || "Apri il menu",
+      menuLabelEn: event.menuLabelEn || "View the menu"
+    }];
+  }).sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
+}
+
 function calendarEventOccurrences(events, from, to) {
   const occurrences = [];
   for (const event of Array.isArray(events) ? events : []) {
@@ -3134,6 +3223,12 @@ async function handleApi(req, res) {
       return;
     }
     sendJson(res, 200, result);
+    return;
+  }
+
+  if (url.pathname === "/api/public-events" && req.method === "GET") {
+    const events = await readJson(calendarEventsFile, []);
+    sendJson(res, 200, { events: publicCalendarEvents(events) });
     return;
   }
 
@@ -3734,7 +3829,7 @@ async function handleApi(req, res) {
 
   if (url.pathname === "/api/calendar-events" && req.method === "POST") {
     if (!requireCalendarEventManager(session, res)) return;
-    const body = await readBody(req);
+    const body = await readBody(req, MAX_EVENT_BODY_BYTES);
     const title = sanitizeText(body.title, 100);
     const date = normalizeDate(body.date);
     const time = body.time ? normalizeClockTime(body.time) : "";
@@ -3753,6 +3848,9 @@ async function handleApi(req, res) {
       return;
     }
     const now = new Date().toISOString();
+    const publicFields = calendarEventPublicFields(body);
+    if (body.posterData) publicFields.posterUrl = await saveEventAsset(body.posterData, "poster");
+    if (body.menuData) publicFields.menuUrl = await saveEventAsset(body.menuData, "menu");
     const event = {
       id: crypto.randomUUID(),
       title,
@@ -3761,6 +3859,7 @@ async function handleApi(req, res) {
       room,
       notes: sanitizeMessageText(body.notes, 800),
       recurrence,
+      ...publicFields,
       active: true,
       createdAt: now,
       createdBy: session.employeeName,
@@ -3775,6 +3874,38 @@ async function handleApi(req, res) {
   }
 
   const calendarEventMatch = url.pathname.match(/^\/api\/calendar-events\/([a-f0-9-]+)$/i);
+  if (calendarEventMatch && req.method === "PATCH") {
+    if (!requireCalendarEventManager(session, res)) return;
+    const body = await readBody(req, MAX_EVENT_BODY_BYTES);
+    const events = await readJson(calendarEventsFile, []);
+    const index = events.findIndex((event) => event.id === calendarEventMatch[1] && event.active);
+    if (index === -1) {
+      sendJson(res, 404, { error: "Evento non trovato" });
+      return;
+    }
+    const title = sanitizeText(body.title, 100);
+    const date = normalizeDate(body.date);
+    const time = body.time ? normalizeClockTime(body.time) : "";
+    const room = sanitizeText(body.room, 30);
+    if (!title || !/^\d{4}-\d{2}-\d{2}$/.test(date) || (body.time && !time) || (room && !ZONE_ROOMS.includes(room))) {
+      sendJson(res, 400, { error: "Controlla titolo, data, ora e sala" });
+      return;
+    }
+    const publicFields = calendarEventPublicFields(body, events[index]);
+    if (body.posterData) publicFields.posterUrl = await saveEventAsset(body.posterData, "poster");
+    if (body.menuData) publicFields.menuUrl = await saveEventAsset(body.menuData, "menu");
+    events[index] = {
+      ...events[index], title, date, time, room,
+      notes: sanitizeMessageText(body.notes, 800),
+      recurrence: body.recurrence === "weekly" ? "weekly" : "none",
+      ...publicFields,
+      updatedAt: new Date().toISOString(),
+      updatedBy: session.employeeName
+    };
+    await writeJson(calendarEventsFile, events);
+    sendJson(res, 200, { event: events[index] });
+    return;
+  }
   if (calendarEventMatch && req.method === "DELETE") {
     if (!requireCalendarEventManager(session, res)) return;
     const events = await readJson(calendarEventsFile, []);
