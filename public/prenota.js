@@ -210,7 +210,12 @@ async function loadPublicEvents() {
   if (!publicEvents) return;
   try {
     const payload = await api("/api/public-events");
-    const events = payload.events || [];
+    const events = [...(payload.events || [])].sort((a, b) => {
+      const aIsTasting = /degustazione|tasting/i.test(a.title || "");
+      const bIsTasting = /degustazione|tasting/i.test(b.title || "");
+      if (aIsTasting !== bIsTasting) return aIsTasting ? -1 : 1;
+      return `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`);
+    });
     publicEvents.hidden = !events.length;
     const cards = events.map((item, index) => {
       const description = pageLanguage === "en" ? (item.descriptionEn || item.description) : item.description;
@@ -222,7 +227,10 @@ async function loadPublicEvents() {
           <p class="eyebrow">${pageLanguage === "en" ? "Special event" : "Evento speciale"}</p>
           <h2>${escapeHtml(item.title)}</h2>
           <p><strong>${escapeHtml(formatDate(item.date))}${item.time ? ` · ${escapeHtml(item.time)}` : ""}</strong></p>
-          ${description ? `<p>${escapeHtml(description)}</p>` : ""}
+          ${description ? `<div class="event-description-wrap">
+            <p class="event-description is-collapsed">${escapeHtml(description)}</p>
+            <button class="event-description-toggle" type="button" hidden>${pageLanguage === "en" ? "Continue reading" : "Continua a leggere"}</button>
+          </div>` : ""}
           ${price ? `<p class="event-price">${escapeHtml(price)}</p>` : ""}
           <div class="public-event-actions">
             ${item.menuUrl ? `<a class="ghost-link" href="${escapeHtml(item.menuUrl)}" target="_blank" rel="noopener">${escapeHtml(menuLabel)}</a>` : ""}
@@ -252,6 +260,19 @@ async function loadPublicEvents() {
     const slides = [...publicEvents.querySelectorAll("[data-event-slide]")];
     const dots = [...publicEvents.querySelectorAll("[data-event-dot]")];
     let activeSlide = 0;
+
+    publicEvents.querySelectorAll(".event-description-wrap").forEach((wrap) => {
+      const description = wrap.querySelector(".event-description");
+      const toggle = wrap.querySelector(".event-description-toggle");
+      if (description.scrollHeight > description.clientHeight + 1) toggle.hidden = false;
+      toggle.addEventListener("click", () => {
+        const expanded = description.classList.toggle("is-expanded");
+        description.classList.toggle("is-collapsed", !expanded);
+        toggle.textContent = expanded
+          ? (pageLanguage === "en" ? "Show less" : "Mostra meno")
+          : (pageLanguage === "en" ? "Continue reading" : "Continua a leggere");
+      });
+    });
 
     function showSlide(index, behavior = "smooth") {
       activeSlide = (index + slides.length) % slides.length;
@@ -394,6 +415,18 @@ bookingForm.querySelectorAll("input[name='consumption']").forEach((input) => {
 
 bookingForm.querySelectorAll("input[name='requestType']").forEach((input) => {
   input.addEventListener("change", syncRequestType);
+});
+
+document.querySelectorAll("[data-standard-booking-link]").forEach((link) => {
+  link.addEventListener("click", (event) => {
+    event.preventDefault();
+    bookingForm.querySelector("input[name='requestType'][value='standard']").checked = true;
+    selectedPublicEvent = null;
+    bookingForm.elements.calendarEventId.value = "";
+    bookingForm.elements.calendarEventTitle.value = "";
+    syncRequestType();
+    bookingForm.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
 });
 
 bookingForm.elements.gardenRequested.addEventListener("change", syncZonePreview);

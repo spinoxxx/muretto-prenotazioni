@@ -1229,6 +1229,25 @@ label {
   font-size: 1.05rem;
 }
 
+.public-hero-booking-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  margin-top: 18px;
+  padding: 11px 18px;
+  border: 1px solid rgb(255 255 255 / 72%);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--accent-dark);
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.public-hero-booking-button:hover {
+  background: #f3f7f4;
+}
+
 .public-location-card,
 .public-disclaimer-card,
 .public-event-card {
@@ -1387,6 +1406,37 @@ label {
 .public-event-card .event-price {
   color: var(--accent-dark);
   font-weight: 900;
+}
+
+.event-description-wrap {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+}
+
+.event-description.is-collapsed {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.event-description-toggle {
+  min-height: auto;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent-dark);
+  font-size: 0.9rem;
+  font-weight: 850;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.event-description-toggle:hover {
+  background: transparent;
+  color: var(--accent);
 }
 
 .public-event-actions,
