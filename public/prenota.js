@@ -210,7 +210,8 @@ async function loadPublicEvents() {
   if (!publicEvents) return;
   try {
     const payload = await api("/api/public-events");
-    const events = [...(payload.events || [])].sort((a, b) => {
+    const events = payload.events || [];
+    events.sort((a, b) => {
       const aIsTasting = /degustazione|tasting/i.test(a.title || "");
       const bIsTasting = /degustazione|tasting/i.test(b.title || "");
       if (aIsTasting !== bIsTasting) return aIsTasting ? -1 : 1;
