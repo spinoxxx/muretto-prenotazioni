@@ -212,11 +212,11 @@ async function loadPublicEvents() {
     const payload = await api("/api/public-events");
     const events = payload.events || [];
     publicEvents.hidden = !events.length;
-    publicEvents.innerHTML = events.map((item) => {
+    const cards = events.map((item, index) => {
       const description = pageLanguage === "en" ? (item.descriptionEn || item.description) : item.description;
       const price = pageLanguage === "en" ? (item.priceLabelEn || item.priceLabel) : item.priceLabel;
       const menuLabel = pageLanguage === "en" ? item.menuLabelEn : item.menuLabel;
-      return `<article class="public-event-card">
+      return `<article class="public-event-card" data-event-slide="${index}" aria-label="${index + 1} / ${events.length}">
         ${item.posterUrl ? `<img src="${escapeHtml(item.posterUrl)}" alt="${escapeHtml(item.title)}" loading="lazy">` : ""}
         <div>
           <p class="eyebrow">${pageLanguage === "en" ? "Special event" : "Evento speciale"}</p>
@@ -231,6 +231,43 @@ async function loadPublicEvents() {
         </div>
       </article>`;
     }).join("");
+    const previousLabel = pageLanguage === "en" ? "Previous event" : "Evento precedente";
+    const nextLabel = pageLanguage === "en" ? "Next event" : "Evento successivo";
+    publicEvents.innerHTML = `
+      <div class="public-events-heading">
+        <p class="eyebrow">${pageLanguage === "en" ? "Upcoming events" : "Prossimi eventi"}</p>
+        ${events.length > 1 ? `<div class="public-events-controls">
+          <button class="ghost icon-button" type="button" data-event-previous aria-label="${previousLabel}" title="${previousLabel}">‹</button>
+          <button class="ghost icon-button" type="button" data-event-next aria-label="${nextLabel}" title="${nextLabel}">›</button>
+        </div>` : ""}
+      </div>
+      <div class="public-events-viewport" data-events-viewport tabindex="0">
+        <div class="public-events-track">${cards}</div>
+      </div>
+      ${events.length > 1 ? `<div class="public-events-dots" aria-label="${pageLanguage === "en" ? "Choose event" : "Scegli evento"}">
+        ${events.map((item, index) => `<button type="button" data-event-dot="${index}" aria-label="${escapeHtml(item.title)}" aria-current="${index === 0 ? "true" : "false"}"></button>`).join("")}
+      </div>` : ""}`;
+
+    const viewport = publicEvents.querySelector("[data-events-viewport]");
+    const slides = [...publicEvents.querySelectorAll("[data-event-slide]")];
+    const dots = [...publicEvents.querySelectorAll("[data-event-dot]")];
+    let activeSlide = 0;
+
+    function showSlide(index, behavior = "smooth") {
+      activeSlide = (index + slides.length) % slides.length;
+      viewport.scrollTo({ left: activeSlide * viewport.clientWidth, behavior });
+      dots.forEach((dot, dotIndex) => dot.setAttribute("aria-current", dotIndex === activeSlide ? "true" : "false"));
+    }
+
+    publicEvents.querySelector("[data-event-previous]")?.addEventListener("click", () => showSlide(activeSlide - 1));
+    publicEvents.querySelector("[data-event-next]")?.addEventListener("click", () => showSlide(activeSlide + 1));
+    dots.forEach((dot) => dot.addEventListener("click", () => showSlide(Number(dot.dataset.eventDot))));
+    viewport.addEventListener("scroll", () => {
+      const index = Math.round(viewport.scrollLeft / Math.max(1, viewport.clientWidth));
+      if (index === activeSlide || index < 0 || index >= slides.length) return;
+      activeSlide = index;
+      dots.forEach((dot, dotIndex) => dot.setAttribute("aria-current", dotIndex === activeSlide ? "true" : "false"));
+    }, { passive: true });
     publicEvents.addEventListener("click", (event) => {
       const button = event.target.closest("[data-book-public-event]");
       if (!button) return;

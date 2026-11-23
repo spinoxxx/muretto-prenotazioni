@@ -1243,11 +1243,86 @@ label {
 
 .public-events {
   display: grid;
-  gap: 16px;
+  gap: 10px;
+  min-width: 0;
 }
 
 .public-events[hidden] {
   display: none;
+}
+
+.public-events-heading,
+.public-events-controls,
+.public-events-dots {
+  display: flex;
+  align-items: center;
+}
+
+.public-events-heading {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.public-events-heading p {
+  margin: 0;
+}
+
+.public-events-controls {
+  gap: 8px;
+}
+
+.public-events-controls .icon-button {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  padding: 0;
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.public-events-viewport {
+  min-width: 0;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  overscroll-behavior-inline: contain;
+}
+
+.public-events-viewport::-webkit-scrollbar {
+  display: none;
+}
+
+.public-events-track {
+  display: flex;
+}
+
+.public-events-track .public-event-card {
+  flex: 0 0 100%;
+  width: 100%;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+.public-events-dots {
+  justify-content: center;
+  gap: 8px;
+}
+
+.public-events-dots button {
+  width: 10px;
+  min-width: 10px;
+  height: 10px;
+  min-height: 10px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--line);
+}
+
+.public-events-dots button[aria-current="true"] {
+  background: var(--accent);
+  transform: scale(1.25);
 }
 
 .public-location-card {
