@@ -228,10 +228,7 @@ async function loadPublicEvents() {
           <p class="eyebrow">${pageLanguage === "en" ? "Special event" : "Evento speciale"}</p>
           <h2>${escapeHtml(item.title)}</h2>
           <p><strong>${escapeHtml(formatDate(item.date))}${item.time ? ` · ${escapeHtml(item.time)}` : ""}</strong></p>
-          ${description ? `<div class="event-description-wrap">
-            <p class="event-description is-collapsed">${escapeHtml(description)}</p>
-            <button class="event-description-toggle" type="button" hidden>${pageLanguage === "en" ? "Continue reading" : "Continua a leggere"}</button>
-          </div>` : ""}
+          ${description ? `<p>${escapeHtml(description)}</p>` : ""}
           ${price ? `<p class="event-price">${escapeHtml(price)}</p>` : ""}
           <div class="public-event-actions">
             ${item.menuUrl ? `<a class="ghost-link" href="${escapeHtml(item.menuUrl)}" target="_blank" rel="noopener">${escapeHtml(menuLabel)}</a>` : ""}
@@ -262,9 +259,23 @@ async function loadPublicEvents() {
     const dots = [...publicEvents.querySelectorAll("[data-event-dot]")];
     let activeSlide = 0;
 
-    publicEvents.querySelectorAll(".event-description-wrap").forEach((wrap) => {
-      const description = wrap.querySelector(".event-description");
-      const toggle = wrap.querySelector(".event-description-toggle");
+    slides.forEach((slide, index) => {
+      const item = events[index];
+      const text = pageLanguage === "en" ? (item.descriptionEn || item.description) : item.description;
+      if (!text) return;
+      const description = [...slide.querySelectorAll(":scope > div > p")]
+        .find((paragraph) => paragraph.textContent.trim() === text.trim());
+      if (!description) return;
+      const wrap = document.createElement("div");
+      wrap.className = "event-description-wrap";
+      const toggle = document.createElement("button");
+      toggle.className = "event-description-toggle";
+      toggle.type = "button";
+      toggle.hidden = true;
+      toggle.textContent = pageLanguage === "en" ? "Continue reading" : "Continua a leggere";
+      description.before(wrap);
+      wrap.append(description, toggle);
+      description.classList.add("event-description", "is-collapsed");
       if (description.scrollHeight > description.clientHeight + 1) toggle.hidden = false;
       toggle.addEventListener("click", () => {
         const expanded = description.classList.toggle("is-expanded");
