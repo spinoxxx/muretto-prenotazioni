@@ -1411,6 +1411,17 @@ function publicValidationError(error, language) {
 }
 
 function validatePublicBooking(input) {
+  if (input.letterineEvent && input.letterineBooking === true) {
+    const event = input.letterineEvent;
+    const result = validatePublicSpecialRequest({
+      ...input, date: event.date, specialType: "evento", specialTimeWindow: "da concordare"
+    });
+    if (typeof result === "string") return result;
+    return {
+      ...result, time: event.time, room: event.room,
+      notes: `Biscotti e Letterine: ${result.people} bambini. ${result.customerNotes}`.trim()
+    };
+  }
   if (sanitizeText(input.requestType, 20) === "special") return validatePublicSpecialRequest(input);
 
   const consumption = sanitizeText(input.consumption, 20).toLowerCase();
@@ -3242,7 +3253,7 @@ async function handleApi(req, res) {
       sendJson(res, 200, { ok: true });
       return;
     }
-    let result;
+    delete body.letterineEvent;
     if (body.letterineBooking === true) {
       const event = publicCalendarEvents(await readJson(calendarEventsFile, []))
         .find((item) => item.id === "17cbac80-aacc-4b86-82d3-8d9e9792d0da" && item.bookingEnabled);
@@ -3250,17 +3261,9 @@ async function handleApi(req, res) {
         sendJson(res, 409, { error: body.language === "en" ? "Workshop bookings are closed." : "Le prenotazioni per il laboratorio sono chiuse." });
         return;
       }
-      result = validatePublicSpecialRequest({
-        ...body, date: event.date, specialType: "evento", specialTimeWindow: "da concordare"
-      });
-      if (typeof result !== "string") {
-        result.time = event.time;
-        result.room = event.room;
-        result.notes = `Biscotti e Letterine: ${result.people} bambini. ${result.customerNotes}`.trim();
-      }
-    } else {
-      result = validatePublicBooking(body);
+      body.letterineEvent = event;
     }
+    const result = validatePublicBooking(body);
     if (typeof result === "string") {
       sendJson(res, 400, { error: result });
       return;
