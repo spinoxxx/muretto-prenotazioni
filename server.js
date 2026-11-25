@@ -1866,6 +1866,9 @@ function emailSeatLine(booking, language) {
 
 function bookingEmailSubject(booking) {
   const language = normalizeLanguage(booking.language);
+  if (isLetterineBooking(booking)) return language === "en"
+    ? "Biscotti e Letterine at Muretto: booking confirmed"
+    : "Biscotti e Letterine al Muretto: prenotazione confermata";
   return language === "en" ? `Booking confirmed - ${BRAND_CONFIG.name}` : `Prenotazione confermata - ${BRAND_CONFIG.name}`;
 }
 
@@ -2120,8 +2123,38 @@ function allergyWarningLines(booking, language) {
   ];
 }
 
+function isLetterineBooking(booking) {
+  return /^Biscotti e Letterine: \d+ bambini\./.test(booking.notes || "");
+}
+
+function letterineConfirmationText(booking, language) {
+  const en = language === "en";
+  const date = booking.date.split("-").reverse().join("/");
+  return [
+    en ? `Hi ${booking.guestName},` : `Ciao ${booking.guestName},`,
+    "",
+    en ? "Your places for Biscotti e Letterine at Muretto are confirmed!" : "La tua prenotazione per Biscotti e Letterine al Muretto è confermata!",
+    "",
+    en ? "We'll decorate Christmas cookies and write letters to Saint Lucy and Santa Claus." : "Ci divertiremo a decorare i biscotti di Natale e a scrivere le letterine a Santa Lucia e a Babbo Natale.",
+    "",
+    en ? `Date: ${date}` : `Data: ${date}`,
+    en ? `Time: ${booking.time}` : `Ora: ${booking.time}`,
+    en ? `Children booked: ${booking.people}` : `Bambini iscritti: ${booking.people}`,
+    en ? "Price: €15 per child" : "Prezzo: 15 € a bambino",
+    en ? `Address: ${VENUE_ADDRESS}` : `Indirizzo: ${VENUE_ADDRESS}`,
+    en ? `Map: ${VENUE_MAP_URL}` : `Mappa: ${VENUE_MAP_URL}`,
+    ...allergyWarningLines(booking, language),
+    "",
+    en ? "To change or cancel your booking, just reply to this email." : "Per modificare o annullare la prenotazione, rispondi a questa email.",
+    "",
+    en ? "See you soon!" : "A presto!",
+    en ? "The Muretto team" : "Lo staff del Muretto"
+  ].join("\n");
+}
+
 function bookingConfirmationText(booking) {
   const language = normalizeLanguage(booking.language);
+  if (isLetterineBooking(booking)) return letterineConfirmationText(booking, language);
   const seat = emailSeatLine(booking, language);
   const eventLines = specialEventEmailLines(booking, language);
   const allergyLines = allergyWarningLines(booking, language);
