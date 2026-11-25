@@ -3242,7 +3242,25 @@ async function handleApi(req, res) {
       sendJson(res, 200, { ok: true });
       return;
     }
-    const result = validatePublicBooking(body);
+    let result;
+    if (body.letterineBooking === true) {
+      const event = publicCalendarEvents(await readJson(calendarEventsFile, []))
+        .find((item) => item.id === "17cbac80-aacc-4b86-82d3-8d9e9792d0da" && item.bookingEnabled);
+      if (!event) {
+        sendJson(res, 409, { error: body.language === "en" ? "Workshop bookings are closed." : "Le prenotazioni per il laboratorio sono chiuse." });
+        return;
+      }
+      result = validatePublicSpecialRequest({
+        ...body, date: event.date, specialType: "evento", specialTimeWindow: "da concordare"
+      });
+      if (typeof result !== "string") {
+        result.time = event.time;
+        result.room = event.room;
+        result.notes = `Biscotti e Letterine: ${result.people} bambini. ${result.customerNotes}`.trim();
+      }
+    } else {
+      result = validatePublicBooking(body);
+    }
     if (typeof result === "string") {
       sendJson(res, 400, { error: result });
       return;

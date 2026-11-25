@@ -1270,6 +1270,18 @@ label {
   display: none;
 }
 
+.letterine-dialog {
+  width: min(34rem, calc(100% - 24px));
+  max-height: calc(100% - 24px);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.letterine-dialog::backdrop {
+  background: rgb(0 0 0 / 55%);
+}
+
 .public-events-heading,
 .public-events-controls,
 .public-events-dots {
